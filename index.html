@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汪汪犬旅 | 數位契約填寫系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
+        
+        :root {
+            --brand-yellow: #F7E7B5;
+            --brand-brown: #736357;
+            --brand-light: #fefcf9;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
+            background: var(--brand-light); 
+            color: var(--brand-brown);
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* 高級感卡片設計 */
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(115, 99, 87, 0.08);
+            border-bottom: 3px solid var(--brand-yellow);
+            box-shadow: 0 10px 30px -10px rgba(115, 99, 87, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -15px rgba(115, 99, 87, 0.15);
+        }
+
+        /* 擬真輸入框 */
+        .cute-input {
+            background: #f8f6f2;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .cute-input:focus {
+            background: #ffffff;
+            border-color: var(--brand-yellow);
+            box-shadow: 0 0 0 4px rgba(247, 231, 181, 0.3);
+        }
+
+        .canvas-container canvas { width: 100% !important; height: 100% !important; cursor: crosshair; }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(2deg); } }
+        .float-pet { animation: float 5s ease-in-out infinite; }
+
+        /* 自定義捲軸 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--brand-light); }
+        ::-webkit-scrollbar-thumb { background: var(--brand-yellow); border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const supabaseClient = supabase.createClient('https://dkavdfardalijxkqcopi.supabase.co', 'sb_publishable_o7xY-xRVujJP6TFEgEbzIg_4UJlUCVX');
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        };
+
+        const App = () => {
+            const [view, setView] = useState('entry'); 
+            const [isBoarding, setIsBoarding] = useState(false);
+            const [showFullSig, setShowFullSig] = useState(false);
+            const [realtimeSig, setRealtimeSig] = useState(null);
+            const [legalOpen, setLegalOpen] = useState(false);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+
+            const [formData, setFormData] = useState({
+                email: '', owner_name: '', phone: '', address: '', line_added: false,
+                pet_name: '', breed: '', sex: '', age: '', weight: '', fix: '', chip: '',
+                stay_date: '', social_traits: [], barking: '', stay_exp: '',
+                crate_train: [], food_aggr: '', toilet_habit: '', vaccine: '', deworm: '',
+                emergency_contact: '', preferred_clinic: '',
+                services: [], legal_agree: false
+            });
+
+            const fullSigCanvasRef = useRef(null);
+            const padInstance = useRef(null);
+
+            useEffect(() => {
+                if (formData.phone.length === 10) fetchOldData(formData.phone);
+            }, [formData.phone]);
+
+            const fetchOldData = async (phone) => {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('contracts')
+                        .select('*')
+                        .eq('phone', phone)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (data && data.length > 0) {
+                        const last = data[0];
+                        setFormData(prev => ({
+                            ...prev,
+                            email: last.email || prev.email,
+                            owner_name: last.owner_name || prev.owner_name,
+                            address: last.address || prev.address,
+                            pet_name: last.pet_name || prev.pet_name,
+                            breed: last.breed || prev.breed,
+                            sex: last.sex || prev.sex,
+                            age: last.age || prev.age,
+                            weight: last.weight || prev.weight,
+                            fix: last.fix || prev.fix,
+                            chip: last.chip || prev.chip,
+                            social_traits: last.social_traits ? last.social_traits.split(',') : [],
+                            barking: last.barking || prev.barking,
+                            stay_exp: last.stay_exp || prev.stay_exp,
+                            crate_train: last.crate_train ? last.crate_train.split(',') : [],
+                            food_aggr: last.food_aggr || prev.food_aggr,
+                            toilet_habit: last.toilet_habit || prev.toilet_habit,
+                            vaccine: last.vaccine || prev.vaccine,
+                            deworm: last.deworm || prev.deworm,
+                            emergency_contact: last.emergency_contact || prev.emergency_contact,
+                            preferred_clinic: last.preferred_clinic || prev.preferred_clinic
+                        }));
+                        alert(`✨ 歡迎回來 ${last.owner_name}！系統已自動為您帶入過往資訊。`);
+                    }
+                } catch (err) { console.log("新客戶諮詢中..."); }
+            };
+
+            const selectServiceFlow = (type) => {
+                const isB = type === 'both';
+                setIsBoarding(isB);
+                setFormData(prev => ({ ...prev, services: isB ? ['寵物住宿'] : [] }));
+                setView('client');
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            };
+
+            const toggleArrayField = (field, value) => {
+                const current = formData[field];
+                const updated = current.includes(value) ? current.filter(i => i !== value) : [...current, value];
+                setFormData({ ...formData, [field]: updated });
+            };
+
+            useEffect(() => {
+                if (showFullSig && fullSigCanvasRef.current) {
+                    const canvas = fullSigCanvasRef.current;
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                    padInstance.current = new SignaturePad(canvas, { penColor: "rgb(115, 99, 87)" });
+                }
+            }, [showFullSig]);
+
+            const handleSave = async () => {
+                if (!formData.legal_agree || !realtimeSig) return alert("⚠️ 請詳閱條款並完成簽名");
+                setIsSubmitting(true);
+                try {
+                    const { error } = await supabaseClient.from('contracts').insert([{ 
+                        ...formData, 
+                        social_traits: formData.social_traits.join(','),
+                        crate_train: formData.crate_train.join(','),
+                        services: formData.services.join(','), 
+                        signature_data: realtimeSig,
+                        is_boarding: isBoarding
+                    }]);
+                    if (!error) { alert("✨ 簽署完成！"); window.location.reload(); } else throw error;
+                } catch (err) { alert("儲存失敗，請檢查網路連結"); console.error(err); }
+                setIsSubmitting(false);
+            };
+
+            const pillBtn = (field, val, active) => (
+                <button type="button" onClick={() => setFormData({...formData, [field]: val})} className={`flex-1 py-4 rounded-2xl font-bold text-sm border-2 transition-all duration-300 ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg scale-105' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{val}</button>
+            );
+
+            if (view === 'entry') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+                        <div className="text-center mb-16 relative">
+                            <div className="w-40 h-40 rounded-full overflow-hidden mx-auto mb-8 shadow-2xl float-pet bg-white p-3 border-4 border-[#F7E7B5]">
+                                <img src="Logo.jpg" alt="汪汪犬旅 Logo" className="w-full h-full object-contain" />
+                            </div>
+                            <h1 className="text-6xl font-black mb-4 tracking-tighter text-[#736357] drop-shadow-sm">汪汪犬旅</h1>
+                            <div className="h-1 w-20 bg-[#F7E7B5] mx-auto mb-4 rounded-full"></div>
+                            <p className="text-[#736357]/40 font-bold tracking-[0.3em] uppercase text-xs">Digital Agreement System</p>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-10 w-full max-w-4xl px-4">
+                            <button onClick={() => selectServiceFlow('grooming')} className="glass-card p-12 text-left group bg-white/60">
+                                <div className="w-16 h-16 bg-[#F7E7B5]/50 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+                                    <Icon name="scissors" size={32} className="text-[#736357]" />
+                                </div>
+                                <h3 className="text-3xl font-black mb-3 text-[#736357]">單純美容洗澡</h3>
+                                <p className="text-slate-400 text-sm mb-12 font-medium leading-relaxed">專業沐浴與剪裁服務簽署<br/>專為當日往返洗澡的毛孩準備</p>
+                                <div className="text-[#736357] font-black text-sm flex items-center gap-2 tracking-widest uppercase">Start Journey <Icon name="arrow-right" size={16} className="group-hover:translate-x-2 transition-transform"/></div>
+                            </button>
+                            <button onClick={() => selectServiceFlow('both')} className="glass-card p-12 text-left group bg-[#F7E7B5]/10 border-[#F7E7B5]/40">
+                                <div className="w-16 h-16 bg-[#736357] rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform shadow-xl">
+                                    <Icon name="home" size={32} className="text-white" />
+                                </div>
+                                <h3 className="text-3xl font-black mb-3 text-[#736357]">住宿＋美容</h3>
+                                <p className="text-[#736357]/60 text-sm mb-12 font-medium leading-relaxed">包含長短期寄養生活調查<br/>給寶貝最完善的住宿照護協議</p>
+                                <div className="text-[#736357] font-black text-sm flex items-center gap-2 tracking-widest uppercase">Start Journey <Icon name="arrow-right" size={16} className="group-hover:translate-x-2 transition-transform"/></div>
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen pb-32">
+                    <nav className="fixed top-0 w-full z-40 bg-white/80 backdrop-blur-xl border-b border-[#F7E7B5]/30 px-8 py-5 flex justify-between items-center shadow-sm">
+                        <div className="font-black text-2xl flex items-center gap-3 text-[#736357]">
+                            <img src="Logo.jpg" className="w-10 h-10 rounded-full border-2 border-[#F7E7B5]" /> 
+                            <span className="tracking-tighter">汪汪犬旅</span>
+                        </div>
+                        <button onClick={() => setView('entry')} className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 hover:text-[#736357] transition-colors bg-slate-50 px-4 py-2 rounded-full">
+                            <Icon name="chevron-left" size={14}/> Back to Menu
+                        </button>
+                    </nav>
+
+                    <main className="pt-32 px-6 max-w-4xl mx-auto space-y-16">
+                        {isBoarding && (
+                            <div className="bg-[#736357] p-1 text-white rounded-[3rem] shadow-2xl overflow-hidden">
+                                <div className="bg-[#736357] px-10 py-10 flex flex-col md:flex-row items-center gap-8">
+                                    <div className="w-20 h-20 bg-[#F7E7B5] text-[#736357] rounded-3xl flex items-center justify-center flex-shrink-0 shadow-inner">
+                                        <Icon name="message-circle" size={36} />
+                                    </div>
+                                    <div className="flex-1 text-center md:text-left">
+                                        <p className="text-2xl font-black mb-2">請先加入官方 LINE 聯繫</p>
+                                        <p className="text-white/60 text-sm mb-6 font-medium">為了即時回報毛孩狀況，請務必先加入 LINE 哦！</p>
+                                        <div className="flex flex-col sm:flex-row items-center gap-4">
+                                            <a href="https://lin.ee/TtDNo4G" target="_blank" rel="noopener noreferrer"
+                                               className="inline-flex items-center gap-3 bg-[#06C755] px-8 py-3 rounded-2xl text-base font-black shadow-lg hover:scale-105 transition-all">
+                                                <Icon name="external-link" size={18}/> 點我加入官方 LINE
+                                            </a>
+                                            <label className="flex items-center gap-3 cursor-pointer font-bold text-white text-sm bg-white/10 px-6 py-3 rounded-2xl border border-white/10">
+                                                <input type="checkbox" checked={formData.line_added} onChange={e=>setFormData({...formData, line_added:e.target.checked})} className="accent-[#F7E7B5] w-5 h-5 rounded-full" /> 
+                                                我已發送貼圖
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div className="text-center space-y-4">
+                            <h2 className="text-5xl font-black tracking-tight text-[#736357]">
+                                {isBoarding ? "入住前填寫資料" : "美容服務填寫資料"}
+                            </h2>
+                            <p className="text-slate-400 text-xs font-black tracking-[0.4em] uppercase">Digital Agreement Form</p>
+                            {!isBoarding && (
+                                <a href="https://lin.ee/TtDNo4G" target="_blank" rel="noopener noreferrer"
+                                   className="inline-flex items-center gap-2 bg-[#06C755] text-white px-6 py-2 rounded-full text-xs font-black shadow-sm mt-4">
+                                    <Icon name="message-circle" size={14}/> 聯繫官方 LINE
+                                </a>
+                            )}
+                        </div>
+
+                        {/* 各個區塊 */}
+                        <div className="space-y-12">
+                            {/* 1. 飼主資料 */}
+                            <section className="glass-card p-12 space-y-10">
+                                <div className="flex items-center gap-4 border-b border-[#F7E7B5] pb-6">
+                                    <div className="w-12 h-12 bg-[#F7E7B5]/40 rounded-xl flex items-center justify-center text-[#736357]">
+                                        <Icon name="user" size={24} />
+                                    </div>
+                                    <h3 className="text-2xl font-black tracking-tight text-[#736357]">01. 飼主基本資料</h3>
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">電子郵件 *</label>
+                                        <input type="email" value={formData.email} onChange={e=>setFormData({...formData, email:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" placeholder="yourname@email.com" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">主人全名 *</label>
+                                        <input value={formData.owner_name} onChange={e=>setFormData({...formData, owner_name:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">連絡電話 *</label>
+                                        <input value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" placeholder="09xxxxxxxx" />
+                                        <p className="text-[10px] text-[#736357] font-bold italic ml-2">✨ 輸入完成將自動為您讀取過往紀錄</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">聯絡地址 *</label>
+                                        <input value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" />
+                                    </div>
+                                    {isBoarding && (
+                                        <div className="md:col-span-2 space-y-3">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">住宿日期與預計時間 *</label>
+                                            <input value={formData.stay_date} onChange={e=>setFormData({...formData, stay_date:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" placeholder="例：2026/01/20 下午三點" />
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+                            
+                            {/* 2. 毛小孩詳情 */}
+                            <section className="glass-card p-12 space-y-10">
+                                <div className="flex items-center gap-4 border-b border-[#F7E7B5] pb-6">
+                                    <div className="w-12 h-12 bg-[#F7E7B5]/40 rounded-xl flex items-center justify-center text-[#736357]">
+                                        <Icon name="dog" size={24} />
+                                    </div>
+                                    <h3 className="text-2xl font-black tracking-tight text-[#736357]">02. 毛小孩詳細資料</h3>
+                                </div>
+                                <div className="grid md:grid-cols-3 gap-8">
+                                    <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 ml-1">名字 *</label><input value={formData.pet_name} onChange={e=>setFormData({...formData, pet_name:e.target.value})} className="w-full cute-input rounded-[1.2rem] px-6 py-4 outline-none font-bold" /></div>
+                                    <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 ml-1">犬種 *</label><input value={formData.breed} onChange={e=>setFormData({...formData, breed:e.target.value})} className="w-full cute-input rounded-[1.2rem] px-6 py-4 outline-none font-bold" /></div>
+                                    <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 ml-1">性別 *</label><div className="flex gap-3">{pillBtn('sex', '公', formData.sex==='公')}{pillBtn('sex', '母', formData.sex==='母')}</div></div>
+                                    <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 ml-1">年齡 *</label><input value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} className="w-full cute-input rounded-[1.2rem] px-6 py-4 outline-none font-bold" /></div>
+                                    <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 ml-1">體重 *</label><input value={formData.weight} onChange={e=>setFormData({...formData, weight:e.target.value})} className="w-full cute-input rounded-[1.2rem] px-6 py-4 outline-none font-bold" /></div>
+                                    <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 ml-1">結紮 *</label><div className="flex gap-3">{pillBtn('fix', '有', formData.fix==='有')}{pillBtn('fix', '無', formData.fix==='無')}</div></div>
+                                    <div className="space-y-3 md:col-span-3"><label className="text-[11px] font-black text-slate-400 ml-1">晶片 *</label><div className="flex gap-3 max-w-sm">{pillBtn('chip', '有', formData.chip==='有')}{pillBtn('chip', '無', formData.chip==='無')}</div></div>
+                                </div>
+                            </section>
+
+                            {/* 3. 住宿問卷 (僅住宿模式) */}
+                            {isBoarding && (
+                                <section className="glass-card p-12 space-y-12">
+                                    <div className="flex items-center gap-4 border-b border-[#F7E7B5] pb-6">
+                                        <div className="w-12 h-12 bg-[#F7E7B5]/40 rounded-xl flex items-center justify-center text-[#736357]">
+                                            <Icon name="clipboard-list" size={24} />
+                                        </div>
+                                        <h3 className="text-2xl font-black tracking-tight text-[#736357]">03. 生活習慣行為調查</h3>
+                                    </div>
+                                    <div className="space-y-12">
+                                        <div className="space-y-5">
+                                            <label className="text-lg font-black text-[#736357] block">親狗表現 (可複選) *</label>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
+                                                    <button type="button" key={v} onClick={()=>toggleArrayField('social_traits', v)} className={`py-5 px-6 rounded-2xl text-left text-sm font-bold border-2 transition-all ${formData.social_traits.includes(v) ? 'bg-[#736357] text-white border-[#736357] shadow-xl' : 'bg-white text-slate-400 border-slate-50 hover:border-[#F7E7B5]'}`}>{v}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="grid md:grid-cols-2 gap-10">
+                                            <div className="space-y-4"><label className="text-lg font-black text-[#736357] block">會容易吠叫嗎 *</label><div className="flex gap-4">{pillBtn('barking', '會', formData.barking==='會')}{pillBtn('barking', '不會', formData.barking==='不會')}</div></div>
+                                            <div className="space-y-4"><label className="text-lg font-black text-[#736357] block">有住宿過的經驗嗎 *</label><div className="flex gap-4">{pillBtn('stay_exp', '有', formData.stay_exp==='有')}{pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}</div></div>
+                                        </div>
+                                        <div className="space-y-5">
+                                            <label className="text-lg font-black text-[#736357] block">有籠內訓練過嗎 (可複選) *</label>
+                                            <p className="text-xs text-[#736357]/60 font-medium italic -mt-2">何謂籠內訓練：能在圍欄或房間休息不會焦慮、吠叫、激動</p>
+                                            <div className="space-y-4">
+                                                {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
+                                                    <button type="button" key={v} onClick={()=>toggleArrayField('crate_train', v)} className={`w-full py-5 px-8 rounded-2xl text-left text-sm font-bold border-2 transition-all ${formData.crate_train.includes(v) ? 'bg-[#736357] text-white border-[#736357]' : 'bg-slate-50/50 text-slate-500 border-transparent hover:border-[#F7E7B5]'}`}>{v}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="grid md:grid-cols-2 gap-10">
+                                            <div className="space-y-4"><label className="text-lg font-black text-[#736357] block">會護食嗎 *</label><div className="flex gap-4">{pillBtn('food_aggr', '會', formData.food_aggr==='會')}{pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}</div></div>
+                                            <div className="space-y-4"><label className="text-lg font-black text-[#736357] block">會在尿布墊上上廁所嗎 *</label><div className="flex gap-4">{pillBtn('toilet_habit', '會', formData.toilet_habit==='會')}{pillBtn('toilet_habit', '不會', formData.toilet_habit==='不會')}</div></div>
+                                        </div>
+                                        <div className="grid md:grid-cols-2 gap-10 p-10 bg-[#736357]/5 rounded-[2.5rem] border border-[#F7E7B5]/30 shadow-inner">
+                                            <div className="space-y-4"><label className="text-sm font-black text-[#736357] block tracking-wider">有每年定期施打疫苗嗎 *</label><div className="flex gap-4">{pillBtn('vaccine', '有', formData.vaccine==='有')}{pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}</div></div>
+                                            <div className="space-y-4"><label className="text-sm font-black text-[#736357] block tracking-wider">是否每個月定期驅蟲呢 *</label><div className="flex gap-4">{pillBtn('deworm', '有', formData.deworm==='有')}{pillBtn('deworm', '無', formData.deworm==='無')}</div></div>
+                                        </div>
+                                        <div className="grid md:grid-cols-2 gap-8">
+                                            <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">緊急聯絡人姓名/電話 *</label><input value={formData.emergency_contact} onChange={e=>setFormData({...formData, emergency_contact:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" /></div>
+                                            <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">指定獸醫診療機構</label><input value={formData.preferred_clinic} onChange={e=>setFormData({...formData, preferred_clinic:e.target.value})} className="w-full cute-input rounded-[1.5rem] px-6 py-5 outline-none font-bold" /></div>
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* 4. 契約簽名 */}
+                            <section className="glass-card p-12 space-y-12 bg-white">
+                                <div className="flex items-center gap-4 border-b border-[#F7E7B5] pb-6">
+                                    <div className="w-12 h-12 bg-[#736357] rounded-xl flex items-center justify-center text-white shadow-lg">
+                                        <Icon name="edit-3" size={24} />
+                                    </div>
+                                    <h3 className="text-2xl font-black tracking-tight text-[#736357]">04. 法律條款與數位簽署</h3>
+                                </div>
+                                <div className="bg-[#fefcf9] rounded-[2.5rem] p-10 space-y-8 border border-slate-100 shadow-inner">
+                                    <button type="button" onClick={()=>setLegalOpen(!legalOpen)} className="w-full flex justify-between items-center text-sm font-black text-[#736357] tracking-widest uppercase italic bg-white px-8 py-4 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                                        <span>📜 點擊閱覽詳細定型化契約條款</span>
+                                        <Icon name="chevron-down" size={20} className={`transition-all ${legalOpen?'rotate-180':''}`}/>
+                                    </button>
+                                    {legalOpen && (
+                                        <div className="text-sm text-slate-600 space-y-5 max-h-80 overflow-y-auto font-medium px-4 leading-loose">
+                                            <p className="font-black text-[#736357] text-lg border-l-4 border-[#F7E7B5] pl-4">符合動物保護主管機關規範</p>
+                                            <p>1. 審閱期定為一日。甲方預付費用逾一萬元或寄養逾三十日，審閱期延長為三日。</p>
+                                            <p>2. 甲方應負誠實告知義務。若隱瞞病況發生意外且乙方無疏失，乙方不負賠償責任。</p>
+                                            <p>3. 寄養期間若遇緊急就醫，乙方應優先送往甲方指定診所；若無法聯絡則就近送醫，費用由甲方負擔。</p>
+                                            <p>4. 甲方應準時領回。逾期三日未領回且未連繫者，乙方將報請主管機關依動保法辦理。</p>
+                                        </div>
+                                    )}
+                                    <label className="flex items-center gap-5 pt-8 border-t border-slate-100 cursor-pointer group">
+                                        <div className="relative">
+                                            <input type="checkbox" checked={formData.legal_agree} onChange={e=>setFormData({...formData, legal_agree:e.target.checked})} className="peer hidden" />
+                                            <div className="w-8 h-8 rounded-full border-2 border-[#F7E7B5] peer-checked:bg-[#736357] peer-checked:border-[#736357] flex items-center justify-center transition-all shadow-sm">
+                                                <Icon name="check" size={16} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                            </div>
+                                        </div>
+                                        <span className="text-base font-black text-[#736357] group-hover:text-black transition-colors">本人已詳閱並理解契約內容，保證填寫資訊屬實。</span>
+                                    </label>
+                                </div>
+                                <div onClick={() => setShowFullSig(true)} className="bg-[#fefcf9] border-4 border-dashed border-[#F7E7B5] h-72 rounded-[3.5rem] flex flex-col items-center justify-center cursor-pointer hover:bg-white transition-all shadow-inner group overflow-hidden">
+                                    {realtimeSig ? <img src={realtimeSig} className="h-full object-contain p-10" /> : (
+                                        <div className="text-center space-y-6">
+                                            <div className="w-20 h-20 bg-[#736357] text-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl group-hover:scale-110 transition-transform"><Icon name="pen-tool" size={32} /></div>
+                                            <div className="space-y-2">
+                                                <p className="text-lg font-black text-[#736357]">點擊此處開啟簽名板</p>
+                                                <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Signature Required</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <button onClick={handleSave} disabled={isSubmitting} className="w-full py-8 bg-[#736357] text-white rounded-[2.5rem] font-black text-2xl shadow-2xl hover:opacity-90 active:scale-[0.98] disabled:bg-slate-200 transition-all tracking-widest uppercase">
+                                    {isSubmitting ? "正在為您儲存資料..." : "確認並提交契約"}
+                                </button>
+                            </section>
+                        </div>
+                    </main>
+
+                    {/* 簽名 Modal */}
+                    {showFullSig && (
+                        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[100] flex flex-col p-6 md:p-12">
+                            <div className="flex-1 bg-white rounded-[4rem] overflow-hidden flex flex-col shadow-2xl relative">
+                                <div className="flex justify-between items-center px-12 py-10 border-b border-slate-50">
+                                    <button onClick={()=>setShowFullSig(false)} className="text-sm font-black uppercase text-slate-300 hover:text-red-400 transition-colors tracking-widest">Cancel</button>
+                                    <div className="flex flex-col items-center">
+                                        <span className="font-black text-[#736357] text-2xl tracking-tighter italic">汪汪犬旅</span>
+                                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Signature Area</span>
+                                    </div>
+                                    <button onClick={()=>{setRealtimeSig(padInstance.current.toDataURL()); setShowFullSig(false);}} className="bg-[#736357] text-white px-10 py-4 rounded-[1.5rem] font-black shadow-xl hover:scale-105 active:scale-95 transition-all">完成簽署</button>
+                                </div>
+                                <div className="flex-1 bg-[#fefcf9]/50 mx-10 my-10 rounded-[3rem] canvas-container border-2 border-slate-50 shadow-inner">
+                                    <canvas ref={fullSigCanvasRef}></canvas>
+                                </div>
+                                <div className="absolute bottom-12 w-full flex justify-center">
+                                    <button onClick={()=>padInstance.current.clear()} className="bg-white text-slate-400 text-xs font-black flex items-center gap-3 px-8 py-4 rounded-full shadow-lg border border-slate-100 hover:text-[#736357] transition-all"><Icon name="eraser" size={14}/> 清除重簽</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
