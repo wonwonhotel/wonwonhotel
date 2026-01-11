@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汪汪犬旅 | 旗艦管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; background: #fdfaf6; color: #736357; }
+        .glass-card { background: white; border-radius: 1.5rem; border: 1px solid rgba(115, 99, 87, 0.08); box-shadow: 0 4px 12px rgba(115,99,87,0.03); }
+        .tab-active { background: #736357; color: white !important; }
+        .sub-tab-active { background: white; color: #736357; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-radius: 0.75rem; }
+        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid #f8fafc; }
+        .info-label { color: #94a3b8; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+        .info-value { font-weight: 600; color: #736357; font-size: 0.9rem; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .vip-badge { background: linear-gradient(45deg, #f59e0b, #fbbf24); color: white; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => { if (window.lucide) { window.lucide.createIcons({ root: iconRef.current }); } }, [name]);
+            return <span ref={iconRef} className={className}><i data-lucide={name} style={{ width: size, height: size }}></i></span>;
+        };
+
+        const App = () => {
+            const [currentTab, setCurrentTab] = useState('contracts'); 
+            const [contractSubTab, setContractSubTab] = useState('all');
+            const [selectedRecord, setSelectedRecord] = useState(null);
+            const [selectedClient, setSelectedClient] = useState(null);
+            const [isEditingPrice, setIsEditingPrice] = useState(false);
+            const [priceInput, setPriceInput] = useState("");
+            const [clientSearch, setClientSearch] = useState("");
+
+            // 數據源 (模擬完整填寫資料)
+            const [records, setRecords] = useState([
+                {
+                    id: 'CON-001', service_type: 'both', created_at: '2026-01-11 10:30',
+                    owner_name: '王小明', owner_id: 'A123456789', phone: '0912-345-678', email: 'won@example.com', address: '台北市大安區忠孝東路',
+                    emergency_name: '陳小姐', emergency_phone: '0988-111-222',
+                    pet_name: '豆豆', breed: '柴犬', sex: '公', age: '3歲', weight: '12', fix: '是',
+                    chip_status: '有晶片', chip_id: '900138000', preferred_clinic: '汪汪診所',
+                    checkin_date: '2026-01-20', checkout_date: '2026-01-25', pickup_time: '18:30',
+                    is_barking: '會', barking_detail: '看到生人會叫', stay_exp: '有', food_aggr: '無', pad_toilet: '會',
+                    vaccine: '有', deworm: '有', deworm_brand: '一錠除', crate_status: ['有平常在家圍欄內'],
+                    allergy: '雞肉', personality: '活潑', special_notes: '無',
+                    service_price: '5500', sig: 'https://via.placeholder.com/300x150?text=Signature1'
+                },
+                {
+                    id: 'CON-002', service_type: 'grooming', created_at: '2026-01-11 14:00',
+                    owner_name: '李美美', phone: '0988-000-111', pet_name: '哈哈', breed: '柯基', 
+                    service_item: '大美容', pickup_time: '18:00', service_price: '1500',
+                    allergy: '無', personality: '害羞', sig: 'https://via.placeholder.com/300x150?text=Signature2'
+                }
+            ]);
+
+            // CRM 邏輯
+            const clientList = useMemo(() => {
+                const groups = {};
+                records.forEach(r => {
+                    const key = `${r.owner_name}_${r.phone}`;
+                    if (!groups[key]) groups[key] = { name: r.owner_name, phone: r.phone, total: 0, pets: new Set(), history: [] };
+                    groups[key].total += Number(r.service_price);
+                    groups[key].pets.add(`${r.pet_name}(${r.breed})`);
+                    groups[key].history.push(r);
+                });
+                return Object.values(groups).filter(c => c.name.includes(clientSearch) || c.phone.includes(clientSearch));
+            }, [records, clientSearch]);
+
+            const filteredContracts = records.filter(r => contractSubTab === 'all' || r.service_type === contractSubTab);
+
+            const jumpToContract = (id) => {
+                const target = records.find(r => r.id === id);
+                if(target) { setSelectedClient(null); setCurrentTab('contracts'); setSelectedRecord(target); setPriceInput(target.service_price); }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row pb-20 md:pb-0">
+                    <nav className="fixed bottom-0 w-full bg-white border-t md:relative md:w-24 md:bg-[#736357] flex md:flex-col justify-around p-3 z-50">
+                        <button onClick={() => setCurrentTab('contracts')} className={`flex flex-col items-center p-2 rounded-2xl ${currentTab === 'contracts' ? 'text-orange-500 md:tab-active' : 'text-slate-400'}`}>
+                            <Icon name="file-text" size={24}/><span className="text-[10px] font-bold">契約</span>
+                        </button>
+                        <button onClick={() => setCurrentTab('clients')} className={`flex flex-col items-center p-2 rounded-2xl ${currentTab === 'clients' ? 'text-orange-500 md:tab-active' : 'text-slate-400'}`}>
+                            <Icon name="users" size={24}/><span className="text-[10px] font-bold">客戶</span>
+                        </button>
+                    </nav>
+
+                    <main className="flex-1 p-5 md:p-10 overflow-y-auto">
+                        <header className="mb-6 flex justify-between items-end">
+                            <h2 className="text-2xl font-black">{currentTab === 'contracts' ? '契約中心' : '客戶 CRM'}</h2>
+                            {currentTab === 'clients' && (
+                                <input placeholder="搜尋姓名/電話" className="text-xs p-2 border rounded-lg outline-none" value={clientSearch} onChange={e=>setClientSearch(e.target.value)} />
+                            )}
+                        </header>
+
+                        {currentTab === 'contracts' && (
+                            <div className="space-y-6">
+                                <div className="bg-slate-200/50 p-1 rounded-xl flex max-w-sm">
+                                    {['all', 'grooming', 'both'].map(type => (
+                                        <button key={type} onClick={()=>setContractSubTab(type)} className={`flex-1 py-2 text-xs font-black transition-all ${contractSubTab === type ? 'sub-tab-active' : 'text-slate-400'}`}>{type==='all'?'全部':type==='grooming'?'美容':'住宿'}</button>
+                                    ))}
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    {filteredContracts.map(r => (
+                                        <div key={r.id} className={`glass-card p-5 relative border-t-8 ${r.service_type === 'both' ? 'border-orange-400' : 'border-blue-400'}`}>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <h3 className="font-black text-lg">{r.pet_name} <span className="text-xs font-normal opacity-60">({r.owner_name})</span></h3>
+                                                <div className="text-orange-500 font-black italic">NT${r.service_price}</div>
+                                            </div>
+                                            
+                                            {/* 重要：首頁顯示接回/美容完成時間 */}
+                                            <div className="space-y-2 mb-4">
+                                                {r.service_type === 'both' ? (
+                                                    <div className="flex items-center gap-2 text-xs font-black text-orange-500 bg-orange-50 p-2 rounded-lg">
+                                                        <Icon name="clock" size={14}/> 預計接回：{r.checkout_date} {r.pickup_time}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-xs font-black text-blue-500 bg-blue-50 p-2 rounded-lg">
+                                                        <Icon name="scissors" size={14}/> 美容完成：今天 {r.pickup_time}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <button onClick={() => {setSelectedRecord(r); setPriceInput(r.service_price);}} className="flex-1 py-3 bg-[#736357] text-white rounded-xl text-xs font-bold">查看詳情/修改</button>
+                                                <button onClick={() => {if(window.confirm("確定刪除？")) setRecords(records.filter(x=>x.id!==r.id))}} className="px-4 bg-red-50 text-red-400 rounded-xl"><Icon name="trash-2" size={16}/></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 客戶頁面同前版功能 */}
+                        {currentTab === 'clients' && (
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {clientList.map(c => (
+                                    <div key={c.phone} onClick={() => setSelectedClient(c)} className="glass-card p-6 cursor-pointer hover:border-orange-200 transition-all border-b-4 border-b-orange-100 group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-[#736357] group-hover:bg-orange-500 group-hover:text-white transition-all">{c.name[0]}</div>
+                                            <span className="text-orange-500 bg-orange-50 px-3 py-1 rounded-full text-[10px] font-black italic">來訪 {c.history.length} 次</span>
+                                        </div>
+                                        <h3 className="text-xl font-black">{c.name}</h3>
+                                        <p className="text-xs font-bold text-slate-400 mb-4">{c.phone}</p>
+                                        <div className="flex justify-between border-t pt-4 text-xs font-black"><span className="text-slate-300">總消費 <span className="text-orange-500">NT${c.total}</span></span></div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+
+                    {/* --- 詳情抽屜：包含所有表單欄位 --- */}
+                    {(selectedRecord || selectedClient) && (
+                        <div className="fixed inset-0 z-[100] flex justify-end">
+                            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => {setSelectedRecord(null); setSelectedClient(null); setIsEditingPrice(false);}}></div>
+                            <div className="relative bg-white w-full max-w-xl h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 overflow-hidden">
+                                <div className="p-6 border-b flex justify-between items-center bg-white z-10">
+                                    <h3 className="text-xl font-black italic">{selectedRecord ? '契約完整資訊' : '客戶歷史紀錄'}</h3>
+                                    <button onClick={() => {setSelectedRecord(null); setSelectedClient(null);}} className="p-2 bg-slate-100 rounded-full"><Icon name="x" size={20}/></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar pb-32">
+                                    {selectedRecord && (
+                                        <div className="space-y-8">
+                                            {/* 金額修改 */}
+                                            <div className="p-5 rounded-2xl bg-orange-50 border-2 border-orange-100 flex justify-between items-center">
+                                                {isEditingPrice ? (
+                                                    <div className="flex gap-2 w-full"><input type="number" value={priceInput} onChange={e=>setPriceInput(e.target.value)} className="flex-1 p-2 rounded-lg font-black" /><button onClick={()=>{setRecords(records.map(r=>r.id===selectedRecord.id?{...r, service_price:priceInput}:r)); setSelectedRecord({...selectedRecord, service_price:priceInput}); setIsEditingPrice(false);}} className="bg-orange-500 text-white px-4 rounded-lg font-bold">儲存</button></div>
+                                                ) : (
+                                                    <React.Fragment><span className="text-2xl font-black text-orange-600">NT$ {selectedRecord.service_price}</span><button onClick={()=>setIsEditingPrice(true)} className="text-xs font-black underline">修改金額</button></React.Fragment>
+                                                )}
+                                            </div>
+
+                                            {/* 消費者填寫的所有資訊 */}
+                                            <section className="space-y-1">
+                                                <h4 className="text-xs font-black text-slate-300 uppercase mb-3 border-b pb-1">👤 飼主基本資料</h4>
+                                                <div className="info-grid"><div className="info-label">姓名/身分證</div><div className="info-value">{selectedRecord.owner_name} / {selectedRecord.owner_id}</div></div>
+                                                <div className="info-grid"><div className="info-label">電話/信箱</div><div className="info-value">{selectedRecord.phone} / {selectedRecord.email}</div></div>
+                                                <div className="info-grid"><div className="info-label">通訊地址</div><div className="info-value text-xs">{selectedRecord.address}</div></div>
+                                                <div className="info-grid"><div className="info-label text-red-400">緊急聯絡人</div><div className="info-value">{selectedRecord.emergency_name} / {selectedRecord.emergency_phone}</div></div>
+                                            </section>
+
+                                            <section className="space-y-1">
+                                                <h4 className="text-xs font-black text-slate-300 uppercase mb-3 border-b pb-1">🐶 毛孩詳細資訊</h4>
+                                                <div className="info-grid"><div className="info-label">名字/品種</div><div className="info-value">{selectedRecord.pet_name} / {selectedRecord.breed}</div></div>
+                                                <div className="info-grid"><div className="info-label">性別/年齡</div><div className="info-value">{selectedRecord.sex} / {selectedRecord.age} ({selectedRecord.weight}kg)</div></div>
+                                                <div className="info-grid"><div className="info-label">晶片/結紮</div><div className="info-value">{selectedRecord.chip_status} ({selectedRecord.chip_id}) / {selectedRecord.fix}</div></div>
+                                                <div className="info-grid"><div className="info-label">病史/指定醫院</div><div className="info-value">{selectedRecord.medical_status} / {selectedRecord.preferred_clinic}</div></div>
+                                                <div className="info-grid"><div className="info-label">過敏狀況</div><div className="info-value text-orange-500">{selectedRecord.allergy}</div></div>
+                                                <div className="info-grid"><div className="info-label">個性特徵</div><div className="info-value text-xs leading-relaxed">{selectedRecord.personality}</div></div>
+                                            </section>
+
+                                            {selectedRecord.service_type === 'both' && (
+                                                <section className="space-y-1 bg-orange-50/50 p-4 rounded-2xl">
+                                                    <h4 className="text-xs font-black text-orange-400 uppercase mb-3 border-b border-orange-100 pb-1">🏠 住宿與問卷資訊</h4>
+                                                    <div className="info-grid border-orange-100/30"><div className="info-label">預約日期</div><div className="info-value">{selectedRecord.checkin_date} ～ {selectedRecord.checkout_date}</div></div>
+                                                    <div className="info-grid border-orange-100/30"><div className="info-label">籠內訓練</div><div className="info-value text-xs">{selectedRecord.crate_status?.join(', ')}</div></div>
+                                                    <div className="info-grid border-orange-100/30"><div className="info-label">疫苗/驅蟲</div><div className="info-value">{selectedRecord.vaccine} / {selectedRecord.deworm} ({selectedRecord.deworm_brand})</div></div>
+                                                    <div className="info-grid border-none"><div className="info-label">吠叫狀況</div><div className="info-value text-xs">{selectedRecord.is_barking} ({selectedRecord.barking_detail})</div></div>
+                                                </section>
+                                            )}
+
+                                            <section>
+                                                <h4 className="text-xs font-black text-slate-300 uppercase mb-3">✍️ 數位簽名</h4>
+                                                <div className="bg-slate-50 border-2 border-dashed rounded-3xl p-4 flex justify-center">{selectedRecord.sig ? <img src={selectedRecord.sig} className="max-h-32" /> : '未簽署'}</div>
+                                            </section>
+                                        </div>
+                                    )}
+
+                                    {/* 客戶歷史同前版設計：包含歷史契約跳轉連結 */}
+                                    {selectedClient && (
+                                        <div className="space-y-6">
+                                            {selectedClient.history.map((h, i) => (
+                                                <div key={i} className="glass-card p-5 border-l-4 border-slate-200 flex justify-between items-center">
+                                                    <div><p className="text-[10px] font-black text-slate-300">{h.created_at}</p><p className="font-black">{h.pet_name} - {h.service_type==='both'?'住宿':'美容'}</p></div>
+                                                    <button onClick={()=>jumpToContract(h.id)} className="text-[10px] font-black bg-slate-50 px-3 py-2 rounded-lg hover:bg-[#736357] hover:text-white transition-all">查看原始契約</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
