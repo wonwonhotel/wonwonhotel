@@ -60,7 +60,7 @@
                 medical_status: '無', medical_history: [], medical_history_other: '',
                 checkin_date: '', checkout_date: '', stay_exp: '',
                 crate_status: [], food_aggr: '', pad_toilet: '',
-                vaccine: '', deworm: '', deworm_brand: '', 
+                vaccine: '', deworm: '', deworm_brand: '', vaccine_file: null,
                 allergy: '', personality: '', special_notes: '', boarding_notice_agree: false,
                 service_type: '', pickup_time: '', service_price: '',
                 legal_agree: false
@@ -199,8 +199,17 @@
                                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">電子郵件 *</label><input type="email" value={formData.email} onChange={e=>setFormData({...formData, email:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="example@email.com"/></div>
                                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">主人姓名 *</label><input value={formData.owner_name} onChange={e=>setFormData({...formData, owner_name:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="請輸入全名"/></div>
                                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">連絡電話 *</label><input type="tel" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="09XX-XXX-XXX"/></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">身分證字號 *</label><input value={formData.owner_id} onChange={e=>setFormData({...formData, owner_id:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="請輸入證件字號"/></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急聯絡人姓名 *</label><input value={formData.emergency_name} onChange={e=>setFormData({...formData, emergency_name:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50" /></div>
+<div className="space-y-1.5">
+    <label className="text-xs font-bold text-slate-400 ml-1 flex items-center gap-1">
+        身分證字號 <span className="text-red-500 font-black">(入住時請攜帶身分證正本核對)</span> *
+    </label>
+    <input 
+        value={formData.owner_id} 
+        onChange={e=>setFormData({...formData, owner_id:e.target.value})} 
+        className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" 
+        placeholder="請輸入證件字號" 
+    />
+</div>                                    <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急聯絡人姓名 *</label><input value={formData.emergency_name} onChange={e=>setFormData({...formData, emergency_name:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50" /></div>
                                     <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急連絡電話 *</label><input value={formData.emergency_phone} onChange={e=>setFormData({...formData, emergency_phone:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50" /></div>
                                     <div className="md:col-span-2 space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">通訊地址 *</label><input value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
                                 </div>
@@ -287,8 +296,55 @@
                                                 <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">有住宿過的經驗嗎 *</label><div className="flex gap-2">{pillBtn('stay_exp', '有', formData.stay_exp==='有')}{pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}</div></div>
                                                 <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">會護食嗎 *</label><div className="flex gap-2">{pillBtn('food_aggr', '會', formData.food_aggr==='會')}{pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}</div></div>
                                                 <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">會在尿布墊上上廁所嗎 *</label><div className="flex gap-2">{pillBtn('pad_toilet', '會', formData.pad_toilet==='會')}{pillBtn('pad_toilet', '不會', formData.pad_toilet==='不會')}</div></div>
-                                                <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">每年定期施打疫苗 (請提供疫苗手冊) *</label><div className="flex gap-2">{pillBtn('vaccine', '有', formData.vaccine==='有')}{pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}</div></div>
-                                                <div className="space-y-3">
+<div className="space-y-3">
+    <label className="text-xs font-bold text-slate-400 ml-1">每年定期施打疫苗 (請提供疫苗手冊) *</label>
+    <div className="flex gap-2">
+        {pillBtn('vaccine', '有', formData.vaccine==='有')}
+        {pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}
+    </div>
+    
+    {/* 新增：上傳按鈕與預覽區塊 */}
+    {formData.vaccine === '有' && (
+        <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
+            <input 
+                type="file" 
+                accept="image/*" 
+                capture="environment" // 此屬性可在行動裝置優先啟動相機
+                id="vaccine-upload"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setFormData({...formData, vaccine_file: reader.result});
+                        reader.readAsDataURL(file);
+                    }
+                }}
+            />
+            <label 
+                htmlFor="vaccine-upload" 
+                className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-[#F7E7B5] rounded-xl cursor-pointer hover:bg-[#F7E7B5]/10 transition-all"
+            >
+                <Icon name="camera" size={18} className="text-[#736357]" />
+                <span className="text-sm font-bold text-[#736357]">
+                    {formData.vaccine_file ? "更換疫苗手冊照片" : "上傳照片或啟動相機"}
+                </span>
+            </label>
+
+            {formData.vaccine_file && (
+                <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#736357]/10">
+                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
+                    <button 
+                        onClick={() => setFormData({...formData, vaccine_file: null})}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg"
+                    >
+                        <Icon name="x" size={14} />
+                    </button>
+                </div>
+            )}
+        </div>
+    )}
+</div>                                                <div className="space-y-3">
                                                     <label className="text-xs font-bold text-slate-400 ml-1">每月定期驅蟲預防 *</label>
                                                     <div className="flex gap-2">{pillBtn('deworm', '有', formData.deworm==='有')}{pillBtn('deworm', '無', formData.deworm==='無')}</div>
                                                     {formData.deworm === '有' && <input value={formData.deworm_brand} onChange={e=>setFormData({...formData, deworm_brand:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3 font-bold text-[#736357] mt-2 text-sm shadow-inner" placeholder="使用哪個牌子的驅蟲藥？" />}
