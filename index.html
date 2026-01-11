@@ -186,123 +186,129 @@ const App = () => {
                                 </div>
                             </section>
 
-                            <section className="glass-card p-12 space-y-8 bg-[#F7E7B5]/5">
-                                <h3 className="text-2xl font-black text-[#736357] border-b pb-4 flex items-center gap-2"><Icon name="calendar"/> {isBoarding ? "住宿行為與健康問卷" : "寵物詳細資料"}</h3>
-                                <div className="grid md:grid-cols-2 gap-8">
-                                    {isBoarding && (
-                                        <>
-                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400">入住日期 *</label><input type="date" value={formData.checkin_date} onChange={e=>setFormData({...formData, checkin_date:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
-                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400">退房日期 *</label><input type="date" value={formData.checkout_date} onChange={e=>setFormData({...formData, checkout_date:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
-                                        </>
-                                    )}
+<section className="glass-card p-12 space-y-8 bg-[#F7E7B5]/5">
+                                    <h3 className="text-2xl font-black text-[#736357] border-b pb-4 flex items-center gap-2">
+                                        <Icon name="calendar"/> 住宿行為與健康問卷
+                                    </h3>
                                     
-                                    {/* 寵物資料插入點：退房日期下方 */}
-                                    <div className="md:col-span-2 grid md:grid-cols-3 gap-8 pt-4 border-t border-[#736357]/10 mt-4">
-                                        <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">寵物名字 *</label><input value={formData.pet_name} onChange={e=>setFormData({...formData, pet_name:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">品種 *</label><input value={formData.breed} onChange={e=>setFormData({...formData, breed:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">體重 * (kg)</label><input type="number" value={formData.weight} onChange={e=>setFormData({...formData, weight:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">年齡 *</label><input value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]"  /></div>
-                                        <div className="space-y-3"><label className="text-sm font-bold text-slate-400 ml-1">性別</label><div className="flex gap-2">{pillBtn('sex', '公', formData.sex==='公')}{pillBtn('sex', '母', formData.sex==='母')}</div></div>
-                                        <div className="space-y-3"><label className="text-sm font-bold text-slate-400 ml-1">結紮</label><div className="flex gap-2">{pillBtn('fix', '是', formData.fix==='是')}{pillBtn('fix', '否', formData.fix==='否')}</div></div>
-                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-8">
+                                        {/* 1. 入住與退房日期 */}
+                                        <div className="space-y-2"><label className="text-sm font-bold text-slate-400">入住日期 *</label><input type="date" value={formData.checkin_date} onChange={e=>setFormData({...formData, checkin_date:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
+                                        <div className="space-y-2"><label className="text-sm font-bold text-slate-400">退房日期 *</label><input type="date" value={formData.checkout_date} onChange={e=>setFormData({...formData, checkout_date:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
 
-                                    {isBoarding && (
-                                        <>
-                                            <div className="md:col-span-2 space-y-3">
-                                                <label className="text-sm font-bold text-slate-400">親狗表現 (可複選) *</label>
+                                        {/* 2. 寵物基本資料 */}
+                                        <div className="md:col-span-2 grid md:grid-cols-2 gap-8 pt-4 border-t border-[#736357]/10 mt-4">
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">寵物名字 *</label><input value={formData.pet_name} onChange={e=>setFormData({...formData, pet_name:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">品種 *</label><input value={formData.breed} onChange={e=>setFormData({...formData, breed:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">體重 * (kg)</label><input type="number" value={formData.weight} onChange={e=>setFormData({...formData, weight:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400 ml-1">年齡 *</label><input value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" /></div>
+                                            <div className="space-y-3"><label className="text-sm font-bold text-slate-400 ml-1">性別</label><div className="flex gap-2">{pillBtn('sex', '公', formData.sex==='公')}{pillBtn('sex', '母', formData.sex==='母')}</div></div>
+                                            <div className="space-y-3"><label className="text-sm font-bold text-slate-400 ml-1">結紮</label><div className="flex gap-2">{pillBtn('fix', '是', formData.fix==='是')}{pillBtn('fix', '否', formData.fix==='否')}</div></div>
+                                        </div>
+
+                                        {/* 3. 行為表現、晶片與病史 */}
+                                        <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 mt-4">
+                                            <div className="space-y-3">
+                                                <label className="text-sm font-bold text-slate-400">親狗 (可複選) *</label>
                                                 <div className="flex flex-wrap gap-2">
                                                     {['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
-                                                        <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`px-4 py-3 rounded-xl text-xs font-bold border-2 transition-all ${formData.dog_traits.includes(v) ? 'bg-[#736357] text-white' : 'bg-white text-slate-400'}`}>{v}</button>
+                                                        <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`px-4 py-3 rounded-xl text-xs font-bold border-2 transition-all ${formData.dog_traits.includes(v) ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400'}`}>{v}</button>
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-3">
-                                                <label className="text-sm font-bold text-slate-400">會容易吠叫嗎 *</label>
-                                                <div className="flex gap-2">
-                                                    {pillBtn('is_barking', '會', formData.is_barking === '會')}
-                                                    {pillBtn('is_barking', '不會', formData.is_barking === '不會')}
+                                            <div className="space-y-4">
+                                                <label className="text-sm font-bold text-slate-400">晶片 *</label>
+                                                <div className="flex flex-wrap gap-4">
+                                                    {['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (
+                                                        <button key={s} type="button" onClick={()=>setFormData({...formData, chip_status: s})} className={`px-5 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100'}`}>{s}</button>
+                                                    ))}
                                                 </div>
-                                                {formData.is_barking === '會' && (
-                                                    <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                        <div className="bg-[#F7E7B5]/10 p-4 rounded-2xl border border-[#F7E7B5]/30">
-                                                            <label className="text-xs font-bold text-[#736357] block mb-2 ml-1 flex items-center gap-2"><Icon name="message-square" size={14}/> 請詳細說明什麼情況下會吠叫：</label>
-                                                            <textarea value={formData.barking_detail || ''} onChange={e => setFormData({...formData, barking_detail: e.target.value})} className="w-full cute-input rounded-xl px-4 py-3 font-bold text-[#736357] min-h-[80px] text-sm" placeholder="例如：看到陌生人、聽到門鈴聲..." />
+                                                {formData.chip_status === '有晶片' && <input placeholder="輸入晶片號碼" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" />}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-400">指定就醫診所 (若未填寫則送往特約醫院)</label>
+                                                <input value={formData.preferred_clinic} onChange={e=>setFormData({...formData, preferred_clinic:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" placeholder="例如：汪汪動物醫院" />
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <label className="text-sm font-bold text-slate-400">過往病史 (可複選) *</label>
+                                                <div className="flex gap-3 mb-4">{pillBtn('medical_status', '無', formData.medical_status === '無')}{pillBtn('medical_status', '有', formData.medical_status === '有')}</div>
+                                                {formData.medical_status === '有' && (
+                                                    <div className="space-y-4 animate-in fade-in">
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {['心臟病','氣喘','氣管塌陷','白內障','癲癇','心絲蟲','艾利希體','腹膜炎','腹積水','手術外傷未癒合','髖關節問題','骨折','腸炎','血便','血尿','懷孕','傳染性疾病'].map(v => (
+                                                                <button type="button" key={v} onClick={() => toggleArrayField('medical_history', v)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${formData.medical_history.includes(v) ? 'bg-[#736357] text-white' : 'bg-white text-slate-400'}`}>{v}</button>
+                                                            ))}
+                                                            <button type="button" onClick={() => toggleArrayField('medical_history', '其他')} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${formData.medical_history.includes('其他') ? 'bg-[#06C755] text-white border-[#06C755]' : 'bg-white text-slate-400 border-dashed border-slate-300'}`}>＋ 其他</button>
                                                         </div>
+                                                        {formData.medical_history.includes('其他') && <textarea value={formData.medical_history_other || ''} onChange={e => setFormData({...formData, medical_history_other: e.target.value})} className="w-full cute-input rounded-xl px-4 py-3 font-bold text-[#736357] min-h-[80px] text-sm" placeholder="請詳細說明其他病史..." />}
                                                     </div>
                                                 )}
                                             </div>
+                                        </div>
 
+                                        {/* 4. 行為細節問卷 */}
+                                        <div className="md:col-span-2 grid md:grid-cols-2 gap-8 pt-4 border-t border-[#736357]/10 mt-4">
+                                            <div className="space-y-3">
+                                                <label className="text-sm font-bold text-slate-400">會容易吠叫嗎 *</label>
+                                                <div className="flex gap-2">{pillBtn('is_barking', '會', formData.is_barking === '會')}{pillBtn('is_barking', '不會', formData.is_barking === '不會')}</div>
+                                                {formData.is_barking === '會' && <textarea value={formData.barking_detail || ''} onChange={e => setFormData({...formData, barking_detail: e.target.value})} className="w-full cute-input rounded-xl px-4 py-3 font-bold text-[#736357] mt-2 min-h-[80px] text-sm" placeholder="什麼情況下會吠叫？" />}
+                                            </div>
                                             <div className="space-y-3"><label className="text-sm font-bold text-slate-400">有住宿過的經驗嗎 *</label><div className="flex gap-2">{pillBtn('stay_exp', '有', formData.stay_exp==='有')}{pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}</div></div>
                                             <div className="space-y-3"><label className="text-sm font-bold text-slate-400">會護食嗎 *</label><div className="flex gap-2">{pillBtn('food_aggr', '會', formData.food_aggr==='會')}{pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}</div></div>
                                             <div className="space-y-3"><label className="text-sm font-bold text-slate-400">會在尿布墊上上廁所嗎 *</label><div className="flex gap-2">{pillBtn('pad_toilet', '會', formData.pad_toilet==='會')}{pillBtn('pad_toilet', '不會', formData.pad_toilet==='不會')}</div></div>
                                             <div className="space-y-3"><label className="text-sm font-bold text-slate-400">每年定期施打疫苗 (請提供疫苗手冊) *</label><div className="flex gap-2">{pillBtn('vaccine', '有', formData.vaccine==='有')}{pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}</div></div>
-                                            <div className="space-y-3"><label className="text-sm font-bold text-slate-400">每月定期驅蟲預防 *</label><div className="flex gap-2">{pillBtn('deworm', '有', formData.deworm==='有')}{pillBtn('deworm', '無', formData.deworm==='無')}</div></div>
+                                            <div className="space-y-3">
+                                                <label className="text-sm font-bold text-slate-400">每月定期驅蟲預防 *</label>
+                                                <div className="flex gap-2">{pillBtn('deworm', '有', formData.deworm==='有')}{pillBtn('deworm', '無', formData.deworm==='無')}</div>
+                                                {formData.deworm === '有' && <input value={formData.deworm_brand} onChange={e=>setFormData({...formData, deworm_brand:e.target.value})} className="w-full cute-input rounded-xl px-4 py-3 font-bold text-[#736357] mt-2 text-sm" placeholder="使用哪個牌子的驅蟲藥？" />}
+                                            </div>
+                                        </div>
 
-                                            {formData.deworm === '有' && (
-                                                <div className="md:col-span-2 space-y-2 animate-in fade-in slide-in-from-top-2">
-                                                    <label className="text-sm font-bold text-[#736357]">請問是使用哪個牌子的驅蟲藥或者滴劑呢? *</label>
-                                                    <input value={formData.deworm_brand} onChange={e=>setFormData({...formData, deworm_brand:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" placeholder="例如：全能狗、一錠除..." />
-                                                </div>
-                                            )}
+                                        {/* 5. 籠內訓練狀況 */}
+                                        <div className="md:col-span-2 space-y-3 pt-4 border-t border-[#736357]/10 mt-4">
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-sm font-bold text-slate-400">籠內訓練狀況 (可複選) *</label>
+                                                <p className="text-[11px] font-bold text-[#736357]/70">何謂籠內訓練：<a href="https://www.hapet.com.tw/blog/posts/cratetraining" target="_blank" className="text-[#736357] underline decoration-dashed underline-offset-4 hover:text-[#06C755] transition-colors">能在圍欄或房間內獨立休息，不焦慮、不持續吠叫、不激動衝撞</a></p>
+                                            </div>
+                                            <div className="flex flex-col gap-2 pt-1">
+                                                {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
+                                                    <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`px-5 py-3 rounded-xl text-left text-xs font-bold border-2 transition-all duration-300 ${formData.crate_status.includes(v) ? 'bg-[#736357] text-white shadow-md translate-x-1' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{v}</button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                            <div className="md:col-span-2 space-y-3">
-                                                <div className="flex flex-col gap-1">
-                                                    <label className="text-sm font-bold text-slate-400">籠內訓練狀況 (可複選) *</label>
-                                                    <p className="text-[11px] font-bold text-[#736357]/70">何謂籠內訓練：<a href="https://www.hapet.com.tw/blog/posts/cratetraining" target="_blank" className="text-[#736357] underline decoration-dashed underline-offset-4 hover:text-[#06C755] transition-colors">能在圍欄或房間內獨立休息，不焦慮、不持續吠叫、不激動衝撞</a></p>
-                                                </div>
-                                                <div className="flex flex-col gap-2 pt-1">
-                                                    {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
-                                                        <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`px-5 py-3 rounded-xl text-left text-xs font-bold border-2 transition-all duration-300 ${formData.crate_status.includes(v) ? 'bg-[#736357] text-white shadow-md translate-x-1' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{v}</button>
-                                                    ))}
-                                                </div>
+                                        {/* 6. 狗狗日常情形及注意事項 */}
+                                        <div className="md:col-span-2 space-y-8 pt-8 border-t border-[#736357]/20 mt-8">
+                                            <h4 className="text-xl font-black text-[#736357] flex items-center gap-2">
+                                                <Icon name="info" size={20}/> 狗狗的日常情形及注意事項
+                                            </h4>
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400">有對什麼過敏嗎 (例如:雞肉或牛肉) *</label><textarea value={formData.allergy} onChange={e=>setFormData({...formData, allergy:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[100px]" placeholder="您的回答" /></div>
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400">個性如何呢? 有分離焦慮嗎? *</label><textarea value={formData.personality} onChange={e=>setFormData({...formData, personality:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[100px]" placeholder="您的回答" /></div>
+                                            <div className="space-y-2"><label className="text-sm font-bold text-slate-400">有需要特別注意的嗎? 任何事情都可以說越詳細越好</label><textarea value={formData.special_notes} onChange={e=>setFormData({...formData, special_notes:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[120px]" placeholder="您的回答" /></div>
+                                            
+                                            {/* 入住須知圖片 */}
+                                            <div className="max-w-xl mx-auto overflow-hidden rounded-[2rem] border-4 border-[#F7E7B5] shadow-xl bg-white group">
+                                                <img src="./入住須知.jpg" alt="入住須知" className="w-full h-auto object-contain block" onError={(e) => { e.target.onerror = null; e.target.parentNode.innerHTML = '<div className="p-10 text-center text-[#736357] font-bold">💡 請確認 "入住須知.jpg" 已放置於正確路徑</div>'; }} />
+                                                <div className="bg-[#F7E7B5] p-3 text-center text-[#736357] text-xs font-black tracking-widest flex items-center justify-center gap-2"><Icon name="eye" size={14}/> 請務必詳閱上方內容</div>
                                             </div>
 
-                                            <div className="md:col-span-2 border-t pt-8 mt-4 space-y-8">
-                                                <h4 className="text-xl font-black text-[#736357] flex items-center gap-2"><Icon name="info" size={20}/> 狗狗的日常情形及注意事項</h4>
-                                                <div className="space-y-2"><label className="text-sm font-bold text-slate-400">有對什麼過敏嗎 (例如:雞肉或牛肉) *</label><textarea value={formData.allergy} onChange={e=>setFormData({...formData, allergy:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[100px]" placeholder="您的回答" /></div>
-                                                <div className="space-y-2"><label className="text-sm font-bold text-slate-400">個性如何呢? 有分離焦慮嗎? *</label><textarea value={formData.personality} onChange={e=>setFormData({...formData, personality:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[100px]" placeholder="您的回答" /></div>
-                                                <div className="space-y-2"><label className="text-sm font-bold text-slate-400">有需要特別注意的嗎? 任何事情都可以說越詳細越好</label><textarea value={formData.special_notes} onChange={e=>setFormData({...formData, special_notes:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[120px]" placeholder="您的回答" /></div>
-<div className="pt-4 space-y-6">
-    {/* 插入入住須知圖片 */}
-    <div className="max-w-xl mx-auto overflow-hidden rounded-[2rem] border-4 border-[#F7E7B5] shadow-xl group hover:scale-[1.01] transition-transform duration-500">
-        <img 
-            src="./入住須知.jpg" 
-            alt="入住須知" 
-            className="w-full h-auto object-contain block"
-            /* 萬一圖檔路徑有誤，則不顯示碎圖 */
-            onError={(e) => { e.target.style.display = 'none'; }} 
-        />
-        <div className="bg-[#F7E7B5] p-3 text-center text-[#736357] text-xs font-bold tracking-widest flex items-center justify-center gap-2">
-            <Icon name="eye" size={14}/> 請詳閱上方入住須知內容
-        </div>
-    </div>
-
-    {/* 同意勾選框 */}
-    <label className="flex items-center gap-4 cursor-pointer group bg-white p-6 rounded-2xl border-2 border-red-100 hover:border-red-300 hover:bg-red-50/30 transition-all shadow-sm">
-        <div className="relative flex items-center justify-center">
-            <input 
-                type="checkbox" 
-                checked={formData.boarding_notice_agree} 
-                onChange={e=>setFormData({...formData, boarding_notice_agree:e.target.checked})} 
-                className="accent-red-500 w-7 h-7 cursor-pointer" 
-            />
-        </div>
-        <div className="flex flex-col">
-            <span className="text-base font-black text-red-500 underline decoration-2 underline-offset-4 group-hover:text-red-600">
-                入住即代表同意入住須知及注意事項 *
-            </span>
-            <p className="text-[11px] text-slate-400 font-bold mt-1 tracking-tight">
-                我已確認理解上述所有規範，並願意承諾遵守。
-            </p>
-        </div>
-    </label>
-</div>                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </section>
-
+                                            <div className="pt-4">
+                                                <label className="flex items-center gap-4 cursor-pointer group bg-white p-6 rounded-2xl border-2 border-red-100 hover:border-red-300 transition-all shadow-sm">
+                                                    <input type="checkbox" checked={formData.boarding_notice_agree} onChange={e=>setFormData({...formData, boarding_notice_agree:e.target.checked})} className="accent-red-500 w-7 h-7 cursor-pointer" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-base font-black text-red-500 underline decoration-2 underline-offset-4">入住即代表同意入住須知及注意事項 *</span>
+                                                        <p className="text-[11px] text-slate-400 font-bold mt-1">我已確認理解上述所有規範，並願意承諾遵守。</p>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+                            
                             {/* 其他共同資料：晶片、診所、病史 */}
                             <section className="glass-card p-12 space-y-8">
                                 <h3 className="text-2xl font-black text-[#736357] border-b pb-4 flex items-center gap-2"><Icon name="shield-check"/> 醫療與晶片資料</h3>
