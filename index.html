@@ -309,36 +309,6 @@ const App = () => {
                                 </section>
                             )}
                             
-                            {/* 其他共同資料：晶片、診所、病史 */}
-                            <section className="glass-card p-12 space-y-8">
-                                <h3 className="text-2xl font-black text-[#736357] border-b pb-4 flex items-center gap-2"><Icon name="shield-check"/> 醫療與晶片資料</h3>
-                                <div className="grid md:grid-cols-3 gap-8">
-                                    <div className="space-y-3"><label className="text-sm font-bold text-slate-400 ml-1">親人表現</label><div className="flex gap-2">{pillBtn('is_human_friendly', '是', formData.is_human_friendly==='是')}{pillBtn('is_human_friendly', '否', formData.is_human_friendly==='否')}</div></div>
-                                    <div className="md:col-span-3 space-y-4 pt-4 border-t border-slate-100">
-                                        <label className="text-sm font-bold text-slate-400 ml-1">晶片 *</label>
-                                        <div className="flex flex-wrap gap-4">{['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (<button key={s} type="button" onClick={()=>setFormData({...formData, chip_status: s})} className={`px-5 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100'}`}>{s}</button>))}</div>
-                                        {formData.chip_status === '有晶片' && <input placeholder="輸入 10 或 15 碼正確數字" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" />}
-                                    </div>
-                                    <div className="md:col-span-3 space-y-2"><label className="text-sm font-bold text-[#736357] ml-1">指定就醫診所 (若未填寫則送往特約醫院)</label><input value={formData.preferred_clinic} onChange={e=>setFormData({...formData, preferred_clinic:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357]" placeholder="例如：汪汪動物醫院" /></div>
-                                    <div className="md:col-span-3 space-y-4 border-t pt-6">
-                                        <label className="text-sm font-bold text-slate-400 flex items-center gap-2"><span className="section-dot"></span> 過往病史 (可複選) *</label>
-                                        <div className="flex gap-3 mb-4">{pillBtn('medical_status', '無', formData.medical_status === '無')}{pillBtn('medical_status', '有', formData.medical_status === '有')}</div>
-                                        {formData.medical_status === '有' && (
-                                            <div className="space-y-4 animate-in fade-in">
-                                                <div className="flex flex-wrap gap-2">
-                                                    {['心臟病','氣喘','氣管塌陷','白內障','癲癇','心絲蟲','艾利希體','腹膜炎','腹積水','手術外傷未癒合','髖關節問題','骨折','腸炎','血便','血尿','懷孕','傳染性疾病'].map(v => (
-                                                        <button type="button" key={v} onClick={() => toggleArrayField('medical_history', v)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${formData.medical_history.includes(v) ? 'bg-[#736357] text-white' : 'bg-white text-slate-400 hover:border-[#F7E7B5]'}`}>{v}</button>
-                                                    ))}
-                                                    <button type="button" onClick={() => toggleArrayField('medical_history', '其他')} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${formData.medical_history.includes('其他') ? 'bg-[#06C755] text-white border-[#06C755]' : 'bg-white text-slate-400 border-dashed border-slate-300'}`}>＋ 其他</button>
-                                                </div>
-                                                {formData.medical_history.includes('其他') && (
-                                                    <div className="bg-[#F7E7B5]/10 p-4 rounded-2xl border border-[#F7E7B5]/30 animate-in zoom-in-95"><label className="text-xs font-bold text-[#736357] block mb-2 ml-1 flex items-center gap-2"><Icon name="edit-2" size={14}/> 請詳細說明其他病史：</label><textarea value={formData.medical_history_other || ''} onChange={e => setFormData({...formData, medical_history_other: e.target.value})} className="w-full cute-input rounded-xl px-4 py-3 font-bold text-[#736357] min-h-[80px] text-sm" placeholder="請輸入說明..." /></div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </section>
 
                             {!isBoarding && (
                                 <section className="glass-card p-12 space-y-8 animate-in fade-in">
