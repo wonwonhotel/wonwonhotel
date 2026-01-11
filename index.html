@@ -24,6 +24,27 @@
         /* 下方動畫 */
         .fade-enter { opacity: 0; transform: translateY(10px); }
         .fade-enter-active { opacity: 1; transform: translateY(0); transition: all 0.4s ease; }
+        
+        /* 震動錯誤動畫 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake-error {
+            animation: shake 0.4s ease-in-out;
+            border-color: #ef4444 !important; /* 強制變紅 */
+            background-color: #fff1f2 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
+        }
+        /* 群組按鈕的錯誤樣式 */
+        .group-error {
+            padding: 6px;
+            border-radius: 1rem;
+            border: 2px solid #ef4444;
+            background-color: #fff1f2;
+            animation: shake 0.4s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -50,37 +71,209 @@
             const [boardingOpen, setBoardingOpen] = useState(false);
             const [groomingOpen, setGroomingOpen] = useState(false);
             const [isSubmitting, setIsSubmitting] = useState(false);
+            
+            const [errors, setErrors] = useState({});
 
             const [formData, setFormData] = useState({
                 email: '', owner_name: '', owner_id: '', phone: '', address: '', 
                 emergency_name: '', emergency_phone: '',
                 pet_name: '', breed: '', sex: '', age: '', weight: '', fix: '', 
-                chip_status: '無晶片', chip_id: '', preferred_clinic: '',
+                chip_status: '', chip_id: '', preferred_clinic: '',
                 is_human_friendly: '', dog_traits: [], is_barking: '', barking_detail: '',
-                medical_status: '無', medical_history: [], medical_history_other: '',
+                medical_status: '', medical_history: [], medical_history_other: '',
                 checkin_date: '', checkout_date: '', stay_exp: '',
                 crate_status: [], food_aggr: '', pad_toilet: '',
                 vaccine: '', deworm: '', deworm_brand: '', vaccine_file: null,
                 allergy: '', personality: '', special_notes: '', boarding_notice_agree: false,
-                service_type: '', pickup_time: '', service_price: '',
+                service_type: '', service_type_other: '', 
+                pickup_time: '', service_price: '',
                 legal_agree: false
             });
 
             const fullSigCanvasRef = useRef(null);
             const padInstance = useRef(null);
 
-            const selectServiceFlow = (type) => {
-                setIsBoarding(type === 'both');
-                setView('client');
-                setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
+            // --- ✨ 新增功能：自動暫存 (讀取) ---
+            useEffect(() => {
+                const savedData = localStorage.getItem('wangwang_form_draft');
+                if (savedData) {
+                    try {
+                        const parsed = JSON.parse(savedData);
+                        // 檢查是否有存檔且不為空
+                        if (Object.keys(parsed).length > 0) {
+                            if(confirm('📋 發現您上次有未填完的資料，是否還原繼續填寫？')) {
+                                setFormData(prev => ({ ...prev, ...parsed }));
+                                // 如果上次是在填住宿，切換過去 (簡易判斷)
+                                if (parsed.checkin_date) setIsBoarding(true); 
+                            }
+                        }
+                    } catch (e) { console.error("Restore failed", e); }
+                }
+            }, []);
+
+            // --- ✨ 新增功能：自動暫存 (寫入) - Debounce 1秒 ---
+            useEffect(() => {
+                const timeoutId = setTimeout(() => {
+                    // 只存表單數據，不存 UI 狀態 (如 view, showFullSig)
+                    localStorage.setItem('wangwang_form_draft', JSON.stringify(formData));
+                }, 1000);
+                return () => clearTimeout(timeoutId);
+            }, [formData]);
+            // ----------------------------------------
+
+            const handleChange = (field, value) => {
+                setFormData(prev => ({ ...prev, [field]: value }));
+                if (errors[field]) {
+                    setErrors(prev => ({ ...prev, [field]: false }));
+                }
             };
 
             const toggleArrayField = (field, value) => {
                 setFormData(prev => {
                     const currentArr = Array.isArray(prev[field]) ? prev[field] : [];
                     let updatedArr = currentArr.includes(value) ? currentArr.filter(i => i !== value) : [...currentArr, value];
+                    
+                    if (updatedArr.length > 0 && errors[field]) {
+                        setErrors(prev => ({ ...prev, [field]: false }));
+                    }
+                    
                     return { ...prev, [field]: updatedArr };
                 });
+            };
+
+            const validateEmail = (email) => {
+                return /\S+@\S+\.com/.test(email);
+            };
+
+            const validatePhone = (phone) => {
+                return /^09\d{8}$/.test(phone);
+            };
+
+            const handleSubmit = () => {
+                const newErrors = {};
+                
+                // 1. 基礎必填
+                const requiredText = [
+                    'email', 'owner_name', 'phone', 'owner_id', 
+                    'address', 'emergency_name', 'emergency_phone',
+                    'pet_name', 'breed', 'weight', 'age',
+                    'allergy', 'personality', 
+                    'preferred_clinic', 'special_notes'
+                ];
+                requiredText.forEach(f => {
+                    if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = true;
+                });
+
+                // 2. 格式驗證
+                if (formData.email && !validateEmail(formData.email)) newErrors.email = true;
+                if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = true;
+                if (formData.emergency_phone && !validatePhone(formData.emergency_phone)) newErrors.emergency_phone = true;
+
+                // 3. 選項必填
+                if (!formData.sex) newErrors.sex = true;
+                if (!formData.fix) newErrors.fix = true;
+                if (!formData.chip_status) newErrors.chip_status = true;
+                if (formData.dog_traits.length === 0) newErrors.dog_traits = true;
+                
+                if (!formData.medical_status) {
+                    newErrors.medical_status = true;
+                } else if (formData.medical_status === '有' && formData.medical_history.length === 0) {
+                    newErrors.medical_history = true; 
+                }
+
+                if (formData.crate_status.length === 0) newErrors.crate_status = true;
+
+                // 4. 住宿特定
+                if (isBoarding) {
+                    if (!formData.checkin_date) newErrors.checkin_date = true;
+                    if (!formData.checkout_date) newErrors.checkout_date = true;
+                    
+                    // --- ✨ 新增功能：日期邏輯防呆 ---
+                    if (formData.checkin_date && formData.checkout_date) {
+                        const start = new Date(formData.checkin_date);
+                        const end = new Date(formData.checkout_date);
+                        if (end <= start) {
+                            alert("⚠️ 日期錯誤：[退房日期] 必須晚於 [入住日期]");
+                            
+                            // 滾動到日期欄位
+                            const dateEl = document.getElementsByName('checkout_date')[0];
+                            if(dateEl) dateEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            
+                            // 標記錯誤
+                            setErrors(prev => ({...prev, checkout_date: true}));
+                            return; // 停止送出
+                        }
+                    }
+                    // ------------------------------
+
+                    if (!formData.is_barking) newErrors.is_barking = true;
+                    if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) {
+                        newErrors.barking_detail = true;
+                    }
+
+                    if (!formData.stay_exp) newErrors.stay_exp = true;
+                    if (!formData.food_aggr) newErrors.food_aggr = true;
+                    if (!formData.pad_toilet) newErrors.pad_toilet = true;
+                    
+                    if (!formData.vaccine) newErrors.vaccine = true;
+                    if (formData.vaccine === '有' && !formData.vaccine_file) newErrors.vaccine_file = true;
+
+                    if (!formData.deworm) newErrors.deworm = true;
+                    if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) {
+                        newErrors.deworm_brand = true;
+                    }
+
+                    if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = true;
+                } else {
+                    // 5. 美容特定 (新增驗證)
+                    if (!formData.service_type) newErrors.service_type = true;
+                    if (formData.service_type === '其他項目' && (!formData.service_type_other || formData.service_type_other.trim() === '')) {
+                        newErrors.service_type_other = true;
+                    }
+                    if (!formData.service_price) newErrors.service_price = true;
+                }
+
+                // 6. 法律與簽名
+                if (!formData.legal_agree) newErrors.legal_agree = true;
+                if (!realtimeSig) newErrors.signature = true;
+
+                setErrors(newErrors);
+
+                const errorKeys = Object.keys(newErrors);
+                if (errorKeys.length > 0) {
+                    const firstError = errorKeys[0];
+                    let el = document.getElementById(firstError) || document.getElementsByName(firstError)[0];
+                    if (firstError === 'vaccine_file') el = document.getElementById('vaccine-label');
+
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        const fallback = document.getElementById(firstError); 
+                        if(fallback) fallback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    
+                    if (newErrors.email && formData.email) alert("⚠️ 電子郵件格式錯誤，請包含 @ 與 .com");
+                    else if ((newErrors.phone && formData.phone) || (newErrors.emergency_phone && formData.emergency_phone)) alert("⚠️ 電話號碼格式錯誤，請輸入 09 開頭的 10 碼數字");
+                    else alert("⚠️ 請填寫所有必填欄位 (紅色標示處)");
+
+                    return;
+                }
+
+                setIsSubmitting(true);
+                setTimeout(() => {
+                    // --- ✨ 成功送出後，清除暫存 ---
+                    localStorage.removeItem('wangwang_form_draft'); 
+                    // ---------------------------
+                    alert("✨ 契約存檔成功！汪汪犬旅期待見到您的小寶貝");
+                    setIsSubmitting(false);
+                    window.location.reload();
+                }, 1200);
+            };
+
+            const selectServiceFlow = (type) => {
+                setIsBoarding(type === 'both');
+                setView('client');
+                setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
             };
 
             useEffect(() => {
@@ -99,7 +292,7 @@
             }, [showFullSig]);
 
             const pillBtn = (field, val, active) => (
-                <button type="button" onClick={() => setFormData({...formData, [field]: val})} 
+                <button type="button" onClick={() => handleChange(field, val)} 
                     className={`flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform active:scale-95 ${active ? 'bg-[#736357] text-white border-[#736357] shadow-md' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>
                     {val}
                 </button>
@@ -118,7 +311,7 @@
                                     <h3 className="text-2xl font-black text-[#736357] tracking-tight">官方 LINE 諮詢服務</h3>
                                 </div>
                                 <div className="space-y-2 text-[#736357] font-medium text-sm leading-relaxed opacity-90">
-                                    <p>讓我們入住前更了解您的小寶貝，請先加 LINE 並 <span className="text-red-500 font-bold underline decoration-wavy underline-offset-4">丟個貼圖</span> 我們才看得到您哦！😊</p>
+                                    <p>為了們更了解您的小寶貝，請先加 LINE 並 <span className="text-red-500 font-bold underline decoration-wavy underline-offset-4">丟個貼圖</span> 我們才看得到您哦！😊</p>
                                     <p className="text-[#06C755] text-xs font-bold">LINE ID: @cik3330f</p>
                                 </div>
                             </div>
@@ -140,11 +333,9 @@
                     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-[#fefcf9] relative overflow-hidden">
                         <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-[#F7E7B5]/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-[#736357]/5 rounded-full blur-3xl"></div>
-                        
                         <div className="w-48 h-48 md:w-64 md:h-64 mx-auto mb-10 relative">
                             <img src="./logo.png" alt="汪汪犬旅 Logo" className="w-full h-full object-contain drop-shadow-2xl" />
                         </div>
-                        
                         <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl px-4 relative z-10">
                             <button onClick={() => selectServiceFlow('grooming')} className="glass-card p-10 text-left group hover:scale-[1.02] active:scale-95 bg-white border-b-8">
                                 <div className="w-14 h-14 bg-[#736357]/5 text-[#736357] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#736357] group-hover:text-white transition-all">
@@ -154,7 +345,6 @@
                                 <p className="text-slate-400 font-medium text-sm mb-6">細心呵護，讓毛孩煥然一新</p>
                                 <div className="text-[#736357] font-bold flex items-center gap-2">開始填寫 <Icon name="arrow-right" size={18}/></div>
                             </button>
-                            
                             <button onClick={() => selectServiceFlow('both')} className="glass-card p-10 text-left group hover:scale-[1.02] active:scale-95 bg-white border-b-8 border-[#F7E7B5]">
                                 <div className="w-14 h-14 bg-[#F7E7B5]/30 text-[#736357] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#F7E7B5] transition-all">
                                     <Icon name="home" size={32} />
@@ -196,22 +386,18 @@
                                     <h3 className="text-xl font-bold text-[#736357]">飼主基本資料</h3>
                                 </div>
                                 <div className="grid md:grid-cols-2 gap-6">
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">電子郵件 *</label><input type="email" value={formData.email} onChange={e=>setFormData({...formData, email:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="example@email.com"/></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">主人姓名 *</label><input value={formData.owner_name} onChange={e=>setFormData({...formData, owner_name:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="請輸入全名"/></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">連絡電話 *</label><input type="tel" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="09XX-XXX-XXX"/></div>
-<div className="space-y-1.5">
-    <label className="text-xs font-bold text-slate-400 ml-1 flex items-center gap-1">
-        身分證字號 <span className="text-red-500 font-black">(入住時請攜帶身分證正本核對)</span> *
-    </label>
-    <input 
-        value={formData.owner_id} 
-        onChange={e=>setFormData({...formData, owner_id:e.target.value})} 
-        className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" 
-        placeholder="請輸入證件字號" 
-    />
-</div>                                    <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急聯絡人姓名 *</label><input value={formData.emergency_name} onChange={e=>setFormData({...formData, emergency_name:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50" /></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急連絡電話 *</label><input value={formData.emergency_phone} onChange={e=>setFormData({...formData, emergency_phone:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50" /></div>
-                                    <div className="md:col-span-2 space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">通訊地址 *</label><input value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
+                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">電子郵件 *(寄送契約副本用)</label><input name="email" type="email" value={formData.email} onChange={e=>handleChange('email', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.email ? 'shake-error' : ''}`} placeholder="example@email.com"/></div>
+                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">主人姓名 *</label><input name="owner_name" value={formData.owner_name} onChange={e=>handleChange('owner_name', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.owner_name ? 'shake-error' : ''}`} placeholder="請輸入全名"/></div>
+                                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">連絡電話 *</label><input name="phone" type="tel" inputMode="numeric" value={formData.phone} onChange={e=>handleChange('phone', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.phone ? 'shake-error' : ''}`} placeholder="09XX-XXX-XXX"/></div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-400 ml-1 flex items-center gap-1">
+                                            身分證字號 <span className="text-red-500 font-black">(入住時請攜帶身分證正本核對)</span> *
+                                        </label>
+                                        <input name="owner_id" value={formData.owner_id} onChange={e=>handleChange('owner_id', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.owner_id ? 'shake-error' : ''}`} placeholder="請輸入證件字號" />
+                                    </div>
+                                    <div className="md:col-span-2 space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">通訊地址 *</label><input name="address" value={formData.address} onChange={e=>handleChange('address', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.address ? 'shake-error' : ''}`} /></div>
+                                    <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急聯絡人姓名 *</label><input name="emergency_name" value={formData.emergency_name} onChange={e=>handleChange('emergency_name', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50 ${errors.emergency_name ? 'shake-error' : ''}`} /></div>
+                                    <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急連絡電話 *</label><input name="emergency_phone" type="tel" inputMode="numeric" value={formData.emergency_phone} onChange={e=>handleChange('emergency_phone', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50 ${errors.emergency_phone ? 'shake-error' : ''}`} /></div>
                                 </div>
                             </section>
 
@@ -227,25 +413,25 @@
                                 <div className="grid md:grid-cols-2 gap-6">
                                     {isBoarding && (
                                         <>
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">入住日期 *</label><input type="date" value={formData.checkin_date} onChange={e=>setFormData({...formData, checkin_date:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">退房日期 *</label><input type="date" value={formData.checkout_date} onChange={e=>setFormData({...formData, checkout_date:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">入住日期 *</label><input name="checkin_date" type="date" value={formData.checkin_date} onChange={e=>handleChange('checkin_date', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.checkin_date ? 'shake-error' : ''}`} /></div>
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">退房日期 *</label><input name="checkout_date" type="date" value={formData.checkout_date} onChange={e=>handleChange('checkout_date', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.checkout_date ? 'shake-error' : ''}`} /></div>
                                         </>
                                     )}
                                     
                                     <div className="md:col-span-2 grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-[#736357]/10 mt-2">
-                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">寵物名字 *</label><input value={formData.pet_name} onChange={e=>setFormData({...formData, pet_name:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">品種 *</label><input value={formData.breed} onChange={e=>setFormData({...formData, breed:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">體重 * (kg)</label><input type="number" value={formData.weight} onChange={e=>setFormData({...formData, weight:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label><input value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" /></div>
-                                        <div className="space-y-2"><label className="text-xs font-bold text-slate-400 ml-1">性別</label><div className="flex gap-2">{pillBtn('sex', '公', formData.sex==='公')}{pillBtn('sex', '母', formData.sex==='母')}</div></div>
-                                        <div className="space-y-2"><label className="text-xs font-bold text-slate-400 ml-1">結紮</label><div className="flex gap-2">{pillBtn('fix', '是', formData.fix==='是')}{pillBtn('fix', '否', formData.fix==='否')}</div></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">寵物名字 *</label><input name="pet_name" value={formData.pet_name} onChange={e=>handleChange('pet_name', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.pet_name ? 'shake-error' : ''}`} /></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">品種 *</label><input name="breed" value={formData.breed} onChange={e=>handleChange('breed', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.breed ? 'shake-error' : ''}`} /></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">體重 * (kg)</label><input name="weight" type="number" value={formData.weight} onChange={e=>handleChange('weight', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.weight ? 'shake-error' : ''}`} /></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label><input name="age" value={formData.age} onChange={e=>handleChange('age', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.age ? 'shake-error' : ''}`} /></div>
+                                        <div className="space-y-2" id="sex"><label className="text-xs font-bold text-slate-400 ml-1">性別 *</label><div className={`flex gap-2 ${errors.sex ? 'group-error' : ''}`}>{pillBtn('sex', '公', formData.sex==='公')}{pillBtn('sex', '母', formData.sex==='母')}</div></div>
+                                        <div className="space-y-2" id="fix"><label className="text-xs font-bold text-slate-400 ml-1">結紮 *</label><div className={`flex gap-2 ${errors.fix ? 'group-error' : ''}`}>{pillBtn('fix', '是', formData.fix==='是')}{pillBtn('fix', '否', formData.fix==='否')}</div></div>
                                     </div>
 
                                     <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 mt-4">
                                         <div className="grid md:grid-cols-2 gap-8">
-                                            <div className="space-y-3">
+                                            <div className="space-y-3" id="dog_traits">
                                                 <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">親狗程度 (可複選) *</label>
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className={`flex flex-wrap gap-2 ${errors.dog_traits ? 'group-error' : ''}`}>
                                                     {['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
                                                         <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${formData.dog_traits.includes(v) ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{v}</button>
                                                     ))}
@@ -253,26 +439,30 @@
                                             </div>
                                         </div>
 
-                                        <div className="space-y-4">
+                                        <div className="space-y-4" id="chip_status">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">晶片 *</label>
-                                            <div className="flex flex-wrap gap-4">
+                                            <div className={`flex flex-wrap gap-4 ${errors.chip_status ? 'group-error' : ''}`}>
                                                 {['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (
-                                                    <button key={s} type="button" onClick={()=>setFormData({...formData, chip_status: s})} className={`px-5 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{s}</button>
+                                                    <button key={s} type="button" onClick={()=>handleChange('chip_status', s)} className={`px-5 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{s}</button>
                                                 ))}
                                             </div>
-                                            {formData.chip_status === '有晶片' && <input placeholder="輸入 10 或 15 碼晶片號碼" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" />}
+                                            {formData.chip_status === '有晶片' && <input placeholder="輸入 10 或 15 碼晶片號碼" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] mt-3" />}
                                         </div>
 
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">指定就醫診所 (若未填寫則送往特約醫院)</label>
-                                            <input value={formData.preferred_clinic} onChange={e=>setFormData({...formData, preferred_clinic:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" placeholder="例如：汪汪動物醫院" />
+                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">指定就醫診所 (若未填寫則送往特約醫院) *</label>
+                                            <input name="preferred_clinic" value={formData.preferred_clinic} onChange={e=>handleChange('preferred_clinic', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.preferred_clinic ? 'shake-error' : ''}`} placeholder="例如：汪汪動物醫院 (若無請填無)" />
                                         </div>
 
-                                        <div className="space-y-4">
+                                        <div className="space-y-4" id="medical_status">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">過往病史 (可複選) *</label>
-                                            <div className="flex gap-3 mb-4">{pillBtn('medical_status', '無', formData.medical_status === '無')}{pillBtn('medical_status', '有', formData.medical_status === '有')}</div>
+                                            <div className={`flex gap-3 mb-4 ${errors.medical_status ? 'group-error' : ''}`}>
+                                                {pillBtn('medical_status', '無', formData.medical_status === '無')}
+                                                {pillBtn('medical_status', '有', formData.medical_status === '有')}
+                                            </div>
+                                            
                                             {formData.medical_status === '有' && (
-                                                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-400">
+                                                <div className={`space-y-4 animate-in fade-in slide-in-from-top-2 duration-400 ${errors.medical_history ? 'group-error' : ''}`}>
                                                     <div className="flex flex-wrap gap-2">
                                                         {['心臟病','氣喘','氣管塌陷','白內障','癲癇','心絲蟲','艾利希體','腹膜炎','腹積水','手術外傷未癒合','髖關節問題','骨折','腸炎','血便','血尿','懷孕','傳診性疾病'].map(v => (
                                                             <button type="button" key={v} onClick={() => toggleArrayField('medical_history', v)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${formData.medical_history.includes(v) ? 'bg-[#736357] text-white' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{v}</button>
@@ -288,76 +478,76 @@
                                     {isBoarding && (
                                         <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 mt-4 animate-in fade-in">
                                             <div className="grid md:grid-cols-2 gap-8">
-                                                <div className="space-y-3">
+                                                <div className="space-y-3" id="is_barking">
                                                     <label className="text-xs font-bold text-slate-400 ml-1">會容易吠叫嗎 *</label>
-                                                    <div className="flex gap-2">{pillBtn('is_barking', '會', formData.is_barking === '會')}{pillBtn('is_barking', '不會', formData.is_barking === '不會')}</div>
-                                                    {formData.is_barking === '會' && <textarea value={formData.barking_detail || ''} onChange={e => setFormData({...formData, barking_detail: e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] mt-2 min-h-[80px] text-sm" placeholder="什麼情況下會吠叫？" />}
+                                                    <div className={`flex gap-2 ${errors.is_barking ? 'group-error' : ''}`}>{pillBtn('is_barking', '會', formData.is_barking === '會')}{pillBtn('is_barking', '不會', formData.is_barking === '不會')}</div>
+                                                    {formData.is_barking === '會' && <textarea name="barking_detail" value={formData.barking_detail || ''} onChange={e => handleChange('barking_detail', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] mt-2 min-h-[80px] text-sm ${errors.barking_detail ? 'shake-error' : ''}`} placeholder="什麼情況下會吠叫？" />}
                                                 </div>
-                                                <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">有住宿過的經驗嗎 *</label><div className="flex gap-2">{pillBtn('stay_exp', '有', formData.stay_exp==='有')}{pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}</div></div>
-                                                <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">會護食嗎 *</label><div className="flex gap-2">{pillBtn('food_aggr', '會', formData.food_aggr==='會')}{pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}</div></div>
-                                                <div className="space-y-3"><label className="text-xs font-bold text-slate-400 ml-1">會在尿布墊上上廁所嗎 *</label><div className="flex gap-2">{pillBtn('pad_toilet', '會', formData.pad_toilet==='會')}{pillBtn('pad_toilet', '不會', formData.pad_toilet==='不會')}</div></div>
-<div className="space-y-3">
-    <label className="text-xs font-bold text-slate-400 ml-1">每年定期施打疫苗 (請提供疫苗手冊) *</label>
-    <div className="flex gap-2">
-        {pillBtn('vaccine', '有', formData.vaccine==='有')}
-        {pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}
-    </div>
-    
-    {formData.vaccine === '有' && (
-        <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
-            <input 
-                type="file" 
-                accept="image/*" 
-                /* 刪除了 capture="environment" 屬性 */
-                id="vaccine-upload"
-                className="hidden"
-                onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setFormData({...formData, vaccine_file: reader.result});
-                        reader.readAsDataURL(file);
-                    }
-                }}
-            />
-            <label 
-                htmlFor="vaccine-upload" 
-                className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-[#F7E7B5] rounded-xl cursor-pointer hover:bg-[#F7E7B5]/10 transition-all"
-            >
-                {/* 建議改用 image 圖示 */}
-                <Icon name="image" size={18} className="text-[#736357]" />
-                <span className="text-sm font-bold text-[#736357]">
-                    {formData.vaccine_file ? "更換疫苗手冊照片" : "選擇照片或開啟相機"}
-                </span>
-            </label>
+                                                <div className="space-y-3" id="stay_exp"><label className="text-xs font-bold text-slate-400 ml-1">有住宿過的經驗嗎 *</label><div className={`flex gap-2 ${errors.stay_exp ? 'group-error' : ''}`}>{pillBtn('stay_exp', '有', formData.stay_exp==='有')}{pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}</div></div>
+                                                <div className="space-y-3" id="food_aggr"><label className="text-xs font-bold text-slate-400 ml-1">會護食嗎 *</label><div className={`flex gap-2 ${errors.food_aggr ? 'group-error' : ''}`}>{pillBtn('food_aggr', '會', formData.food_aggr==='會')}{pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}</div></div>
+                                                <div className="space-y-3" id="pad_toilet"><label className="text-xs font-bold text-slate-400 ml-1">會在尿布墊上上廁所嗎 *</label><div className={`flex gap-2 ${errors.pad_toilet ? 'group-error' : ''}`}>{pillBtn('pad_toilet', '會', formData.pad_toilet==='會')}{pillBtn('pad_toilet', '不會', formData.pad_toilet==='不會')}</div></div>
+                                                <div className="space-y-3" id="vaccine">
+                                                    <label className="text-xs font-bold text-slate-400 ml-1">每年定期施打疫苗 (請提供疫苗手冊) *</label>
+                                                    <div className={`flex gap-2 ${errors.vaccine ? 'group-error' : ''}`}>{pillBtn('vaccine', '有', formData.vaccine==='有')}{pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}</div>
+                                                    
+                                                    {formData.vaccine === '有' && (
+                                                        <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
+                                                            <input 
+                                                                type="file" 
+                                                                accept="image/*" 
+                                                                id="vaccine-upload"
+                                                                className="hidden"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files[0];
+                                                                    if (file) {
+                                                                        const reader = new FileReader();
+                                                                        reader.onloadend = () => {
+                                                                            setFormData({...formData, vaccine_file: reader.result});
+                                                                            if(errors.vaccine_file) setErrors(prev=>({...prev, vaccine_file:false}));
+                                                                        };
+                                                                        reader.readAsDataURL(file);
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <label 
+                                                                id="vaccine-label"
+                                                                htmlFor="vaccine-upload" 
+                                                                className={`w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-[#F7E7B5] rounded-xl cursor-pointer hover:bg-[#F7E7B5]/10 transition-all ${errors.vaccine_file ? 'shake-error' : ''}`}
+                                                            >
+                                                                <Icon name="image" size={18} className="text-[#736357]" />
+                                                                <span className="text-sm font-bold text-[#736357]">
+                                                                    {formData.vaccine_file ? "更換疫苗手冊照片" : "選擇照片或開啟相機"}
+                                                                </span>
+                                                            </label>
 
-            {formData.vaccine_file && (
-                <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#736357]/10">
-                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
-                    <button 
-                        type="button"
-                        onClick={() => setFormData({...formData, vaccine_file: null})}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg"
-                    >
-                        <Icon name="x" size={14} />
-                    </button>
-                </div>
-            )}
-        </div>
-    )}
-</div>                                                <div className="space-y-3">
+                                                            {formData.vaccine_file && (
+                                                                <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#736357]/10">
+                                                                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => setFormData({...formData, vaccine_file: null})}
+                                                                        className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg"
+                                                                    >
+                                                                        <Icon name="x" size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-3" id="deworm">
                                                     <label className="text-xs font-bold text-slate-400 ml-1">每月定期驅蟲預防 *</label>
-                                                    <div className="flex gap-2">{pillBtn('deworm', '有', formData.deworm==='有')}{pillBtn('deworm', '無', formData.deworm==='無')}</div>
-                                                    {formData.deworm === '有' && <input value={formData.deworm_brand} onChange={e=>setFormData({...formData, deworm_brand:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3 font-bold text-[#736357] mt-2 text-sm shadow-inner" placeholder="使用哪個牌子的驅蟲藥？" />}
+                                                    <div className={`flex gap-2 ${errors.deworm ? 'group-error' : ''}`}>{pillBtn('deworm', '有', formData.deworm==='有')}{pillBtn('deworm', '無', formData.deworm==='無')}</div>
+                                                    {formData.deworm === '有' && <input name="deworm_brand" value={formData.deworm_brand} onChange={e=>handleChange('deworm_brand', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3 font-bold text-[#736357] mt-2 text-sm shadow-inner ${errors.deworm_brand ? 'shake-error' : ''}`} placeholder="使用哪個牌子的驅蟲藥？" />}
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-4">
+                                            <div className="space-y-4" id="crate_status">
                                                 <div className="flex flex-col gap-1.5">
                                                     <label className="text-xs font-bold text-slate-400 ml-1">籠內訓練狀況 (可複選) *</label>
                                                     <p className="text-[11px] font-bold text-[#736357]/60 ml-1">何謂籠內訓練：<a href="https://www.hapet.com.tw/blog/posts/cratetraining" target="_blank" className="text-[#736357] underline decoration-dashed underline-offset-4 hover:text-[#06C755] transition-all">能在圍欄或房間內獨立休息，不焦慮、不持續吠叫、不激動衝撞</a></p>
                                                 </div>
-                                                <div className="flex flex-col gap-2.5 pt-1">
+                                                <div className={`flex flex-col gap-2.5 pt-1 ${errors.crate_status ? 'group-error' : ''}`}>
                                                     {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
                                                         <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`px-5 py-3.5 rounded-xl text-left text-xs font-bold border-2 transition-all duration-300 ${formData.crate_status.includes(v) ? 'bg-[#736357] text-white shadow-md translate-x-1' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>{v}</button>
                                                     ))}
@@ -369,9 +559,9 @@
                                                     <Icon name="info" size={24} className="text-[#736357]"/>
                                                     <h4 className="text-xl font-bold text-[#736357]">狗狗的日常情形及注意事項</h4>
                                                 </div>
-                                                <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">有對什麼過敏嗎 (例如:雞肉或牛肉) *</label><textarea value={formData.allergy} onChange={e=>setFormData({...formData, allergy:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[100px]" placeholder="請詳細填寫過敏原..."/></div>
-                                                <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">個性如何呢? 有分離焦慮嗎? *</label><textarea value={formData.personality} onChange={e=>setFormData({...formData, personality:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[100px]" placeholder="請描述個性、與其他狗相處狀況..."/></div>
-                                                <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">有需要特別注意的嗎? 任何事情都可以說越詳細越好</label><textarea value={formData.special_notes} onChange={e=>setFormData({...formData, special_notes:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[120px]" placeholder="餵食習慣、特殊癖好、身體狀況備註等..."/></div>
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">有對什麼過敏嗎 (例如:雞肉或牛肉) *</label><textarea name="allergy" value={formData.allergy} onChange={e=>handleChange('allergy', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[100px] ${errors.allergy ? 'shake-error' : ''}`} placeholder="請詳細填寫過敏原..."/></div>
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">個性如何呢? 有分離焦慮嗎? *</label><textarea name="personality" value={formData.personality} onChange={e=>handleChange('personality', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[100px] ${errors.personality ? 'shake-error' : ''}`} placeholder="請描述個性、與其他狗相處狀況..."/></div>
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">有需要特別注意的嗎? 任何事情都可以說越詳細越好 *</label><textarea name="special_notes" value={formData.special_notes} onChange={e=>handleChange('special_notes', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[120px] ${errors.special_notes ? 'shake-error' : ''}`} placeholder="餵食習慣、特殊癖好、身體狀況備註等... (若無請填無)"/></div>
                                                 
                                                 <div className="max-w-xl mx-auto overflow-hidden rounded-[2rem] border-4 border-[#F7E7B5] shadow-xl bg-white group hover:scale-[1.01] transition-transform duration-500">
                                                     <img src="./入住須知.jpg" alt="入住須知" className="w-full h-auto object-contain block" onError={(e) => { e.target.onerror = null; e.target.parentNode.innerHTML = '<div className="p-16 text-center text-[#736357] font-bold bg-[#F7E7B5]/10">💡 提示：請確認 "入住須知.jpg" 圖片已與 HTML 置於同一路徑</div>'; }} />
@@ -379,9 +569,9 @@
                                                 </div>
 
                                                 <div className="pt-4">
-                                                    <label className="flex items-center gap-4 cursor-pointer group bg-white p-7 rounded-[2rem] border-2 border-red-100 hover:border-red-300 transition-all shadow-sm">
+                                                    <label id="boarding_notice_agree" className={`flex items-center gap-4 cursor-pointer group bg-white p-7 rounded-[2rem] border-2 transition-all shadow-sm ${errors.boarding_notice_agree ? 'shake-error border-red-500' : 'border-red-100 hover:border-red-300'}`}>
                                                         <div className="relative">
-                                                            <input type="checkbox" checked={formData.boarding_notice_agree} onChange={e=>setFormData({...formData, boarding_notice_agree:e.target.checked})} className="accent-red-500 w-8 h-8 cursor-pointer relative z-10" />
+                                                            <input type="checkbox" checked={formData.boarding_notice_agree} onChange={e=>handleChange('boarding_notice_agree', e.target.checked)} className="accent-red-500 w-8 h-8 cursor-pointer relative z-10" />
                                                             <div className="absolute inset-0 bg-red-100 rounded-lg scale-75 blur-sm group-hover:scale-110 transition-transform"></div>
                                                         </div>
                                                         <div className="flex flex-col">
@@ -405,24 +595,80 @@
                                     </div>
                                     <div className="grid md:grid-cols-2 gap-8">
                                         <div className="md:col-span-2 space-y-4">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider uppercase">服務項目</label>
-                                            <div className="flex flex-wrap gap-3">
+                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider uppercase">服務項目 *</label>
+                                            <div id="service_type" className={`flex flex-wrap gap-3 ${errors.service_type ? 'group-error' : ''}`}>
                                                 {['包月洗澡','基礎洗澡','精緻美容','局部修剪','寵物安親','其他項目'].map(s => (
-                                                    <button key={s} type="button" onClick={()=>setFormData({...formData, service_type: s})} 
+                                                    <button key={s} type="button" onClick={()=>handleChange('service_type', s)} 
                                                         className={`px-6 py-4 rounded-2xl font-bold text-sm border-2 transition-all ${formData.service_type === s ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-[#F7E7B5]'}`}>
                                                         {s}
                                                     </button>
                                                 ))}
                                             </div>
+                                            {/* 新增：其他項目輸入框 */}
+                                            {formData.service_type === '其他項目' && (
+                                                <div className="mt-3 animate-in fade-in">
+                                                    <input 
+                                                        name="service_type_other"
+                                                        value={formData.service_type_other} 
+                                                        onChange={e=>handleChange('service_type_other', e.target.value)} 
+                                                        className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.service_type_other ? 'shake-error' : ''}`} 
+                                                        placeholder="請填寫其他服務項目內容..."
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
+                                        
+                                        {/* 修改區塊：預計接回時間 (手機滾輪優化版 + 預設文字) */}
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">預計接回時間</label>
-                                            <input type="time" value={formData.pickup_time} onChange={e=>setFormData({...formData, pickup_time:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357]" />
+                                            <div className="flex flex-col">
+                                                <label className="text-xs font-bold text-slate-400 ml-1 uppercase">預計接回時間</label>
+                                                <span className="text-[11px] text-red-500 font-bold ml-1">* 若未填寫，則另行通知接回時間</span>
+                                            </div>
+                                            
+                                            <input 
+                                                type={formData.pickup_time ? "time" : "text"} 
+                                                placeholder="(另行通知)"
+                                                onFocus={(e) => e.target.type = 'time'}
+                                                onBlur={(e) => { if(!e.target.value) e.target.type = 'text'; }}
+                                                value={formData.pickup_time} 
+                                                onChange={e=>setFormData({...formData, pickup_time:e.target.value})} 
+                                                className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] min-h-[54px] placeholder-slate-300" 
+                                            />
+                                            
+                                            {/* 清除時間按鈕 (有值才顯示) */}
+                                            {formData.pickup_time && (
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => {
+                                                        const event = { target: { value: '' } };
+                                                        setFormData({...formData, pickup_time: ''});
+                                                        // 這裡不需要手動切回 text，因為下一次 render 會根據 type={...} 自動切換
+                                                    }}
+                                                    className="text-xs font-bold text-slate-400 underline decoration-dashed ml-1 hover:text-[#736357] transition-colors"
+                                                >
+                                                    清除時間 (改為另行通知)
+                                                </button>
+                                            )}
+
                                             <p className="text-[10px] text-red-500 font-bold italic mt-2.5 ml-1">※ 逾時 30 分鐘以上，將依每小時 $200 加收安親費。</p>
                                         </div>
+
+                                        {/* 修改區塊：本次服務金額 (手機純數字鍵盤優化版) */}
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">本次服務金額 *NT$</label>
-                                            <input type="number" placeholder="請輸入金額" value={formData.service_price} onChange={e=>setFormData({...formData, service_price:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] shadow-inner" />
+                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">本次服務金額 *</label>
+                                            <div className="relative">
+                                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-bold text-[#736357] z-10">NT$</span>
+                                                <input 
+                                                    name="service_price" 
+                                                    type="tel" 
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    placeholder="0" 
+                                                    value={formData.service_price} 
+                                                    onChange={e => handleChange('service_price', e.target.value.replace(/[^0-9]/g, ''))} 
+                                                    className={`w-full cute-input rounded-xl py-3.5 pr-5 pl-16 font-bold text-[#736357] text-xl shadow-inner ${errors.service_price ? 'shake-error' : ''}`} 
+                                                />
+                                            </div>
                                             <p className="text-[10px] text-slate-400 font-bold italic mt-2.5 ml-1">※ 此金額為基礎報價，若有特殊狀況將另行告知加價。</p>
                                         </div>
                                     </div>
@@ -462,14 +708,14 @@
                                         )}
                                     </div>
                                     <div className="pt-6 border-t border-slate-100">
-                                        <label className="flex items-center gap-5 cursor-pointer group">
-                                            <input type="checkbox" checked={formData.legal_agree} onChange={e=>setFormData({...formData, legal_agree:e.target.checked})} className="accent-[#736357] w-7 h-7 cursor-pointer" />
+                                        <label id="legal_agree" className={`flex items-center gap-5 cursor-pointer group p-4 rounded-2xl transition-all ${errors.legal_agree ? 'shake-error' : ''}`}>
+                                            <input type="checkbox" checked={formData.legal_agree} onChange={e=>handleChange('legal_agree', e.target.checked)} className="accent-[#736357] w-7 h-7 cursor-pointer" />
                                             <span className="text-lg font-black text-[#736357] tracking-tight group-hover:opacity-80 transition-opacity">本人已詳閱並理解以上契約條款，保證填寫資訊屬實。</span>
                                         </label>
                                     </div>
                                 </div>
 
-                                <div onClick={() => setShowFullSig(true)} className="bg-white border-4 border-dashed border-[#F7E7B5] h-64 rounded-[3rem] flex flex-col items-center justify-center cursor-pointer hover:bg-white/50 transition-all overflow-hidden relative shadow-inner group">
+                                <div id="signature" onClick={() => setShowFullSig(true)} className={`bg-white border-4 border-dashed h-64 rounded-[3rem] flex flex-col items-center justify-center cursor-pointer hover:bg-white/50 transition-all overflow-hidden relative shadow-inner group ${errors.signature ? 'shake-error border-red-500' : 'border-[#F7E7B5]'}`}>
                                     {realtimeSig ? <img src={realtimeSig} className="h-full object-contain p-10 drop-shadow-md" /> : (
                                         <div className="text-center space-y-5">
                                             <div className="w-16 h-16 bg-[#736357] text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg group-hover:scale-110 transition-transform">
@@ -480,12 +726,7 @@
                                     )}
                                 </div>
 
-                                <button onClick={() => {
-                                    if(!formData.legal_agree || !realtimeSig) return alert("⚠️ 請先閱讀勾選條款並完成數位簽名"); 
-                                    if(isBoarding && !formData.boarding_notice_agree) return alert("⚠️ 請先勾選同意住宿須知同意書"); 
-                                    setIsSubmitting(true); 
-                                    setTimeout(()=>{alert("✨ 契約存檔成功！汪汪犬旅期待見到您的小寶貝"); setIsSubmitting(false); window.location.reload();}, 1200);
-                                }} disabled={isSubmitting} className="w-full py-7 bg-[#736357] text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:shadow-2xl hover:opacity-90 active:scale-95 disabled:bg-slate-200 transition-all flex items-center justify-center gap-3">
+                                <button onClick={handleSubmit} disabled={isSubmitting} className="w-full py-7 bg-[#736357] text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:shadow-2xl hover:opacity-90 active:scale-95 disabled:bg-slate-200 transition-all flex items-center justify-center gap-3">
                                     {isSubmitting ? (
                                         <React.Fragment><Icon name="loader-2" className="animate-spin" size={28}/> 正在儲存資料...</React.Fragment>
                                     ) : "確認並提交數位契約"}
@@ -502,7 +743,7 @@
                                     <div className="text-center">
                                         <span className="font-black text-[#736357] text-2xl tracking-tighter italic leading-none">汪汪犬旅 數位簽名</span>
                                     </div>
-                                    <button onClick={()=>{setRealtimeSig(padInstance.current.toDataURL()); setShowFullSig(false);}} className="bg-[#736357] text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all">完成簽署</button>
+                                    <button onClick={()=>{setRealtimeSig(padInstance.current.toDataURL()); setShowFullSig(false); handleChange('signature', true);}} className="bg-[#736357] text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all">完成簽署</button>
                                 </div>
                                 <div className="flex-1 canvas-container bg-slate-50/30">
                                     <canvas ref={fullSigCanvasRef} className="w-full h-full"></canvas>
