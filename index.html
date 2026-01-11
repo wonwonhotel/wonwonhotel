@@ -263,8 +263,41 @@ const App = () => {
                                                 <div className="space-y-2"><label className="text-sm font-bold text-slate-400">有對什麼過敏嗎 (例如:雞肉或牛肉) *</label><textarea value={formData.allergy} onChange={e=>setFormData({...formData, allergy:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[100px]" placeholder="您的回答" /></div>
                                                 <div className="space-y-2"><label className="text-sm font-bold text-slate-400">個性如何呢? 有分離焦慮嗎? *</label><textarea value={formData.personality} onChange={e=>setFormData({...formData, personality:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[100px]" placeholder="您的回答" /></div>
                                                 <div className="space-y-2"><label className="text-sm font-bold text-slate-400">有需要特別注意的嗎? 任何事情都可以說越詳細越好</label><textarea value={formData.special_notes} onChange={e=>setFormData({...formData, special_notes:e.target.value})} className="w-full cute-input rounded-2xl px-6 py-4 font-bold text-[#736357] min-h-[120px]" placeholder="您的回答" /></div>
-                                                <div className="pt-4"><label className="flex items-center gap-4 cursor-pointer group bg-white p-4 rounded-2xl border-2 border-red-100"><input type="checkbox" checked={formData.boarding_notice_agree} onChange={e=>setFormData({...formData, boarding_notice_agree:e.target.checked})} className="accent-red-500 w-6 h-6" /><span className="text-sm font-black text-red-500 underline">入住即代表同意入住須知及注意事項 *</span></label></div>
-                                            </div>
+<div className="pt-4 space-y-6">
+    {/* 插入入住須知圖片 */}
+    <div className="max-w-xl mx-auto overflow-hidden rounded-[2rem] border-4 border-[#F7E7B5] shadow-xl group hover:scale-[1.01] transition-transform duration-500">
+        <img 
+            src="./入住須知.jpg" 
+            alt="入住須知" 
+            className="w-full h-auto object-contain block"
+            /* 萬一圖檔路徑有誤，則不顯示碎圖 */
+            onError={(e) => { e.target.style.display = 'none'; }} 
+        />
+        <div className="bg-[#F7E7B5] p-3 text-center text-[#736357] text-xs font-bold tracking-widest flex items-center justify-center gap-2">
+            <Icon name="eye" size={14}/> 請詳閱上方入住須知內容
+        </div>
+    </div>
+
+    {/* 同意勾選框 */}
+    <label className="flex items-center gap-4 cursor-pointer group bg-white p-6 rounded-2xl border-2 border-red-100 hover:border-red-300 hover:bg-red-50/30 transition-all shadow-sm">
+        <div className="relative flex items-center justify-center">
+            <input 
+                type="checkbox" 
+                checked={formData.boarding_notice_agree} 
+                onChange={e=>setFormData({...formData, boarding_notice_agree:e.target.checked})} 
+                className="accent-red-500 w-7 h-7 cursor-pointer" 
+            />
+        </div>
+        <div className="flex flex-col">
+            <span className="text-base font-black text-red-500 underline decoration-2 underline-offset-4 group-hover:text-red-600">
+                入住即代表同意入住須知及注意事項 *
+            </span>
+            <p className="text-[11px] text-slate-400 font-bold mt-1 tracking-tight">
+                我已確認理解上述所有規範，並願意承諾遵守。
+            </p>
+        </div>
+    </label>
+</div>                                            </div>
                                         </>
                                     )}
                                 </div>
