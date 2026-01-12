@@ -110,17 +110,154 @@
             return <span ref={iconRef} key={name} className="inline-flex items-center justify-center"><i data-lucide={name} style={{ width: size, height: size }}></i></span>;
         };
 
-        // --- 修正：服務類型顯示邏輯 ---
         const getServiceLabel = (serviceType) => {
             if (!serviceType) return '';
-            // 只要包含「住宿」，就強制回傳固定格式，忽略後面的雜訊
             if (serviceType.includes('住宿')) {
                 return '🏠 住宿＋洗澡';
             }
             return `✂️ ${serviceType}`;
         };
 
-        // --- 二次確認密碼視窗 ---
+        // --- 優化版：變更密碼 Modal (含舊密碼驗證) ---
+        const ChangePasswordModal = ({ isOpen, onClose }) => {
+            const [oldPassword, setOldPassword] = useState(''); // 新增舊密碼狀態
+            const [newPassword, setNewPassword] = useState('');
+            const [confirmPassword, setConfirmPassword] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const [msg, setMsg] = useState({ type: '', text: '' });
+
+            useEffect(() => {
+                if (!isOpen) {
+                    setOldPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setMsg({ type: '', text: '' });
+                }
+            }, [isOpen]);
+
+            const handleUpdatePassword = async () => {
+                // 基本驗證
+                if (!oldPassword) {
+                    setMsg({ type: 'error', text: '請輸入目前的舊密碼' });
+                    return;
+                }
+                if (newPassword.length < 6) {
+                    setMsg({ type: 'error', text: '新密碼長度至少需 6 個字元' });
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    setMsg({ type: 'error', text: '兩次輸入的新密碼不相符' });
+                    return;
+                }
+                if (oldPassword === newPassword) {
+                    setMsg({ type: 'error', text: '新密碼不能與舊密碼相同' });
+                    return;
+                }
+
+                setIsLoading(true);
+                setMsg({ type: '', text: '' });
+
+                try {
+                    // 1. 先驗證舊密碼是否正確 (嘗試重新登入)
+                    const { error: signInError } = await supabase.auth.signInWithPassword({
+                        email: ADMIN_EMAIL,
+                        password: oldPassword
+                    });
+
+                    if (signInError) {
+                        throw new Error("舊密碼輸入錯誤，請重新確認");
+                    }
+
+                    // 2. 舊密碼正確，執行密碼更新
+                    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+                    if (updateError) throw updateError;
+                    
+                    setMsg({ type: 'success', text: '✅ 密碼修改成功！下次請使用新密碼登入' });
+                    
+                    // 2秒後關閉視窗
+                    setTimeout(() => {
+                        onClose();
+                    }, 2000);
+
+                } catch (error) {
+                    console.error(error);
+                    setMsg({ type: 'error', text: error.message || '修改失敗，請稍後再試' });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+                        <div className="text-center">
+                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Icon name="key" size={24} />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-700">變更管理密碼</h3>
+                            <p className="text-sm text-slate-500 mt-1">為了資安考量，修改前需驗證身分。</p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">目前的舊密碼</label>
+                                <input 
+                                    type="password" 
+                                    value={oldPassword}
+                                    onChange={(e) => setOldPassword(e.target.value)}
+                                    className="w-full edit-input py-3 border-slate-300 focus:border-blue-500"
+                                    placeholder="輸入現在使用的密碼"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <hr className="border-dashed border-slate-200" />
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-400 ml-1">新密碼</label>
+                                <input 
+                                    type="password" 
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full edit-input py-3"
+                                    placeholder="至少 6 位數"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-400 ml-1">確認新密碼</label>
+                                <input 
+                                    type="password" 
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full edit-input py-3"
+                                    placeholder="再次輸入新密碼"
+                                />
+                            </div>
+                        </div>
+
+                        {msg.text && (
+                            <div className={`text-sm font-bold text-center p-3 rounded-xl animate-pulse ${msg.type === 'error' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                                {msg.text}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 pt-2">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all">取消</button>
+                            <button 
+                                onClick={handleUpdatePassword} 
+                                disabled={isLoading || !oldPassword || !newPassword || !confirmPassword}
+                                className="flex-1 py-3 rounded-xl bg-[#736357] text-white font-bold hover:bg-[#5e5046] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                {isLoading ? <Icon name="loader-2" className="animate-spin" /> : '確認修改'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const ConfirmModal = ({ isOpen, onClose, onConfirm, title, loading }) => {
             const [confirmPassword, setConfirmPassword] = useState('');
             
@@ -163,7 +300,6 @@
             );
         };
 
-        // --- 契約列印版面 ---
         const PrintContract = ({ data }) => {
             if (!data) return null;
             const r = data.raw_data || {};
@@ -273,6 +409,9 @@
             const [confirmAction, setConfirmAction] = useState(null); // 'save' or 'delete'
             const [actionLoading, setActionLoading] = useState(false);
 
+            // 修改密碼 Modal 狀態
+            const [showPasswordModal, setShowPasswordModal] = useState(false);
+
             useEffect(() => {
                 supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
@@ -302,7 +441,6 @@
 
             const handleLogout = async () => {
                 await supabase.auth.signOut();
-                // 登出後直接跳轉回首頁 (填寫系統)
                 window.location.href = 'index.html';
             };
 
@@ -342,17 +480,14 @@
                 }
             };
 
-            // 觸發敏感操作（開啟確認視窗）
             const triggerAction = (action) => {
                 setConfirmAction(action);
                 setShowConfirm(true);
             };
 
-            // 執行敏感操作（驗證密碼後）
             const executeAction = async (confirmPassword) => {
                 setActionLoading(true);
                 
-                // 1. 驗證密碼
                 const { error: authError } = await supabase.auth.signInWithPassword({
                     email: ADMIN_EMAIL,
                     password: confirmPassword,
@@ -364,7 +499,6 @@
                     return;
                 }
 
-                // 2. 驗證成功，執行對應操作
                 if (confirmAction === 'save') {
                     await handleSaveLogic();
                 } else if (confirmAction === 'delete') {
@@ -398,9 +532,7 @@
                 setEditForm(prev => ({ ...prev, [field]: value }));
             };
 
-            // --- 修正 2：處理空日期導致儲存失敗的問題 ---
             const handleSaveLogic = async () => {
-                // 輔助函式：如果日期是空字串，轉成 null (PostgreSQL 不接受空字串為日期)
                 const sanitizeDate = (val) => (!val || val === '') ? null : val;
 
                 const topLevelUpdates = {
@@ -408,7 +540,6 @@
                     phone: editForm.phone,
                     pet_name: editForm.pet_name,
                     service_type: editForm.service_type,
-                    // 這裡加上 sanitizeDate 處理，解決美容訂單沒日期會報錯的問題
                     checkin_date: sanitizeDate(editForm.checkin_date),
                     checkout_date: sanitizeDate(editForm.checkout_date),
                     pickup_time: editForm.pickup_time,
@@ -446,10 +577,8 @@
                 (b.phone && b.phone.includes(filter))
             );
 
-            // 輔助函式：顯示欄位 (支援編輯模式)
             const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false }) => {
                 if (isEditing && fieldName) {
-                    // 防止 React controlled input 警告 (value 不能為 null)
                     const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
                     
                     return (
@@ -474,7 +603,6 @@
                 );
             };
 
-            // --- 登入畫面 ---
             if (!session) {
                 return (
                     <div className="min-h-screen login-bg flex items-center justify-center p-4">
@@ -495,7 +623,6 @@
                                 </button>
                             </form>
                             
-                            {/* 新增：返回首頁按鈕 (登入畫面) */}
                             <div className="mt-6 border-t border-slate-100 pt-4">
                                 <a href="index.html" className="w-full py-3 rounded-xl font-bold text-slate-400 hover:text-[#736357] hover:bg-[#736357]/5 transition-all flex items-center justify-center gap-2 text-sm">
                                     <Icon name="arrow-left" size={16} /> 返回填寫首頁
@@ -506,7 +633,6 @@
                 );
             }
 
-            // --- 主畫面 ---
             return (
                 <div className="min-h-screen flex flex-col no-print">
                     <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm">
@@ -519,6 +645,12 @@
                             <button onClick={fetchBookings} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors" title="重新整理">
                                 <Icon name="rotate-cw" size={20} className={loading ? "animate-spin" : ""} />
                             </button>
+                            
+                            {/* 變更密碼按鈕 */}
+                            <button onClick={() => setShowPasswordModal(true)} className="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-blue-50 hover:text-blue-500 transition-colors" title="變更密碼">
+                                <Icon name="key" size={20} />
+                            </button>
+
                             <button onClick={handleLogout} className="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors" title="登出並返回首頁">
                                 <Icon name="log-out" size={20} />
                             </button>
@@ -768,6 +900,12 @@
                             <PrintContract data={selectedBooking} />
                         </div>
                     )}
+
+                    {/* 變更密碼 Modal */}
+                    <ChangePasswordModal 
+                        isOpen={showPasswordModal} 
+                        onClose={() => setShowPasswordModal(false)} 
+                    />
 
                     {/* 二次確認 Modal */}
                     <ConfirmModal 
