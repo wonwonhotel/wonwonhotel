@@ -116,7 +116,26 @@
         .canvas-container canvas {
             width: 100%;
             height: 100%;
-                }
+        }
+
+        /* 簽名模式下禁止頁面滾動 */
+        body.signing-mode {
+            overflow: hidden !important;
+            position: fixed !important;
+            width: 100% !important;
+            height: 100% !important;
+            touch-action: none !important;
+        }
+
+        /* 全螢幕簽名板樣式優化 */
+        .fullscreen-signature {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            touch-action: none;
+            -webkit-overflow-scrolling: none;
+            overscroll-behavior: none;
+        }
 
         @keyframes pulse-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
         .line-btn-animated { background-color: var(--line-green); animation: pulse-soft 2.5s infinite ease-in-out; }
@@ -680,25 +699,74 @@
                 setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
             };
 
+            // 儲存當前滾動位置
+            const scrollPositionRef = useRef(0);
+
             useEffect(() => {
                 let timer;
+                let resizeTimeout;
+                let currentOrientation = window.screen?.orientation?.angle || window.orientation || 0;
+                
                 const resizeCanvas = () => {
-                    if (fullSigCanvasRef.current && padInstance.current) {
-                        const canvas = fullSigCanvasRef.current;
-                        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                        canvas.width = canvas.offsetWidth * ratio;
-                        canvas.height = canvas.offsetHeight * ratio;
-                        canvas.getContext("2d").scale(ratio, ratio);
-                        padInstance.current.clear(); 
+                    // 使用 debounce 避免頻繁觸發
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        if (fullSigCanvasRef.current && padInstance.current) {
+                            const canvas = fullSigCanvasRef.current;
+                            const container = canvas.parentElement;
+                            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                            
+                            // 保存當前簽名數據
+                            const signatureData = padInstance.current.toData();
+                            
+                            // 重新設定畫布尺寸
+                            canvas.width = container.offsetWidth * ratio;
+                            canvas.height = container.offsetHeight * ratio;
+                            canvas.getContext("2d").scale(ratio, ratio);
+                            
+                            // 恢復簽名數據
+                            if (signatureData && signatureData.length > 0) {
+                                padInstance.current.fromData(signatureData);
+                            }
+                        }
+                    }, 100);
+                };
+
+                const handleOrientationChange = () => {
+                    const newOrientation = window.screen?.orientation?.angle || window.orientation || 0;
+                    if (newOrientation !== currentOrientation) {
+                        currentOrientation = newOrientation;
+                        // 延遲執行以等待螢幕旋轉完成
+                        setTimeout(resizeCanvas, 300);
                     }
                 };
+
+                // 阻止觸控事件導致頁面滾動
+                const preventTouchMove = (e) => {
+                    if (showFullSig) {
+                        e.preventDefault();
+                    }
+                };
+
                 if (showFullSig && fullSigCanvasRef.current) {
+                    // 儲存當前滾動位置
+                    scrollPositionRef.current = window.scrollY;
+                    
+                    // 添加 signing-mode class 禁止頁面滾動
+                    document.body.classList.add('signing-mode');
+                    document.body.style.top = `-${scrollPositionRef.current}px`;
+                    
+                    // 阻止觸控滾動
+                    document.addEventListener('touchmove', preventTouchMove, { passive: false });
+                    
                     timer = setTimeout(() => {
                         const canvas = fullSigCanvasRef.current;
+                        const container = canvas.parentElement;
                         const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                        canvas.width = canvas.offsetWidth * ratio;
-                        canvas.height = canvas.offsetHeight * ratio;
+                        canvas.width = container.offsetWidth * ratio;
+                        canvas.height = container.offsetHeight * ratio;
                         canvas.getContext("2d").scale(ratio, ratio);
+                        
                         padInstance.current = new SignaturePad(canvas, { 
                             penColor: "rgb(115, 99, 87)",
                             backgroundColor: "rgb(255, 255, 255)", 
@@ -708,13 +776,35 @@
                             minDistance: 3, 
                             velocityFilterWeight: 0.7,
                         });
+                        
+                        // 監聽視窗大小變化和螢幕旋轉
                         window.addEventListener("resize", resizeCanvas);
+                        window.addEventListener("orientationchange", handleOrientationChange);
+                        
+                        // 針對 iOS 的額外處理
+                        if (window.screen?.orientation) {
+                            window.screen.orientation.addEventListener("change", handleOrientationChange);
+                        }
                     }, 200);
                 }
+                
                 return () => { 
-                    if (timer) clearTimeout(timer); 
+                    if (timer) clearTimeout(timer);
+                    if (resizeTimeout) clearTimeout(resizeTimeout);
                     if (padInstance.current) padInstance.current.off(); 
+                    
+                    // 移除 signing-mode class 並恢復滾動位置
+                    document.body.classList.remove('signing-mode');
+                    document.body.style.top = '';
+                    window.scrollTo(0, scrollPositionRef.current);
+                    
+                    // 移除事件監聽器
+                    document.removeEventListener('touchmove', preventTouchMove);
                     window.removeEventListener("resize", resizeCanvas);
+                    window.removeEventListener("orientationchange", handleOrientationChange);
+                    if (window.screen?.orientation) {
+                        window.screen.orientation.removeEventListener("change", handleOrientationChange);
+                    }
                 };
             }, [showFullSig]);
 
@@ -1273,13 +1363,17 @@
                     </main>
 
                     {showFullSig && (
-                        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[100] flex flex-col p-6 md:p-12 animate-in fade-in duration-300">
+                        <div 
+                            className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[100] flex flex-col p-6 md:p-12 animate-in fade-in duration-300"
+                            style={{ touchAction: 'none', overscrollBehavior: 'none' }}
+                            onTouchMove={(e) => e.preventDefault()}
+                        >
                             <div className="flex-1 bg-white rounded-[3rem] overflow-hidden flex flex-col shadow-2xl relative border-4 border-[#F7E7B5]">
-                                <div className="flex justify-between items-center px-8 py-6 border-b border-[#736357]/10 bg-[#fefcf9]">
+                                <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-[#736357]/10 bg-[#fefcf9] flex-shrink-0">
                                     <button onClick={()=>setShowFullSig(false)} className="text-sm font-black uppercase text-slate-300 hover:text-red-400 tracking-widest transition-colors flex items-center gap-1">
                                         <Icon name="x" size={16}/> 取消
                                     </button>
-                                    <div className="text-center">
+                                    <div className="text-center hidden md:block">
                                         <span className="font-black text-[#736357] text-2xl tracking-tighter italic leading-none">汪汪犬旅 數位簽名</span>
                                     </div>
                                     <button onClick={() => {
@@ -1289,16 +1383,23 @@
                                             setShowFullSig(false); 
                                             handleChange('signature', true);
                                         }
-                                    }} className="bg-[#736357] text-white px-8 py-3 rounded-xl font-black shadow-lg hover:scale-105 transition-all flex items-center gap-2">
+                                    }} className="bg-[#736357] text-white px-6 md:px-8 py-3 rounded-xl font-black shadow-lg hover:scale-105 transition-all flex items-center gap-2">
                                         <Icon name="check" size={18}/> 完成
                                     </button>
                                 </div>
-                                <div className="flex-1 canvas-container bg-slate-50/50 relative">
+                                <div 
+                                    className="flex-1 canvas-container bg-slate-50/50 relative"
+                                    style={{ touchAction: 'none', minHeight: '200px' }}
+                                >
                                     <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#736357_1px,transparent_1px)] [background-size:16px_16px]"></div>
-                                    <canvas ref={fullSigCanvasRef} className="w-full h-full relative z-10"></canvas>
+                                    <canvas 
+                                        ref={fullSigCanvasRef} 
+                                        className="w-full h-full relative z-10"
+                                        style={{ touchAction: 'none' }}
+                                    ></canvas>
                                 </div>
-                                <div className="absolute bottom-8 w-full flex justify-center pointer-events-none">
-                                    <button onClick={()=>padInstance.current.clear()} className="pointer-events-auto bg-white/90 backdrop-blur text-[#736357] text-xs font-black px-8 py-3 rounded-full shadow-xl border border-[#736357]/10 hover:bg-[#F7E7B5]/20 transition-all flex items-center gap-2 transform hover:scale-105">
+                                <div className="flex-shrink-0 py-4 md:py-6 flex justify-center bg-white border-t border-[#736357]/10">
+                                    <button onClick={()=>padInstance.current.clear()} className="bg-white/90 backdrop-blur text-[#736357] text-xs font-black px-8 py-3 rounded-full shadow-xl border border-[#736357]/10 hover:bg-[#F7E7B5]/20 transition-all flex items-center gap-2 transform hover:scale-105">
                                         <Icon name="eraser" size={16}/> 清除重寫
                                     </button>
                                 </div>
