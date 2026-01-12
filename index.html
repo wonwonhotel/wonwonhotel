@@ -416,12 +416,9 @@
                 setIsSearching(true);
                 try {
                     // 查詢該電話的所有訂單，按時間倒序排列
-                    const { data, error } = await supabase
-                        .from('bookings')
-                        .select('raw_data, created_at')
-                        .eq('phone', phone)
-                        .order('created_at', { ascending: false });
-
+// --- 新的寫法 (走專用通道，不會被擋) ---
+const { data, error } = await supabase
+    .rpc('search_guest_history', { phone_input: phone });
                     if (error) throw error;
 
                     if (!data || data.length === 0) {
