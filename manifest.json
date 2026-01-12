@@ -1,0 +1,26 @@
+{
+  "name": "汪汪犬旅後台管理系統",
+  "short_name": "汪汪犬旅",
+  "description": "汪汪犬旅寵物旅館數位契約與後台管理系統",
+  "start_url": "./admin.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#736357",
+  "background_color": "#fbf9f6",
+  "icons": [
+    {
+      "src": "Logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "Logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "zh-TW"
+}

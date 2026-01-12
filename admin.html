@@ -4,12 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>汪汪犬旅 | 後台管理系統</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#736357">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="logo.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js for dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
+    
+    <!-- OneSignal Web Push SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+                appId: "a40e8f2c-0ac3-460c-96b4-6da7170c4394",
+                notifyButton: {
+                    enable: true,
+                    size: 'medium',
+                    position: 'bottom-right',
+                    prenotify: true,
+                    showCredit: false,
+                    text: {
+                        'tip.state.unsubscribed': '訂閱新訂單通知',
+                        'tip.state.subscribed': '已訂閱通知',
+                        'tip.state.blocked': '通知已封鎖',
+                        'message.prenotify': '點擊訂閱新訂單通知',
+                        'message.action.subscribed': '感謝訂閱！有新訂單會通知您',
+                        'message.action.resubscribed': '已重新訂閱',
+                        'message.action.unsubscribed': '您將不再收到通知',
+                        'dialog.main.title': '管理通知',
+                        'dialog.main.button.subscribe': '訂閱',
+                        'dialog.main.button.unsubscribe': '取消訂閱',
+                        'dialog.blocked.title': '解除封鎖通知',
+                        'dialog.blocked.message': '請在瀏覽器設定中允許通知'
+                    }
+                },
+                welcomeNotification: {
+                    title: '🐕 汪汪犬旅',
+                    message: '感謝訂閱！有新訂單時會立即通知您'
+                },
+                allowLocalhostAsSecureOrigin: true
+            });
+            
+            // 設定管理員標籤
+            OneSignal.User.addTag('role', 'admin');
+            console.log('OneSignal initialized');
+        });
+    </script>
+
+    <script>
+        // Tailwind config with dark mode
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            yellow: '#F7E7B5',
+                            brown: '#736357',
+                            'dark-brown': '#5D4D41',
+                            light: '#fbf9f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
@@ -28,11 +102,33 @@
             color: #374151; 
             -webkit-font-smoothing: antialiased; 
             -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s, color 0.3s;
         }
+
+        /* Dark mode styles */
+        body.dark {
+            background-color: #1f2937;
+            color: #f3f4f6;
+        }
+
+        .dark .bg-white { background-color: #374151 !important; }
+        .dark .bg-slate-50 { background-color: #1f2937 !important; }
+        .dark .bg-slate-100 { background-color: #4b5563 !important; }
+        .dark .text-slate-700 { color: #f3f4f6 !important; }
+        .dark .text-slate-600 { color: #d1d5db !important; }
+        .dark .text-slate-500 { color: #9ca3af !important; }
+        .dark .text-slate-400 { color: #6b7280 !important; }
+        .dark .border-slate-100 { border-color: #4b5563 !important; }
+        .dark .border-slate-200 { border-color: #374151 !important; }
+        .dark .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important; }
 
         .login-bg {
             background-color: var(--brand-light);
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+        }
+
+        .dark .login-bg {
+            background-color: #1f2937;
         }
 
         .glass-card { 
@@ -43,26 +139,55 @@
             border-radius: 1.5rem; 
         }
 
-        /* 編輯模式輸入框樣式 */
+        .dark .glass-card {
+            background: rgba(55, 65, 81, 0.95);
+            border-color: rgba(75, 85, 99, 0.6);
+        }
+
         .edit-input {
             width: 100%;
             background: #fff;
             border: 2px solid #e5e7eb;
             border-radius: 0.5rem;
             padding: 0.5rem;
-            font-size: 16px; /* 防止 iOS 縮放 */
+            font-size: 16px;
             color: #374151;
             transition: all 0.2s;
         }
+
+        .dark .edit-input {
+            background: #4b5563;
+            border-color: #6b7280;
+            color: #f3f4f6;
+        }
+
         .edit-input:focus {
             border-color: var(--brand-brown);
             outline: none;
             box-shadow: 0 0 0 2px rgba(115, 99, 87, 0.1);
         }
 
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        /* Skeleton loading animation */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+        }
+
+        .dark .skeleton {
+            background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+            background-size: 200% 100%;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
         
         input, select, textarea, button { font-size: 16px !important; }
 
@@ -75,32 +200,111 @@
             }
             .no-print { display: none !important; }
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
-            .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-            .print-label { font-weight: bold; color: #555; font-size: 10px; }
-            .print-value { font-weight: bold; color: #000; }
         }
         
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Calendar styles */
+        .calendar-day {
+            min-height: 80px;
+            transition: all 0.2s;
+        }
+        .calendar-day:hover {
+            background-color: rgba(247, 231, 181, 0.3);
+        }
+        .calendar-event {
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .calendar-event:hover {
+            transform: scale(1.02);
+        }
+
+        /* Toast notification */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Tab styles */
+        .tab-active {
+            border-bottom: 3px solid var(--brand-brown);
+            color: var(--brand-brown);
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo } = React;
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-        // --- 1. Supabase 設定 ---
+        // --- Supabase 設定 ---
         const SUPABASE_URL = 'https://fpkzuotxxbsqisgwupix.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_VsAJfSi7Fb3zu_A5Ksm2wA_mAUkDLBs'; 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // ★★★ 請修改這裡：您在 Supabase 註冊的管理者 Email ★★★
-        const ADMIN_EMAIL = "wonwonhotel@gmail.com"; 
+        // 管理者 Email（支援多管理員）
+        const ADMIN_EMAILS = ["wonwonhotel@gmail.com"];
+        const ADMIN_EMAIL = ADMIN_EMAILS[0]; // 主要管理員
 
-        // 定義標準服務項目選項 (編輯模式用)
+        // 多管理員權限設定
+        const ADMIN_ROLES = {
+            'wonwonhotel@gmail.com': {
+                role: 'super_admin',
+                name: '超級管理員',
+                permissions: ['view', 'edit', 'delete', 'export', 'settings', 'logs', 'manage_admins']
+            }
+            // 可新增更多管理員，例如：
+            // 'staff@wonwonhotel.com': {
+            //     role: 'staff',
+            //     name: '一般員工',
+            //     permissions: ['view', 'edit']
+            // }
+        };
+
+        // 權限定義
+        const PERMISSIONS = {
+            view: '檢視訂單',
+            edit: '編輯訂單',
+            delete: '刪除訂單',
+            export: '匯出報表',
+            settings: '系統設定',
+            logs: '查看日誌',
+            manage_admins: '管理員管理'
+        };
+
+        // Session 過期時間（毫秒）- 30分鐘
+        const SESSION_TIMEOUT = 30 * 60 * 1000;
+
+        // Rate Limiting 設定
+        const RATE_LIMIT = {
+            maxAttempts: 5,
+            windowMs: 15 * 60 * 1000 // 15分鐘
+        };
+
+        // 服務項目選項
         const SERVICE_OPTIONS = ['住宿＋洗澡', '包月洗澡', '基礎洗澡', '精緻美容', '局部修剪', '寵物安親', '其他項目'];
+        const STATUS_OPTIONS = [
+            { value: 'pending', label: '待處理', color: 'yellow', icon: '🟡' },
+            { value: 'confirmed', label: '已確認', color: 'green', icon: '🟢' },
+            { value: 'completed', label: '已完成', color: 'blue', icon: '🔵' },
+            { value: 'cancelled', label: '已取消', color: 'red', icon: '🔴' }
+        ];
 
+        // --- Utility Functions ---
         const Icon = ({ name, size = 20, className = "" }) => {
             const iconRef = useRef(null);
             useEffect(() => {
@@ -113,45 +317,204 @@
 
         const getServiceLabel = (serviceType) => {
             if (!serviceType) return '';
-            if (serviceType.includes('住宿')) {
-                return '🏠 住宿＋洗澡';
-            }
+            if (serviceType.includes('住宿')) return '🏠 住宿＋洗澡';
             return `✂️ ${serviceType}`;
         };
 
-        // --- 變更密碼 Modal ---
-        const ChangePasswordModal = ({ isOpen, onClose }) => {
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            return new Date(dateStr).toLocaleDateString('zh-TW');
+        };
+
+        const formatDateTime = (dateStr) => {
+            if (!dateStr) return '';
+            return new Date(dateStr).toLocaleString('zh-TW');
+        };
+
+        // --- Rate Limiting Hook ---
+        const useRateLimiter = () => {
+            const checkRateLimit = (key) => {
+                const stored = localStorage.getItem(`rate_limit_${key}`);
+                if (!stored) return { allowed: true, remaining: RATE_LIMIT.maxAttempts };
+                
+                const data = JSON.parse(stored);
+                const now = Date.now();
+                
+                if (now - data.firstAttempt > RATE_LIMIT.windowMs) {
+                    localStorage.removeItem(`rate_limit_${key}`);
+                    return { allowed: true, remaining: RATE_LIMIT.maxAttempts };
+                }
+                
+                return { 
+                    allowed: data.attempts < RATE_LIMIT.maxAttempts,
+                    remaining: RATE_LIMIT.maxAttempts - data.attempts
+                };
+            };
+
+            const recordAttempt = (key) => {
+                const stored = localStorage.getItem(`rate_limit_${key}`);
+                const now = Date.now();
+                
+                if (!stored) {
+                    localStorage.setItem(`rate_limit_${key}`, JSON.stringify({ firstAttempt: now, attempts: 1 }));
+                } else {
+                    const data = JSON.parse(stored);
+                    data.attempts++;
+                    localStorage.setItem(`rate_limit_${key}`, JSON.stringify(data));
+                }
+            };
+
+            return { checkRateLimit, recordAttempt };
+        };
+
+        // --- Session Management Hook ---
+        const useSessionTimeout = (onTimeout) => {
+            const timeoutRef = useRef(null);
+            const lastActivityRef = useRef(Date.now());
+
+            const resetTimeout = useCallback(() => {
+                lastActivityRef.current = Date.now();
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                timeoutRef.current = setTimeout(() => {
+                    onTimeout();
+                }, SESSION_TIMEOUT);
+            }, [onTimeout]);
+
+            useEffect(() => {
+                const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+                events.forEach(event => window.addEventListener(event, resetTimeout));
+                resetTimeout();
+
+                return () => {
+                    events.forEach(event => window.removeEventListener(event, resetTimeout));
+                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                };
+            }, [resetTimeout]);
+
+            return { resetTimeout };
+        };
+
+        // --- Permission Check Hook ---
+        const usePermissions = (userEmail) => {
+            const adminConfig = ADMIN_ROLES[userEmail] || { role: 'viewer', permissions: ['view'] };
+            
+            const hasPermission = (permission) => {
+                return adminConfig.permissions.includes(permission);
+            };
+            
+            const canView = () => hasPermission('view');
+            const canEdit = () => hasPermission('edit');
+            const canDelete = () => hasPermission('delete');
+            const canExport = () => hasPermission('export');
+            const canAccessSettings = () => hasPermission('settings');
+            const canViewLogs = () => hasPermission('logs');
+            const canManageAdmins = () => hasPermission('manage_admins');
+            
+            return {
+                role: adminConfig.role,
+                roleName: adminConfig.name,
+                permissions: adminConfig.permissions,
+                hasPermission,
+                canView,
+                canEdit,
+                canDelete,
+                canExport,
+                canAccessSettings,
+                canViewLogs,
+                canManageAdmins
+            };
+        };
+
+        // --- Dark Mode Hook ---
+        const useDarkMode = () => {
+            const [isDark, setIsDark] = useState(() => {
+                const saved = localStorage.getItem('darkMode');
+                return saved ? JSON.parse(saved) : false;
+            });
+
+            useEffect(() => {
+                localStorage.setItem('darkMode', JSON.stringify(isDark));
+                document.body.classList.toggle('dark', isDark);
+            }, [isDark]);
+
+            return [isDark, setIsDark];
+        };
+
+        // --- Toast Notification Component ---
+        const Toast = ({ message, type = 'info', onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 4000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const bgColors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+
+            return (
+                <div className={`toast-notification ${bgColors[type]} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3`}>
+                    <Icon name={type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : type === 'warning' ? 'alert-triangle' : 'info'} size={20} />
+                    <span className="font-bold">{message}</span>
+                    <button onClick={onClose} className="ml-2 hover:opacity-70"><Icon name="x" size={16} /></button>
+                </div>
+            );
+        };
+
+        // --- Skeleton Loading Component ---
+        const SkeletonCard = () => (
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-600 space-y-3">
+                <div className="skeleton h-4 w-3/4 rounded"></div>
+                <div className="skeleton h-3 w-1/2 rounded"></div>
+                <div className="skeleton h-3 w-2/3 rounded"></div>
+            </div>
+        );
+
+        const SkeletonTable = () => (
+            <div className="space-y-3 p-4">
+                {[1,2,3,4,5].map(i => (
+                    <div key={i} className="flex gap-4">
+                        <div className="skeleton h-12 w-24 rounded"></div>
+                        <div className="skeleton h-12 flex-1 rounded"></div>
+                        <div className="skeleton h-12 w-32 rounded"></div>
+                        <div className="skeleton h-12 w-20 rounded"></div>
+                    </div>
+                ))}
+            </div>
+        );
+
+        // --- Change Password Modal ---
+        const ChangePasswordModal = ({ isOpen, onClose, showToast }) => {
             const [oldPassword, setOldPassword] = useState('');
             const [newPassword, setNewPassword] = useState('');
             const [confirmPassword, setConfirmPassword] = useState('');
             const [isLoading, setIsLoading] = useState(false);
-            const [msg, setMsg] = useState({ type: '', text: '' });
 
             useEffect(() => {
                 if (!isOpen) {
-                    setOldPassword(''); setNewPassword(''); setConfirmPassword(''); setMsg({ type: '', text: '' });
+                    setOldPassword(''); setNewPassword(''); setConfirmPassword('');
                 }
             }, [isOpen]);
 
             const handleUpdatePassword = async () => {
-                if (!oldPassword) { setMsg({ type: 'error', text: '請輸入目前的舊密碼' }); return; }
-                if (newPassword.length < 6) { setMsg({ type: 'error', text: '新密碼長度至少需 6 個字元' }); return; }
-                if (newPassword !== confirmPassword) { setMsg({ type: 'error', text: '兩次輸入的新密碼不相符' }); return; }
+                if (!oldPassword) { showToast('請輸入目前的舊密碼', 'error'); return; }
+                if (newPassword.length < 6) { showToast('新密碼長度至少需 6 個字元', 'error'); return; }
+                if (newPassword !== confirmPassword) { showToast('兩次輸入的新密碼不相符', 'error'); return; }
                 
                 setIsLoading(true);
-                setMsg({ type: '', text: '' });
-
                 try {
                     const { error: signInError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: oldPassword });
-                    if (signInError) throw new Error("舊密碼輸入錯誤，請重新確認");
+                    if (signInError) throw new Error("舊密碼輸入錯誤");
 
                     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
                     if (updateError) throw updateError;
                     
-                    setMsg({ type: 'success', text: '✅ 密碼修改成功！下次請使用新密碼登入' });
-                    setTimeout(() => { onClose(); }, 2000);
+                    showToast('密碼修改成功！', 'success');
+                    setTimeout(onClose, 1500);
                 } catch (error) {
-                    setMsg({ type: 'error', text: error.message || '修改失敗' });
+                    showToast(error.message || '修改失敗', 'error');
                 } finally {
                     setIsLoading(false);
                 }
@@ -160,21 +523,20 @@
             if (!isOpen) return null;
 
             return (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm fade-in">
+                    <div className="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4">
                         <div className="text-center">
-                            <h3 className="text-lg font-black text-slate-700">變更管理密碼</h3>
+                            <h3 className="text-lg font-black text-slate-700 dark:text-white">變更管理密碼</h3>
                         </div>
                         <div className="space-y-4">
                             <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="w-full edit-input py-3" placeholder="輸入舊密碼" />
-                            <hr className="border-dashed border-slate-200" />
+                            <hr className="border-dashed border-slate-200 dark:border-gray-600" />
                             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full edit-input py-3" placeholder="新密碼 (至少6位)" />
                             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full edit-input py-3" placeholder="確認新密碼" />
                         </div>
-                        {msg.text && <div className={`text-sm font-bold text-center p-2 rounded-lg ${msg.type === 'error' ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50'}`}>{msg.text}</div>}
                         <div className="flex gap-3 pt-2">
-                            <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all">取消</button>
-                            <button onClick={handleUpdatePassword} disabled={isLoading} className="flex-1 py-3 rounded-xl bg-[#736357] text-white font-bold hover:bg-[#5e5046] disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-200 dark:hover:bg-gray-600 transition-all">取消</button>
+                            <button onClick={handleUpdatePassword} disabled={isLoading} className="flex-1 py-3 rounded-xl bg-brand-brown text-white font-bold hover:bg-brand-dark-brown disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                                 {isLoading ? <Icon name="loader-2" className="animate-spin" /> : '確認修改'}
                             </button>
                         </div>
@@ -183,24 +545,24 @@
             );
         };
 
-        // --- 二次確認 Modal ---
+        // --- Confirm Modal ---
         const ConfirmModal = ({ isOpen, onClose, onConfirm, title, loading }) => {
             const [confirmPassword, setConfirmPassword] = useState('');
             useEffect(() => { if (!isOpen) setConfirmPassword(''); }, [isOpen]);
             if (!isOpen) return null;
 
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm fade-in">
+                    <div className="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4">
                         <div className="text-center">
-                            <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3"><Icon name="lock" size={24} /></div>
-                            <h3 className="text-lg font-black text-slate-700">{title}</h3>
-                            <p className="text-sm text-slate-500 mt-1">此為敏感操作，請輸入管理密碼以確認。</p>
+                            <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3"><Icon name="lock" size={24} /></div>
+                            <h3 className="text-lg font-black text-slate-700 dark:text-white">{title}</h3>
+                            <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">此為敏感操作，請輸入管理密碼以確認。</p>
                         </div>
-                        <input type="password" placeholder="請輸入密碼" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full text-center py-3 border-2 border-slate-200 rounded-xl focus:border-[#736357] outline-none font-bold" autoFocus />
+                        <input type="password" placeholder="請輸入密碼" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full text-center py-3 border-2 border-slate-200 dark:border-gray-600 rounded-xl focus:border-brand-brown outline-none font-bold bg-white dark:bg-gray-700 dark:text-white" autoFocus />
                         <div className="flex gap-3 pt-2">
-                            <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all">取消</button>
-                            <button onClick={() => onConfirm(confirmPassword)} disabled={loading || !confirmPassword} className="flex-1 py-3 rounded-xl bg-[#736357] text-white font-bold hover:bg-[#5e5046] disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-200 dark:hover:bg-gray-600 transition-all">取消</button>
+                            <button onClick={() => onConfirm(confirmPassword)} disabled={loading || !confirmPassword} className="flex-1 py-3 rounded-xl bg-brand-brown text-white font-bold hover:bg-brand-dark-brown disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                                 {loading ? <Icon name="loader-2" className="animate-spin" /> : '確認執行'}
                             </button>
                         </div>
@@ -209,107 +571,385 @@
             );
         };
 
-        // --- 列印合約 ---
-        const PrintContract = ({ data }) => {
-            if (!data) return null;
-            const r = data.raw_data || {};
-            const isBoarding = !!data.checkin_date || (data.service_type && data.service_type.includes('住宿'));
+        // --- Calendar View Component ---
+        const CalendarView = ({ bookings, onSelectBooking }) => {
+            const [currentDate, setCurrentDate] = useState(new Date());
             
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDay = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+            
+            const days = [];
+            for (let i = 0; i < startDay; i++) days.push(null);
+            for (let i = 1; i <= daysInMonth; i++) days.push(i);
+            
+            const getBookingsForDay = (day) => {
+                if (!day) return [];
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                return bookings.filter(b => {
+                    if (b.checkin_date && b.checkout_date) {
+                        return dateStr >= b.checkin_date && dateStr <= b.checkout_date;
+                    }
+                    return b.created_at?.startsWith(dateStr);
+                });
+            };
+
+            const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+            const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+            const goToday = () => setCurrentDate(new Date());
+
             return (
-                <div id="print-area" className="hidden">
-                    <div className="max-w-[210mm] mx-auto space-y-4">
-                        <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-4">
-                            <h1 className="text-2xl font-black">汪汪犬旅 | 服務契約書</h1>
-                            <div className="text-right text-xs">
-                                <p>單號：#{data.id}</p>
-                                <p>填表日期：{new Date(data.created_at).toLocaleDateString()}</p>
-                            </div>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center bg-slate-50 dark:bg-gray-900">
+                        <button onClick={prevMonth} className="p-2 hover:bg-slate-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            <Icon name="chevron-left" size={20} />
+                        </button>
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-black text-slate-700 dark:text-white">
+                                {year} 年 {month + 1} 月
+                            </h3>
+                            <button onClick={goToday} className="text-xs bg-brand-brown text-white px-3 py-1 rounded-full font-bold hover:bg-brand-dark-brown transition-colors">
+                                今天
+                            </button>
                         </div>
-                        <div className="print-grid">
-                            <div className="space-y-1 border p-2 rounded">
-                                <h3 className="font-bold border-b pb-1 mb-1">甲方 (飼主資料)</h3>
-                                <div><span className="print-label">姓名:</span> <span className="print-value">{data.owner_name}</span></div>
-                                <div><span className="print-label">電話:</span> <span className="print-value">{data.phone}</span></div>
-                                <div><span className="print-label">身分證:</span> <span className="print-value">{r.owner_id}</span></div>
-                                <div><span className="print-label">地址:</span> <span className="print-value">{r.address}</span></div>
-                                <div><span className="print-label">Email:</span> <span className="print-value">{r.email}</span></div>
-                                <div><span className="print-label">緊急聯絡:</span> <span className="print-value">{r.emergency_name} ({r.emergency_phone})</span></div>
-                                {r.emergency2_name && (
-                                    <div className="text-blue-800 border-t border-dashed mt-1 pt-1">
-                                        <span className="print-label text-blue-800">第二聯絡(住宿):</span> <span className="print-value">{r.emergency2_name} ({r.emergency2_phone})</span>
-                                    </div>
-                                )}
+                        <button onClick={nextMonth} className="p-2 hover:bg-slate-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            <Icon name="chevron-right" size={20} />
+                        </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-7 border-b border-slate-100 dark:border-gray-700">
+                        {['日', '一', '二', '三', '四', '五', '六'].map(d => (
+                            <div key={d} className="p-2 text-center text-xs font-bold text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-gray-900">
+                                {d}
                             </div>
-                            <div className="space-y-1 border p-2 rounded">
-                                <h3 className="font-bold border-b pb-1 mb-1">乙方 (寵物資料)</h3>
-                                <div><span className="print-label">名字:</span> <span className="print-value">{data.pet_name}</span></div>
-                                <div><span className="print-label">品種:</span> <span className="print-value">{r.breed}</span></div>
-                                <div><span className="print-label">性別/結紮:</span> <span className="print-value">{r.sex} / {r.fix}</span></div>
-                                <div><span className="print-label">年齡/體重:</span> <span className="print-value">{r.age} / {r.weight} kg</span></div>
-                                <div><span className="print-label">晶片:</span> <span className="print-value">{r.chip_status} {r.chip_id ? `(${r.chip_id})` : ''}</span></div>
-                                <div><span className="print-label">指定獸醫:</span> <span className="print-value">{r.preferred_clinic || '無'}</span></div>
-                            </div>
-                        </div>
-                        <div className="border-2 border-black p-3 rounded mt-2">
-                            <h3 className="font-bold text-sm mb-2">服務內容確認</h3>
-                            <div className="print-grid">
-                                <div>
-                                    <span className="print-label">項目:</span> <span className="print-value">{getServiceLabel(data.service_type)} {r.service_type_other}</span>
+                        ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-7">
+                        {days.map((day, idx) => {
+                            const dayBookings = getBookingsForDay(day);
+                            const isToday = day && new Date().toDateString() === new Date(year, month, day).toDateString();
+                            
+                            return (
+                                <div key={idx} className={`calendar-day border-r border-b border-slate-100 dark:border-gray-700 p-1 ${!day ? 'bg-slate-50 dark:bg-gray-900' : ''} ${isToday ? 'bg-brand-yellow/20' : ''}`}>
+                                    {day && (
+                                        <>
+                                            <div className={`text-xs font-bold mb-1 ${isToday ? 'text-brand-brown' : 'text-slate-600 dark:text-gray-400'}`}>
+                                                {day}
+                                            </div>
+                                            <div className="space-y-1 max-h-16 overflow-y-auto">
+                                                {dayBookings.slice(0, 3).map(b => (
+                                                    <div 
+                                                        key={b.id} 
+                                                        onClick={() => onSelectBooking(b)}
+                                                        className={`calendar-event truncate ${
+                                                            b.service_type?.includes('住宿') 
+                                                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' 
+                                                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                                                        }`}
+                                                    >
+                                                        {b.pet_name}
+                                                    </div>
+                                                ))}
+                                                {dayBookings.length > 3 && (
+                                                    <div className="text-[10px] text-slate-400 text-center">
+                                                        +{dayBookings.length - 3} 更多
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
-                                <div><span className="print-label">金額:</span> <span className="print-value text-lg">NT$ {data.service_price}</span></div>
-                                {isBoarding ? (
-                                    <>
-                                        <div><span className="print-label">入住:</span> <span className="print-value">{data.checkin_date}</span></div>
-                                        <div><span className="print-label">退房:</span> <span className="print-value">{data.checkout_date}</span></div>
-                                    </>
-                                ) : (
-                                    <div><span className="print-label">預計接回:</span> <span className="print-value">{data.pickup_time || '另行通知'}</span></div>
-                                )}
-                            </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Dashboard Charts Component ---
+        const DashboardCharts = ({ bookings }) => {
+            const chartRef1 = useRef(null);
+            const chartRef2 = useRef(null);
+            const chart1Instance = useRef(null);
+            const chart2Instance = useRef(null);
+
+            useEffect(() => {
+                if (!bookings.length) return;
+
+                // Monthly trend chart
+                const monthlyData = {};
+                bookings.forEach(b => {
+                    const month = b.created_at?.substring(0, 7);
+                    if (month) {
+                        monthlyData[month] = (monthlyData[month] || 0) + 1;
+                    }
+                });
+
+                const sortedMonths = Object.keys(monthlyData).sort().slice(-6);
+                
+                if (chart1Instance.current) chart1Instance.current.destroy();
+                if (chartRef1.current) {
+                    chart1Instance.current = new Chart(chartRef1.current, {
+                        type: 'line',
+                        data: {
+                            labels: sortedMonths.map(m => m.replace('-', '/')),
+                            datasets: [{
+                                label: '訂單數',
+                                data: sortedMonths.map(m => monthlyData[m]),
+                                borderColor: '#736357',
+                                backgroundColor: 'rgba(115, 99, 87, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                }
+
+                // Service type distribution
+                const serviceData = {};
+                bookings.forEach(b => {
+                    const type = b.service_type?.includes('住宿') ? '住宿' : (b.service_type || '其他');
+                    serviceData[type] = (serviceData[type] || 0) + 1;
+                });
+
+                if (chart2Instance.current) chart2Instance.current.destroy();
+                if (chartRef2.current) {
+                    chart2Instance.current = new Chart(chartRef2.current, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(serviceData),
+                            datasets: [{
+                                data: Object.values(serviceData),
+                                backgroundColor: ['#F7E7B5', '#736357', '#06C755', '#3b82f6', '#ef4444', '#8b5cf6']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } }
+                        }
+                    });
+                }
+
+                return () => {
+                    if (chart1Instance.current) chart1Instance.current.destroy();
+                    if (chart2Instance.current) chart2Instance.current.destroy();
+                };
+            }, [bookings]);
+
+            const totalRevenue = bookings.reduce((sum, b) => sum + (parseInt(b.service_price) || 0), 0);
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
+                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">月度訂單趨勢</h4>
+                        <div className="h-40">
+                            <canvas ref={chartRef1}></canvas>
                         </div>
-                        <div className="border p-2 rounded mt-2 space-y-2">
-                            <h3 className="font-bold border-b pb-1">健康與行為問卷</h3>
-                            <div className="grid grid-cols-3 gap-2 text-xs">
-                                <div><span className="print-label">過往病史:</span> <span className="print-value">{r.medical_status==='有' ? (r.medical_history||[]).join(',') + (r.medical_history_other||'') : '無'}</span></div>
-                                <div><span className="print-label">親狗程度:</span> <span className="print-value">{(r.dog_traits||[]).join(', ')}</span></div>
-                                <div><span className="print-label">容易吠叫:</span> <span className="print-value">{r.is_barking} {r.barking_detail ? `(${r.barking_detail})` : ''}</span></div>
-                                <div><span className="print-label">住宿經驗:</span> <span className="print-value">{r.stay_exp}</span></div>
-                                <div><span className="print-label">護食狀況:</span> <span className="print-value">{r.food_aggr}</span></div>
-                                <div><span className="print-label">定點如廁:</span> <span className="print-value">{r.pad_toilet}</span></div>
-                                <div><span className="print-label">定期疫苗:</span> <span className="print-value">{r.vaccine}</span></div>
-                                <div><span className="print-label">定期驅蟲:</span> <span className="print-value">{r.deworm} {r.deworm_brand}</span></div>
-                                <div className="col-span-3"><span className="print-label">籠內訓練:</span> <span className="print-value">{(r.crate_status||[]).join(', ')}</span></div>
-                            </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
+                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">服務類型分佈</h4>
+                        <div className="h-40">
+                            <canvas ref={chartRef2}></canvas>
                         </div>
-                        <div className="border p-2 rounded mt-2">
-                            <h3 className="font-bold border-b pb-1">重要備註</h3>
-                            <div className="space-y-1">
-                                <p><span className="print-label">過敏資訊:</span> <span className="print-value">{r.allergy || '無'}</span></p>
-                                <p><span className="print-label">個性與分離焦慮:</span> <span className="print-value">{r.personality}</span></p>
-                                <p><span className="print-label">特別注意事項:</span> <span className="print-value">{r.special_notes}</span></p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
+                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">營收統計</h4>
+                        <div className="h-40 flex flex-col items-center justify-center">
+                            <div className="text-4xl font-black text-brand-brown">
+                                ${totalRevenue.toLocaleString()}
                             </div>
-                        </div>
-                        <div className="mt-4 pt-2 border-t-2 border-black">
-                            <p className="text-[10px] mb-2">本人(甲方)已詳閱並同意本館之服務條款，確認上述填寫資料屬實無誤，並同意委託乙方進行服務。</p>
-                            <div className="flex justify-between items-end mt-4">
-                                <div className="w-1/2">
-                                    <p className="font-bold mb-1">飼主簽署：</p>
-                                    {data.signature_url ? <img src={data.signature_url} className="h-16 object-contain border-b border-dashed border-gray-400 w-full" /> : <div className="h-16 border-b border-dashed border-gray-400 w-full"></div>}
-                                </div>
-                                <div className="text-right"><p className="text-xs">簽署時間：{new Date(data.created_at).toLocaleString()}</p></div>
-                            </div>
+                            <div className="text-sm text-slate-400 mt-2">累計總營收</div>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // ★★★ 修復 Bug：將 DetailItem 移出 App 元件外部，避免重新渲染導致 Input 失去焦點 ★★★
+        // --- Customer CRM Component ---
+        const CustomerCRM = ({ bookings, onSelectBooking }) => {
+            const [searchTerm, setSearchTerm] = useState('');
+            
+            // Group bookings by phone number
+            const customers = useMemo(() => {
+                const grouped = {};
+                bookings.forEach(b => {
+                    const phone = b.phone;
+                    if (!phone) return;
+                    if (!grouped[phone]) {
+                        grouped[phone] = {
+                            phone,
+                            owner_name: b.owner_name,
+                            email: b.raw_data?.email,
+                            pets: new Set(),
+                            bookings: [],
+                            totalSpent: 0
+                        };
+                    }
+                    grouped[phone].bookings.push(b);
+                    grouped[phone].totalSpent += parseInt(b.service_price) || 0;
+                    if (b.pet_name) grouped[phone].pets.add(b.pet_name);
+                });
+                return Object.values(grouped).map(c => ({
+                    ...c,
+                    pets: Array.from(c.pets)
+                })).sort((a, b) => b.bookings.length - a.bookings.length);
+            }, [bookings]);
+
+            const filteredCustomers = customers.filter(c => 
+                c.owner_name?.includes(searchTerm) || 
+                c.phone?.includes(searchTerm) ||
+                c.pets.some(p => p.includes(searchTerm))
+            );
+
+            return (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900">
+                        <div className="flex items-center gap-3">
+                            <Icon name="users" size={20} className="text-brand-brown" />
+                            <h3 className="font-bold text-slate-700 dark:text-white">客戶管理 CRM</h3>
+                        </div>
+                        <div className="mt-3 relative">
+                            <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="搜尋客戶..." 
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+                            />
+                        </div>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                        {filteredCustomers.map(customer => (
+                            <div key={customer.phone} className="p-4 border-b border-slate-100 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="font-bold text-slate-700 dark:text-white">{customer.owner_name}</div>
+                                        <div className="text-sm text-slate-500 dark:text-gray-400">{customer.phone}</div>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {customer.pets.map(pet => (
+                                                <span key={pet} className="text-xs bg-brand-yellow/30 text-brand-brown px-2 py-0.5 rounded-full font-bold">
+                                                    🐕 {pet}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-lg font-black text-brand-brown">${customer.totalSpent.toLocaleString()}</div>
+                                        <div className="text-xs text-slate-400">{customer.bookings.length} 筆訂單</div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex gap-2">
+                                    {customer.bookings.slice(0, 3).map(b => (
+                                        <button 
+                                            key={b.id}
+                                            onClick={() => onSelectBooking(b)}
+                                            className="text-xs bg-slate-100 dark:bg-gray-600 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-gray-500 transition-colors"
+                                        >
+                                            #{b.id}
+                                        </button>
+                                    ))}
+                                    {customer.bookings.length > 3 && (
+                                        <span className="text-xs text-slate-400">+{customer.bookings.length - 3}</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Activity Log Component ---
+        const ActivityLog = ({ logs }) => (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 flex items-center gap-3">
+                    <Icon name="activity" size={20} className="text-brand-brown" />
+                    <h3 className="font-bold text-slate-700 dark:text-white">操作日誌</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                    {logs.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400">暫無操作記錄</div>
+                    ) : (
+                        logs.map((log, idx) => (
+                            <div key={idx} className="p-3 border-b border-slate-100 dark:border-gray-700 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="font-bold text-slate-700 dark:text-white">{log.action}</span>
+                                    <span className="text-xs text-slate-400">{formatDateTime(log.timestamp)}</span>
+                                </div>
+                                <div className="text-slate-500 dark:text-gray-400 text-xs mt-1">{log.details}</div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+
+        // --- Export Functions ---
+        const exportToExcel = (bookings, filename = 'bookings') => {
+            const data = bookings.map(b => ({
+                '訂單編號': b.id,
+                '建立時間': formatDateTime(b.created_at),
+                '飼主姓名': b.owner_name,
+                '電話': b.phone,
+                '寵物名字': b.pet_name,
+                '服務項目': b.service_type,
+                '金額': b.service_price,
+                '狀態': STATUS_OPTIONS.find(s => s.value === b.status)?.label || b.status,
+                '入住日期': b.checkin_date || '',
+                '退房日期': b.checkout_date || ''
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '訂單');
+            XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+        };
+
+        const exportToPDF = (bookings) => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('汪汪犬旅 - 訂單報表', 20, 20);
+            
+            doc.setFontSize(10);
+            doc.text(`匯出時間: ${formatDateTime(new Date())}`, 20, 30);
+            doc.text(`總筆數: ${bookings.length}`, 20, 36);
+            
+            let y = 50;
+            doc.setFontSize(8);
+            
+            bookings.slice(0, 30).forEach((b, idx) => {
+                if (y > 280) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.text(`#${b.id} | ${b.owner_name} | ${b.pet_name} | ${b.service_type} | $${b.service_price}`, 20, y);
+                y += 6;
+            });
+            
+            doc.save(`bookings_${new Date().toISOString().split('T')[0]}.pdf`);
+        };
+
+        // --- Detail Item Component (moved outside App) ---
         const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false, isEditing, editForm, handleEditChange }) => {
             if (isEditing && fieldName) {
                 const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
                 return (
-                    <div className={`${fullWidth ? 'col-span-2' : ''} bg-white p-3 rounded-xl border-2 border-brand-yellow/50`}>
+                    <div className={`${fullWidth ? 'col-span-2' : ''} bg-white dark:bg-gray-700 p-3 rounded-xl border-2 border-brand-yellow/50`}>
                         <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
                         {isMultiline ? (
                             <textarea className="edit-input h-24" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
@@ -321,34 +961,147 @@
             }
             if (!value || value === '無' || (Array.isArray(value) && value.length === 0)) return null;
             return (
-                <div className={`${fullWidth ? 'col-span-2' : ''} bg-slate-50 p-3 rounded-xl border border-slate-100`}>
+                <div className={`${fullWidth ? 'col-span-2' : ''} bg-slate-50 dark:bg-gray-700 p-3 rounded-xl border border-slate-100 dark:border-gray-600`}>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
-                    <div className="font-bold text-[#736357] text-sm break-words">
+                    <div className="font-bold text-brand-brown dark:text-brand-yellow text-sm break-words">
                         {Array.isArray(value) ? value.join(', ') : value}
                     </div>
                 </div>
             );
         };
 
+        // --- Print Contract Component ---
+        const PrintContract = ({ data }) => {
+            if (!data) return null;
+            const r = data.raw_data || {};
+            const isBoarding = !!data.checkin_date || (data.service_type && data.service_type.includes('住宿'));
+            
+            return (
+                <div id="print-area" className="hidden">
+                    <div className="max-w-[210mm] mx-auto space-y-4 p-4">
+                        <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-4">
+                            <h1 className="text-2xl font-black">汪汪犬旅 | 服務契約書</h1>
+                            <div className="text-right text-xs">
+                                <p>單號：#{data.id}</p>
+                                <p>填表日期：{formatDate(data.created_at)}</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1 border p-2 rounded">
+                                <h3 className="font-bold border-b pb-1 mb-1">甲方 (飼主資料)</h3>
+                                <p><strong>姓名:</strong> {data.owner_name}</p>
+                                <p><strong>電話:</strong> {data.phone}</p>
+                                <p><strong>身分證:</strong> {r.owner_id}</p>
+                                <p><strong>地址:</strong> {r.address}</p>
+                                <p><strong>Email:</strong> {r.email}</p>
+                                <p><strong>緊急聯絡:</strong> {r.emergency_name} ({r.emergency_phone})</p>
+                            </div>
+                            <div className="space-y-1 border p-2 rounded">
+                                <h3 className="font-bold border-b pb-1 mb-1">乙方 (寵物資料)</h3>
+                                <p><strong>名字:</strong> {data.pet_name}</p>
+                                <p><strong>品種:</strong> {r.breed}</p>
+                                <p><strong>性別/結紮:</strong> {r.sex} / {r.fix}</p>
+                                <p><strong>年齡/體重:</strong> {r.age} / {r.weight} kg</p>
+                                <p><strong>晶片:</strong> {r.chip_status} {r.chip_id ? `(${r.chip_id})` : ''}</p>
+                            </div>
+                        </div>
+                        <div className="border-2 border-black p-3 rounded mt-2">
+                            <h3 className="font-bold text-sm mb-2">服務內容確認</h3>
+                            <p><strong>項目:</strong> {getServiceLabel(data.service_type)}</p>
+                            <p><strong>金額:</strong> NT$ {data.service_price}</p>
+                            {isBoarding && (
+                                <>
+                                    <p><strong>入住:</strong> {data.checkin_date}</p>
+                                    <p><strong>退房:</strong> {data.checkout_date}</p>
+                                </>
+                            )}
+                        </div>
+                        <div className="mt-4 pt-2 border-t-2 border-black">
+                            <p className="text-xs mb-2">本人已詳閱並同意本館之服務條款，確認上述填寫資料屬實無誤。</p>
+                            <div className="flex justify-between items-end mt-4">
+                                <div className="w-1/2">
+                                    <p className="font-bold mb-1">飼主簽署：</p>
+                                    {data.signature_url ? <img src={data.signature_url} className="h-16 object-contain border-b border-dashed border-gray-400 w-full" /> : <div className="h-16 border-b border-dashed border-gray-400 w-full"></div>}
+                                </div>
+                                <div className="text-right"><p className="text-xs">簽署時間：{formatDateTime(data.created_at)}</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App Component ---
         const App = () => {
             const [session, setSession] = useState(null);
             const [loading, setLoading] = useState(true);
+            const [dataLoading, setDataLoading] = useState(false);
             const [password, setPassword] = useState('');
             const [loginError, setLoginError] = useState('');
             
             const [bookings, setBookings] = useState([]);
-            const [filter, setFilter] = useState('');
             const [selectedBooking, setSelectedBooking] = useState(null);
-            const [stats, setStats] = useState({ today: 0, pending: 0, boarding: 0 });
-
+            const [selectedBookings, setSelectedBookings] = useState(new Set());
+            
+            // Filters
+            const [searchFilter, setSearchFilter] = useState('');
+            const [statusFilter, setStatusFilter] = useState('all');
+            const [serviceFilter, setServiceFilter] = useState('all');
+            const [dateFrom, setDateFrom] = useState('');
+            const [dateTo, setDateTo] = useState('');
+            
+            // View mode
+            const [viewMode, setViewMode] = useState('list'); // list, calendar, crm
+            const [activeTab, setActiveTab] = useState('orders'); // orders, dashboard, logs
+            
+            // Edit mode
             const [isEditing, setIsEditing] = useState(false);
             const [editForm, setEditForm] = useState({});
-
+            
+            // Modals
             const [showConfirm, setShowConfirm] = useState(false);
             const [confirmAction, setConfirmAction] = useState(null);
             const [actionLoading, setActionLoading] = useState(false);
             const [showPasswordModal, setShowPasswordModal] = useState(false);
+            
+            // Toast
+            const [toast, setToast] = useState(null);
+            
+            // Activity logs
+            const [activityLogs, setActivityLogs] = useState([]);
+            
+            // Dark mode
+            const [isDark, setIsDark] = useDarkMode();
+            
+            // Rate limiter
+            const { checkRateLimit, recordAttempt } = useRateLimiter();
 
+            // Show toast helper
+            const showToast = (message, type = 'info') => setToast({ message, type });
+
+            // Session timeout handler
+            const handleSessionTimeout = useCallback(async () => {
+                showToast('Session 已過期，請重新登入', 'warning');
+                await supabase.auth.signOut();
+                setSession(null);
+            }, []);
+
+            useSessionTimeout(session ? handleSessionTimeout : () => {});
+
+            // Add activity log
+            const addLog = (action, details) => {
+                const newLog = { action, details, timestamp: new Date().toISOString() };
+                setActivityLogs(prev => [newLog, ...prev].slice(0, 100));
+                localStorage.setItem('activity_logs', JSON.stringify([newLog, ...activityLogs].slice(0, 100)));
+            };
+
+            // Load activity logs from localStorage
+            useEffect(() => {
+                const saved = localStorage.getItem('activity_logs');
+                if (saved) setActivityLogs(JSON.parse(saved));
+            }, []);
+
+            // Auth effect
             useEffect(() => {
                 supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
@@ -362,43 +1115,178 @@
                 return () => subscription.unsubscribe();
             }, []);
 
+            // Realtime subscription
+            useEffect(() => {
+                if (!session) return;
+
+                const channel = supabase
+                    .channel('bookings-changes')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookings' }, (payload) => {
+                        setBookings(prev => [payload.new, ...prev]);
+                        showToast(`🎉 新訂單！${payload.new.pet_name} - ${payload.new.owner_name}`, 'success');
+                        addLog('新訂單', `#${payload.new.id} ${payload.new.pet_name}`);
+                    })
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bookings' }, (payload) => {
+                        setBookings(prev => prev.map(b => b.id === payload.new.id ? payload.new : b));
+                    })
+                    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bookings' }, (payload) => {
+                        setBookings(prev => prev.filter(b => b.id !== payload.old.id));
+                    })
+                    .subscribe();
+
+                return () => { supabase.removeChannel(channel); };
+            }, [session]);
+
             const handleLogin = async (e) => {
                 e.preventDefault();
+                
+                const rateCheck = checkRateLimit('login');
+                if (!rateCheck.allowed) {
+                    setLoginError(`登入嘗試次數過多，請 15 分鐘後再試`);
+                    return;
+                }
+                
                 setLoading(true);
                 setLoginError('');
+                recordAttempt('login');
+                
                 const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: password });
-                if (error) { setLoginError('密碼錯誤，請重試'); setLoading(false); }
+                if (error) { 
+                    setLoginError(`密碼錯誤 (剩餘 ${rateCheck.remaining - 1} 次嘗試)`); 
+                    setLoading(false); 
+                } else {
+                    addLog('登入', '管理員登入成功');
+                }
             };
 
             const handleLogout = async () => {
+                addLog('登出', '管理員登出');
                 await supabase.auth.signOut();
                 window.location.href = 'index.html';
             };
 
             const fetchBookings = async () => {
-                setLoading(true);
+                setDataLoading(true);
                 const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
-                if (!error) { setBookings(data); calculateStats(data); }
-                setLoading(false);
+                if (!error) setBookings(data);
+                setDataLoading(false);
             };
 
-            const calculateStats = (data) => {
+            // Stats calculation
+            const stats = useMemo(() => {
                 const today = new Date().toISOString().split('T')[0];
-                const s = { today: 0, pending: 0, boarding: 0 };
-                data.forEach(b => {
-                    const created = b.created_at.split('T')[0];
-                    if (created === today) s.today++;
-                    if (b.status === 'pending') s.pending++;
-                    if (b.service_type && b.service_type.includes('住宿')) s.boarding++;
+                return {
+                    today: bookings.filter(b => b.created_at?.startsWith(today)).length,
+                    pending: bookings.filter(b => b.status === 'pending').length,
+                    boarding: bookings.filter(b => b.service_type?.includes('住宿')).length,
+                    total: bookings.length,
+                    revenue: bookings.reduce((sum, b) => sum + (parseInt(b.service_price) || 0), 0)
+                };
+            }, [bookings]);
+
+            // Filtered bookings
+            const filteredBookings = useMemo(() => {
+                return bookings.filter(b => {
+                    // Search filter
+                    if (searchFilter && !(
+                        b.owner_name?.includes(searchFilter) || 
+                        b.pet_name?.includes(searchFilter) || 
+                        b.phone?.includes(searchFilter)
+                    )) return false;
+                    
+                    // Status filter
+                    if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+                    
+                    // Service filter
+                    if (serviceFilter !== 'all') {
+                        if (serviceFilter === 'boarding' && !b.service_type?.includes('住宿')) return false;
+                        if (serviceFilter === 'grooming' && b.service_type?.includes('住宿')) return false;
+                    }
+                    
+                    // Date filter
+                    if (dateFrom && b.created_at < dateFrom) return false;
+                    if (dateTo && b.created_at > dateTo + 'T23:59:59') return false;
+                    
+                    return true;
                 });
-                setStats(s);
-            };
+            }, [bookings, searchFilter, statusFilter, serviceFilter, dateFrom, dateTo]);
 
             const updateStatus = async (id, newStatus) => {
-                const { error } = await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
+                // 取得當前訂單資料
+                const currentBooking = bookings.find(b => b.id === id);
+                const oldStatus = currentBooking?.status || 'pending';
+                
+                // 如果狀態沒有變化，不執行更新
+                if (oldStatus === newStatus) return;
+                
+                // 建立新的歷史記錄
+                const newHistoryEntry = {
+                    from: oldStatus,
+                    to: newStatus,
+                    changed_at: new Date().toISOString(),
+                    changed_by: session?.user?.email || 'admin'
+                };
+                
+                // 取得現有歷史記錄
+                const existingHistory = currentBooking?.raw_data?.status_history || [];
+                const updatedHistory = [...existingHistory, newHistoryEntry];
+                
+                // 更新 raw_data 中的 status_history
+                const updatedRawData = {
+                    ...currentBooking?.raw_data,
+                    status_history: updatedHistory
+                };
+                
+                const { data, error } = await supabase
+                    .from('bookings')
+                    .update({ 
+                        status: newStatus,
+                        raw_data: updatedRawData
+                    })
+                    .eq('id', id)
+                    .select();
+                
+                if (!error && data) {
+                    const updatedBooking = data[0];
+                    setBookings(prev => prev.map(b => b.id === id ? updatedBooking : b));
+                    if (selectedBooking?.id === id) setSelectedBooking(updatedBooking);
+                    addLog('狀態更新', `#${id} ${oldStatus} → ${STATUS_OPTIONS.find(s => s.value === newStatus)?.label}`);
+                    showToast('狀態已更新', 'success');
+                } else if (error) {
+                    showToast('狀態更新失敗', 'error');
+                    console.error('Update status error:', error);
+                }
+            };
+
+            // Batch operations
+            const handleBatchStatusUpdate = async (newStatus) => {
+                if (selectedBookings.size === 0) return;
+                
+                const ids = Array.from(selectedBookings);
+                const { error } = await supabase.from('bookings').update({ status: newStatus }).in('id', ids);
+                
                 if (!error) {
-                    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
-                    if (selectedBooking && selectedBooking.id === id) setSelectedBooking(prev => ({ ...prev, status: newStatus }));
+                    setBookings(prev => prev.map(b => ids.includes(b.id) ? { ...b, status: newStatus } : b));
+                    setSelectedBookings(new Set());
+                    addLog('批次更新', `${ids.length} 筆訂單 → ${STATUS_OPTIONS.find(s => s.value === newStatus)?.label}`);
+                    showToast(`已更新 ${ids.length} 筆訂單`, 'success');
+                }
+            };
+
+            const toggleSelectBooking = (id) => {
+                setSelectedBookings(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(id)) newSet.delete(id);
+                    else newSet.add(id);
+                    return newSet;
+                });
+            };
+
+            const selectAllBookings = () => {
+                if (selectedBookings.size === filteredBookings.length) {
+                    setSelectedBookings(new Set());
+                } else {
+                    setSelectedBookings(new Set(filteredBookings.map(b => b.id)));
                 }
             };
 
@@ -407,10 +1295,10 @@
             const executeAction = async (confirmPassword) => {
                 setActionLoading(true);
                 const { error: authError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: confirmPassword });
-                if (authError) { alert("密碼錯誤，無法執行操作"); setActionLoading(false); return; }
+                if (authError) { showToast("密碼錯誤", 'error'); setActionLoading(false); return; }
 
-                if (confirmAction === 'save') { await handleSaveLogic(); } 
-                else if (confirmAction === 'delete') { await handleDeleteLogic(); }
+                if (confirmAction === 'save') await handleSaveLogic();
+                else if (confirmAction === 'delete') await handleDeleteLogic();
 
                 setActionLoading(false); setShowConfirm(false);
             };
@@ -419,9 +1307,10 @@
                 const { error } = await supabase.from('bookings').delete().eq('id', selectedBooking.id);
                 if (!error) {
                     setBookings(prev => prev.filter(b => b.id !== selectedBooking.id));
+                    addLog('刪除訂單', `#${selectedBooking.id} ${selectedBooking.pet_name}`);
                     setSelectedBooking(null);
-                    calculateStats(bookings.filter(b => b.id !== selectedBooking.id));
-                } else { alert("刪除失敗"); }
+                    showToast('訂單已刪除', 'success');
+                } else { showToast("刪除失敗", 'error'); }
             };
 
             const startEditing = () => {
@@ -441,9 +1330,7 @@
                     checkin_date: sanitizeDate(editForm.checkin_date),
                     checkout_date: sanitizeDate(editForm.checkout_date),
                     pickup_time: editForm.pickup_time,
-                    service_price: editForm.service_price,
-                    emergency2_name: editForm.emergency2_name,
-                    emergency2_phone: editForm.emergency2_phone
+                    service_price: editForm.service_price
                 };
 
                 const newRawData = { ...selectedBooking.raw_data, ...editForm };
@@ -459,41 +1346,35 @@
                     setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
                     setSelectedBooking(updatedBooking);
                     setIsEditing(false);
+                    addLog('編輯訂單', `#${updatedBooking.id} ${updatedBooking.pet_name}`);
+                    showToast('儲存成功', 'success');
                 } else {
-                    alert("儲存失敗，請重試");
-                    console.error('Update error:', error);
+                    showToast("儲存失敗", 'error');
                 }
             };
 
-            const filteredBookings = bookings.filter(b => 
-                (b.owner_name && b.owner_name.includes(filter)) || 
-                (b.pet_name && b.pet_name.includes(filter)) || 
-                (b.phone && b.phone.includes(filter))
-            );
-
-            // DetailItem 已移至外部
-
+            // Login screen
             if (!session) {
                 return (
                     <div className="min-h-screen login-bg flex items-center justify-center p-4">
-                        <div className="glass-card w-full max-w-md p-10 text-center animate-in fade-in zoom-in duration-300">
-                            <div className="w-32 h-32 mx-auto mb-8 rounded-full shadow-2xl shadow-[#736357]/20 overflow-hidden bg-white border-4 border-white">
+                        <div className="glass-card w-full max-w-md p-10 text-center fade-in">
+                            <div className="w-32 h-32 mx-auto mb-8 rounded-full shadow-2xl overflow-hidden bg-white border-4 border-white">
                                 <img src="./logo.png" className="w-full h-full object-cover" alt="Logo" />
                             </div>
-                            <h1 className="text-2xl font-black text-[#736357] mb-2 tracking-tight">汪汪犬旅 | 管理後台</h1>
+                            <h1 className="text-2xl font-black text-brand-brown mb-2">汪汪犬旅 | 管理後台</h1>
                             <p className="text-slate-400 text-sm mb-8">請輸入管理密碼以存取資料</p>
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <div className="relative">
                                     <Icon name="lock" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input type="password" placeholder="輸入密碼" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-[#736357] focus:ring-0 outline-none transition-all font-bold text-lg text-center tracking-widest placeholder:tracking-normal" autoFocus />
+                                    <input type="password" placeholder="輸入密碼" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-brand-brown outline-none transition-all font-bold text-lg text-center tracking-widest placeholder:tracking-normal" autoFocus />
                                 </div>
                                 {loginError && <p className="text-red-500 text-sm font-bold animate-pulse">{loginError}</p>}
-                                <button disabled={loading} className="w-full bg-[#736357] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-[#5e5046] active:scale-95 transition-all flex items-center justify-center gap-2">
+                                <button disabled={loading} className="w-full bg-brand-brown text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-brand-dark-brown active:scale-95 transition-all flex items-center justify-center gap-2">
                                     {loading ? <Icon name="loader-2" className="animate-spin" /> : <>登入系統 <Icon name="arrow-right" size={20} /></>}
                                 </button>
                             </form>
                             <div className="mt-6 border-t border-slate-100 pt-4">
-                                <a href="index.html" className="w-full py-3 rounded-xl font-bold text-slate-400 hover:text-[#736357] hover:bg-[#736357]/5 transition-all flex items-center justify-center gap-2 text-sm">
+                                <a href="index.html" className="w-full py-3 rounded-xl font-bold text-slate-400 hover:text-brand-brown transition-all flex items-center justify-center gap-2 text-sm">
                                     <Icon name="arrow-left" size={16} /> 返回填寫首頁
                                 </a>
                             </div>
@@ -502,279 +1383,876 @@
                 );
             }
 
+            // Main dashboard
             return (
                 <div className="min-h-screen flex flex-col no-print">
-                    <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm">
+                    {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+                    
+                    {/* Navigation */}
+                    <nav className="bg-white dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full overflow-hidden shadow-md shrink-0 bg-white border border-slate-100"><img src="./logo.png" className="w-full h-full object-cover" /></div>
-                            <span className="font-black text-lg md:text-xl text-[#736357]">後台管理</span>
+                            <span className="font-black text-lg md:text-xl text-brand-brown dark:text-brand-yellow">後台管理</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={fetchBookings} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors" title="重新整理"><Icon name="rotate-cw" size={20} className={loading ? "animate-spin" : ""} /></button>
-                            <button onClick={() => setShowPasswordModal(true)} className="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-blue-50 hover:text-blue-500 transition-colors" title="變更密碼"><Icon name="key" size={20} /></button>
-                            <button onClick={handleLogout} className="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors" title="登出並返回首頁"><Icon name="log-out" size={20} /></button>
+                        <div className="flex items-center gap-2 md:gap-3">
+                            <button onClick={fetchBookings} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="重新整理">
+                                <Icon name="rotate-cw" size={20} className={dataLoading ? "animate-spin" : ""} />
+                            </button>
+                            <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="切換深色模式">
+                                <Icon name={isDark ? "sun" : "moon"} size={20} />
+                            </button>
+                            <button onClick={() => setShowPasswordModal(true)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="變更密碼">
+                                <Icon name="key" size={20} />
+                            </button>
+                            <button onClick={handleLogout} className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900 text-slate-500 hover:text-red-500 transition-colors" title="登出">
+                                <Icon name="log-out" size={20} />
+                            </button>
                         </div>
                     </nav>
 
-                    <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6 md:space-y-8">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                             {[
-                                { title: '今日新增', count: stats.today, icon: 'plus-circle', color: 'blue' },
-                                { title: '待確認', count: stats.pending, icon: 'alert-circle', color: 'yellow' },
-                                { title: '住宿預約', count: stats.boarding, icon: 'home', color: 'orange' },
-                                { title: '總訂單數', count: bookings.length, icon: 'file-text', color: 'purple' }
+                                { title: '今日新增', count: stats.today, icon: 'plus-circle', bgColor: 'bg-blue-50 dark:bg-blue-900', textColor: 'text-blue-500' },
+                                { title: '待確認', count: stats.pending, icon: 'alert-circle', bgColor: 'bg-yellow-50 dark:bg-yellow-900', textColor: 'text-yellow-500' },
+                                { title: '住宿預約', count: stats.boarding, icon: 'home', bgColor: 'bg-orange-50 dark:bg-orange-900', textColor: 'text-orange-500' },
+                                { title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' },
+                                { title: '總營收', count: `$${stats.revenue.toLocaleString()}`, icon: 'dollar-sign', bgColor: 'bg-green-50 dark:bg-green-900', textColor: 'text-green-500' }
                             ].map((item, idx) => (
-                                <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-28 md:h-32">
+                                <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col justify-between h-28">
                                     <div className="flex justify-between items-start">
                                         <div className="text-slate-400 text-xs font-bold uppercase tracking-wider">{item.title}</div>
-                                        <div className={`bg-${item.color}-50 text-${item.color}-500 p-1.5 rounded-lg`}><Icon name={item.icon} size={18}/></div>
+                                        <div className={`${item.bgColor} ${item.textColor} p-1.5 rounded-lg`}><Icon name={item.icon} size={16}/></div>
                                     </div>
-                                    <div className="text-2xl md:text-3xl font-black text-slate-700">{item.count}</div>
+                                    <div className="text-2xl font-black text-slate-700 dark:text-white">{item.count}</div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[60vh] flex flex-col">
-                            <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center bg-[#fcfbf9]">
-                                <div className="relative w-full md:w-96">
-                                    <Icon name="search" size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input type="text" placeholder="搜尋電話、寵物名、飼主..." value={filter} onChange={e => setFilter(e.target.value)} className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 bg-white focus:border-[#736357] outline-none transition-all shadow-sm" />
+                        {/* Tabs */}
+                        <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700 overflow-x-auto">
+                            {[
+                                { id: 'orders', label: '訂單管理', icon: 'clipboard-list' },
+                                { id: 'dashboard', label: '數據儀表板', icon: 'bar-chart-2' },
+                                { id: 'logs', label: '操作日誌', icon: 'activity' },
+                                { id: 'settings', label: '通知設定', icon: 'bell' }
+                            ].map(tab => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === tab.id ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <Icon name={tab.icon} size={16} />
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        {activeTab === 'orders' && (
+                            <div className="space-y-4">
+                                {/* Filters */}
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-4">
+                                    <div className="flex flex-wrap gap-3">
+                                        <div className="relative flex-1 min-w-[200px]">
+                                            <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input type="text" placeholder="搜尋電話、寵物名、飼主..." value={searchFilter} onChange={e => setSearchFilter(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+                                        </div>
+                                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-bold">
+                                            <option value="all">全部狀態</option>
+                                            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.icon} {s.label}</option>)}
+                                        </select>
+                                        <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-bold">
+                                            <option value="all">全部服務</option>
+                                            <option value="boarding">🏠 住宿</option>
+                                            <option value="grooming">✂️ 美容</option>
+                                        </select>
+                                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" placeholder="開始日期" />
+                                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" placeholder="結束日期" />
+                                    </div>
+                                    
+                                    {/* View mode & batch actions */}
+                                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100 dark:border-gray-700">
+                                        <div className="flex gap-2">
+                                            {['list', 'calendar', 'crm'].map(mode => (
+                                                <button 
+                                                    key={mode}
+                                                    onClick={() => setViewMode(mode)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${viewMode === mode ? 'bg-brand-brown text-white' : 'bg-slate-100 dark:bg-gray-700 text-slate-500 hover:bg-slate-200'}`}
+                                                >
+                                                    <Icon name={mode === 'list' ? 'list' : mode === 'calendar' ? 'calendar' : 'users'} size={14} className="inline mr-1" />
+                                                    {mode === 'list' ? '列表' : mode === 'calendar' ? '日曆' : 'CRM'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {selectedBookings.size > 0 && (
+                                                <>
+                                                    <span className="text-xs text-slate-500 self-center">已選 {selectedBookings.size} 筆</span>
+                                                    <select onChange={e => { if(e.target.value) handleBatchStatusUpdate(e.target.value); e.target.value = ''; }} className="px-2 py-1 rounded-lg border border-slate-200 dark:border-gray-600 text-xs font-bold bg-white dark:bg-gray-700">
+                                                        <option value="">批次更改狀態...</option>
+                                                        {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                                    </select>
+                                                </>
+                                            )}
+                                            <button onClick={() => exportToExcel(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900 text-green-600 text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1">
+                                                <Icon name="file-spreadsheet" size={14} /> Excel
+                                            </button>
+                                            <button onClick={() => exportToPDF(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-1">
+                                                <Icon name="file-text" size={14} /> PDF
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Content based on view mode */}
+                                {dataLoading ? (
+                                    <SkeletonTable />
+                                ) : viewMode === 'calendar' ? (
+                                    <CalendarView bookings={filteredBookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
+                                ) : viewMode === 'crm' ? (
+                                    <CustomerCRM bookings={bookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
+                                ) : (
+                                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                                        {/* Mobile view */}
+                                        <div className="md:hidden p-4 space-y-3">
+                                            {filteredBookings.map(b => (
+                                                <div key={b.id} className="bg-slate-50 dark:bg-gray-700 p-4 rounded-xl flex items-center gap-3">
+                                                    <input type="checkbox" checked={selectedBookings.has(b.id)} onChange={() => toggleSelectBooking(b.id)} className="w-5 h-5 accent-brand-brown" />
+                                                    <div className="flex-1" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-brand-brown dark:text-brand-yellow">{b.pet_name}</span>
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                                {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 dark:text-gray-400">{b.owner_name} • {getServiceLabel(b.service_type)}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="font-bold text-sm">${b.service_price}</div>
+                                                        <div className="text-[10px] text-slate-400">{formatDate(b.created_at)}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Desktop table */}
+                                        <div className="hidden md:block overflow-x-auto">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-50 dark:bg-gray-900 text-slate-500 font-bold text-xs uppercase tracking-wider">
+                                                    <tr>
+                                                        <th className="px-4 py-3">
+                                                            <input type="checkbox" checked={selectedBookings.size === filteredBookings.length && filteredBookings.length > 0} onChange={selectAllBookings} className="w-4 h-4 accent-brand-brown" />
+                                                        </th>
+                                                        <th className="px-4 py-3">建立時間</th>
+                                                        <th className="px-4 py-3">飼主 / 電話</th>
+                                                        <th className="px-4 py-3">寵物</th>
+                                                        <th className="px-4 py-3">服務項目</th>
+                                                        <th className="px-4 py-3">金額</th>
+                                                        <th className="px-4 py-3">狀態</th>
+                                                        <th className="px-4 py-3"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
+                                                    {filteredBookings.map(b => (
+                                                        <tr key={b.id} className="hover:bg-brand-yellow/5 transition-colors cursor-pointer group">
+                                                            <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                                                                <input type="checkbox" checked={selectedBookings.has(b.id)} onChange={() => toggleSelectBooking(b.id)} className="w-4 h-4 accent-brand-brown" />
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                                <div className="font-medium text-slate-600 dark:text-gray-300">{formatDate(b.created_at)}</div>
+                                                                <div className="text-xs text-slate-400">{new Date(b.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                                            </td>
+                                                            <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                                <div className="font-bold text-brand-brown dark:text-brand-yellow">{b.owner_name}</div>
+                                                                <div className="text-xs text-slate-400">{b.phone}</div>
+                                                            </td>
+                                                            <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                                <span className="bg-brand-brown/10 text-brand-brown px-2 py-1 rounded text-xs font-bold">{b.pet_name}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm font-bold text-slate-600 dark:text-gray-300" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                                {getServiceLabel(b.service_type)}
+                                                            </td>
+                                                            <td className="px-4 py-3 font-bold text-slate-700 dark:text-white" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>${b.service_price}</td>
+                                                            <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${b.status === 'confirmed' ? 'bg-green-50 text-green-600' : b.status === 'completed' ? 'bg-blue-50 text-blue-600' : b.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}`}>
+                                                                    {STATUS_OPTIONS.find(s => s.value === b.status)?.icon} {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <button onClick={() => { setSelectedBooking(b); setIsEditing(false); }} className="text-slate-300 group-hover:text-brand-brown transition-colors">
+                                                                    <Icon name="chevron-right" size={18}/>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {filteredBookings.length === 0 && (
+                                                        <tr><td colSpan="8" className="px-6 py-20 text-center text-slate-400">沒有找到相關訂單</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'dashboard' && (
+                            <div className="space-y-6">
+                                <DashboardCharts bookings={bookings} />
+                            </div>
+                        )}
+
+                        {activeTab === 'logs' && (
+                            <ActivityLog logs={activityLogs} />
+                        )}
+
+                        {activeTab === 'settings' && (
+                            <div className="space-y-6">
+                                <PushNotificationSettings showToast={showToast} />
+                                
+                                {/* 額外的設定說明 */}
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-6">
+                                    <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2 mb-4">
+                                        <Icon name="info" size={20} className="text-blue-500" />
+                                        Web Push 完整設定指南
+                                    </h3>
+                                    <div className="space-y-4 text-sm text-slate-600 dark:text-gray-300">
+                                        <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4">
+                                            <h4 className="font-bold text-blue-800 dark:text-blue-200 mb-2">📋 目前狀態</h4>
+                                            <p>目前已實作本地通知功能（當後台有新訂單時會顯示 Toast 通知）。</p>
+                                            <p className="mt-2">若要實現<strong>真正的手機推送通知</strong>（即使 App 關閉也能收到），需要額外設定後端伺服器。</p>
+                                        </div>
+                                        
+                                        <div className="border-l-4 border-brand-brown pl-4">
+                                            <h4 className="font-bold mb-2">🔧 完整 Web Push 設定步驟：</h4>
+                                            <ol className="list-decimal list-inside space-y-2 text-xs">
+                                                <li>
+                                                    <strong>生成 VAPID 金鑰</strong>
+                                                    <pre className="mt-1 p-2 bg-slate-100 dark:bg-gray-700 rounded text-[10px] overflow-x-auto">
+npx web-push generate-vapid-keys
+                                                    </pre>
+                                                </li>
+                                                <li>
+                                                    <strong>將公鑰填入 admin.html</strong>
+                                                    <p className="text-slate-500 mt-1">找到 <code>VAPID_PUBLIC_KEY</code> 並替換</p>
+                                                </li>
+                                                <li>
+                                                    <strong>建立後端 API</strong>
+                                                    <p className="text-slate-500 mt-1">使用 Node.js + web-push 套件發送推送</p>
+                                                </li>
+                                                <li>
+                                                    <strong>儲存訂閱資訊</strong>
+                                                    <p className="text-slate-500 mt-1">將用戶的訂閱資訊存到 Supabase</p>
+                                                </li>
+                                                <li>
+                                                    <strong>觸發推送</strong>
+                                                    <p className="text-slate-500 mt-1">當有新訂單時，從後端發送推送到所有訂閱者</p>
+                                                </li>
+                                            </ol>
+                                        </div>
+
+                                        <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                                            <h4 className="font-bold text-green-800 dark:text-green-200 mb-2">✅ 簡易替代方案</h4>
+                                            <p>如果不想設定後端，可以使用以下服務：</p>
+                                            <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                                                <li><strong>OneSignal</strong> - 免費推送通知服務</li>
+                                                <li><strong>Firebase Cloud Messaging (FCM)</strong> - Google 的推送服務</li>
+                                                <li><strong>Pusher Beams</strong> - 簡單易用的推送 API</li>
+                                            </ul>
+                                        </div>
+
+                                        <div className="bg-yellow-50 dark:bg-yellow-900/30 rounded-xl p-4">
+                                            <h4 className="font-bold text-yellow-800 dark:text-yellow-200 mb-2">⚠️ iOS 特別注意</h4>
+                                            <ul className="list-disc list-inside space-y-1 text-xs">
+                                                <li>iOS 需要 Safari 16.4+ 且必須「加入主畫面」</li>
+                                                <li>必須從主畫面開啟 PWA 才能接收推送</li>
+                                                <li>網站必須使用 HTTPS</li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-
-                            <div className="md:hidden p-4 space-y-4 bg-slate-50 min-h-full flex-1">
-                                {filteredBookings.map(b => (
-                                    <div key={b.id} onClick={() => { setSelectedBooking(b); setIsEditing(false); }} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 active:scale-[0.98] transition-transform flex justify-between items-center">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-[#736357] text-lg">{b.pet_name}</span>
-                                                <span className="text-xs text-slate-400">({new Date(b.created_at).toLocaleDateString()})</span>
-                                            </div>
-                                            <div className="text-sm text-slate-600 font-bold">{getServiceLabel(b.service_type)}</div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{b.status === 'confirmed' ? '已確認' : b.status === 'completed' ? '已完成' : b.status === 'cancelled' ? '已取消' : '待處理'}</span>
-                                                <span className="text-xs font-bold text-slate-500">${b.service_price}</span>
-                                            </div>
-                                        </div>
-                                        <div className="text-slate-300"><Icon name="chevron-right" size={24} /></div>
-                                    </div>
-                                ))}
-                                {filteredBookings.length === 0 && <div className="text-center py-10 text-slate-400 text-sm">沒有找到訂單</div>}
-                            </div>
-
-                            <div className="hidden md:block overflow-x-auto flex-1">
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider">
-                                        <tr><th className="px-6 py-4">建立時間</th><th className="px-6 py-4">飼主 / 電話</th><th className="px-6 py-4">寵物</th><th className="px-6 py-4">服務項目</th><th className="px-6 py-4">金額</th><th className="px-6 py-4">狀態</th><th className="px-6 py-4 text-right">操作</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {filteredBookings.map(b => (
-                                            <tr key={b.id} className="hover:bg-[#F7E7B5]/5 transition-colors cursor-pointer group" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-600">{new Date(b.created_at).toLocaleDateString()}<br/><span className="text-xs text-slate-400">{new Date(b.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></td>
-                                                <td className="px-6 py-4"><div className="font-bold text-[#736357]">{b.owner_name}</div><div className="text-xs text-slate-400">{b.phone}</div></td>
-                                                <td className="px-6 py-4"><span className="bg-[#736357]/10 text-[#736357] px-2 py-1 rounded-md text-xs font-bold">{b.pet_name}</span></td>
-                                                <td className="px-6 py-4 text-sm text-slate-600 font-bold">
-                                                    {getServiceLabel(b.service_type)}
-                                                    {b.checkin_date && !b.service_type.includes('住宿') && <div className="text-xs text-slate-400 mt-1 font-normal">{b.checkin_date} 入住</div>}
-                                                </td>
-                                                <td className="px-6 py-4 font-bold text-slate-700">${b.service_price}</td>
-                                                <td className="px-6 py-4"><span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${b.status === 'confirmed' ? 'bg-green-50 text-green-600 border-green-100' : b.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-100' : b.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'}`}><span className={`w-1.5 h-1.5 rounded-full ${b.status === 'confirmed' ? 'bg-green-500' : b.status === 'completed' ? 'bg-blue-500' : b.status === 'cancelled' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>{b.status === 'confirmed' ? '已確認' : b.status === 'completed' ? '已完成' : b.status === 'cancelled' ? '已取消' : '待處理'}</span></td>
-                                                <td className="px-6 py-4 text-right"><button className="text-slate-300 group-hover:text-[#736357] transition-colors"><Icon name="chevron-right" size={20}/></button></td>
-                                            </tr>
-                                        ))}
-                                        {filteredBookings.length === 0 && <tr><td colSpan="7" className="px-6 py-20 text-center text-slate-400">沒有找到相關訂單</td></tr>}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        )}
                     </main>
 
-                    {/* 詳細資料 Modal */}
+                    {/* Detail Modal */}
                     {selectedBooking && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-[#5D4D41]/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget && !isEditing) setSelectedBooking(null); }}>
-                            <div className="bg-white w-full h-full md:h-[90vh] md:max-w-6xl md:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden relative">
-                                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-[#fcfbf9] shrink-0">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm fade-in" onClick={(e) => { if(e.target === e.currentTarget && !isEditing) setSelectedBooking(null); }}>
+                            <div className="bg-white dark:bg-gray-800 w-full h-full md:h-[90vh] md:max-w-5xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                                {/* Header */}
+                                <div className="px-6 py-4 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center bg-slate-50 dark:bg-gray-900 shrink-0">
                                     <div>
-                                        <h2 className="text-xl md:text-2xl font-black text-[#736357]">訂單 #{selectedBooking.id}</h2>
-                                        <p className="text-slate-400 text-xs">{isEditing ? '編輯模式' : new Date(selectedBooking.created_at).toLocaleString()}</p>
+                                        <h2 className="text-xl font-black text-brand-brown dark:text-brand-yellow">訂單 #{selectedBooking.id}</h2>
+                                        <p className="text-slate-400 text-xs">{isEditing ? '編輯模式' : formatDateTime(selectedBooking.created_at)}</p>
                                     </div>
                                     <div className="flex gap-2">
                                         {isEditing ? (
                                             <>
-                                                <button onClick={() => triggerAction('save')} className="bg-[#06C755] text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-[#05a044] transition-all shadow-sm"><Icon name="save" size={18}/> 儲存</button>
-                                                <button onClick={() => setIsEditing(false)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition-all">取消</button>
+                                                <button onClick={() => triggerAction('save')} className="bg-green-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-green-600 transition-all text-sm"><Icon name="save" size={16}/> 儲存</button>
+                                                <button onClick={() => setIsEditing(false)} className="bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm">取消</button>
                                             </>
                                         ) : (
                                             <>
-                                                <button onClick={startEditing} className="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-100 transition-all text-sm"><Icon name="pencil" size={16}/> 編輯</button>
-                                                <button onClick={() => window.print()} className="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm text-sm"><Icon name="printer" size={16}/> <span className="hidden md:inline">列印</span></button>
-                                                <button onClick={() => setSelectedBooking(null)} className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"><Icon name="x" size={20}/></button>
+                                                <button onClick={startEditing} className="bg-blue-50 dark:bg-blue-900 text-blue-600 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-blue-100 transition-all text-sm"><Icon name="pencil" size={14}/> 編輯</button>
+                                                <button onClick={() => window.print()} className="bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-slate-200 transition-all text-sm"><Icon name="printer" size={14}/></button>
+                                                <button onClick={() => setSelectedBooking(null)} className="w-10 h-10 bg-slate-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"><Icon name="x" size={18}/></button>
                                             </>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
-                                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                                        
-                                        {/* ★★★ 優化：將訂單狀態/金額 Sidebar 移至程式碼結構的上方，以符合手機版置頂需求 ★★★ */}
-                                        {/* 透過 lg:col-start-4 強制在電腦版排到最右側，但在手機版會因為 DOM 順序而顯示在上方 */}
-                                        <div className="lg:col-span-1 lg:col-start-4 lg:row-start-1 space-y-4">
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 sticky top-0">
-                                                <label className="text-xs font-bold text-slate-400 mb-3 block uppercase tracking-wider">訂單狀態</label>
-                                                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 mb-6">
-                                                    {['pending', 'confirmed', 'completed', 'cancelled'].map(status => (
-                                                        <button key={status} onClick={() => updateStatus(selectedBooking.id, status)} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center lg:justify-between px-4 border-2 transition-all ${selectedBooking.status === status ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#736357]/30'}`}>
-                                                            <span>{status === 'pending' ? '🟡 待處理' : status === 'confirmed' ? '🟢 已確認' : status === 'completed' ? '🔵 已完成' : '🔴 已取消'}</span>
-                                                            {selectedBooking.status === status && <Icon name="check" size={16} className="hidden lg:block"/>}
-                                                        </button>
-                                                    ))}
+                                {/* Content */}
+                                <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-gray-900">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        {/* Main content */}
+                                        <div className="lg:col-span-2 space-y-4">
+                                            {/* Owner info */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="user" size={16}/> 飼主資料</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                    <DetailItem label="姓名" value={selectedBooking.owner_name} fieldName="owner_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="電話" value={selectedBooking.phone} fieldName="phone" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="身分證" value={selectedBooking.raw_data?.owner_id} fieldName="owner_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="Email" value={selectedBooking.raw_data?.email} fieldName="email" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="地址" value={selectedBooking.raw_data?.address} fieldName="address" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="緊急聯絡人" value={selectedBooking.raw_data?.emergency_name} fieldName="emergency_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="緊急電話" value={selectedBooking.raw_data?.emergency_phone} fieldName="emergency_phone" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                 </div>
+                                            </div>
 
-                                                <div className="border-t border-slate-100 pt-6 mt-4">
-                                                    <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">金額與日期</label>
-                                                    <div className="mb-4">
-                                                        <DetailItem label="總金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <div className={`p-3 rounded-xl border-2 ${isEditing ? 'bg-white border-brand-yellow/50' : 'bg-slate-50 border-slate-100'}`}>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">服務項目</label>
-                                                            {isEditing ? (
-                                                                <select className="edit-input" value={editForm.service_type} onChange={e => handleEditChange('service_type', e.target.value)}>
-                                                                    {SERVICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                                                                </select>
-                                                            ) : (
-                                                                <div className="font-bold text-[#736357] text-sm">{getServiceLabel(selectedBooking.service_type)}</div>
-                                                            )}
-                                                        </div>
-                                                        <DetailItem label="其他項目" value={selectedBooking.raw_data.service_type_other} fieldName="service_type_other" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <div className="pt-2 border-t border-dashed border-slate-200 mt-2">
-                                                            <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                            <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                            <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        </div>
-                                                    </div>
+                                            {/* Pet info */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="heart" size={16}/> 寵物資料</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    <DetailItem label="名字" value={selectedBooking.pet_name} fieldName="pet_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="品種" value={selectedBooking.raw_data?.breed} fieldName="breed" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="性別" value={selectedBooking.raw_data?.sex} fieldName="sex" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="結紮" value={selectedBooking.raw_data?.fix} fieldName="fix" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="年齡" value={selectedBooking.raw_data?.age} fieldName="age" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="體重" value={selectedBooking.raw_data?.weight} fieldName="weight" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="晶片" value={selectedBooking.raw_data?.chip_status} fieldName="chip_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="晶片號碼" value={selectedBooking.raw_data?.chip_id} fieldName="chip_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                 </div>
+                                            </div>
 
-                                                {!isEditing && (
-                                                    <div className="mt-8 pt-4 border-t border-slate-100">
-                                                        <button onClick={() => triggerAction('delete')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100">
-                                                            <Icon name="trash-2" size={16}/> 刪除此訂單
-                                                        </button>
-                                                    </div>
-                                                )}
+                                            {/* Health info */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-brand-yellow">
+                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="activity" size={16}/> 健康與行為</h3>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <DetailItem label="親狗程度" value={selectedBooking.raw_data?.dog_traits} fieldName="dog_traits" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="過往病史" value={selectedBooking.raw_data?.medical_status} fieldName="medical_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="病史說明" value={selectedBooking.raw_data?.medical_history} fieldName="medical_history" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="容易吠叫" value={selectedBooking.raw_data?.is_barking} fieldName="is_barking" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="護食狀況" value={selectedBooking.raw_data?.food_aggr} fieldName="food_aggr" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="定點如廁" value={selectedBooking.raw_data?.pad_toilet} fieldName="pad_toilet" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="定期疫苗" value={selectedBooking.raw_data?.vaccine} fieldName="vaccine" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="定期驅蟲" value={selectedBooking.raw_data?.deworm} fieldName="deworm" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                </div>
+                                            </div>
+
+                                            {/* Notes */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="clipboard" size={16}/> 備註</h3>
+                                                <div className="space-y-3">
+                                                    <DetailItem label="過敏資訊" value={selectedBooking.raw_data?.allergy} fieldName="allergy" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="個性描述" value={selectedBooking.raw_data?.personality} fieldName="personality" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="特別注意" value={selectedBooking.raw_data?.special_notes} fieldName="special_notes" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                </div>
+                                            </div>
+
+                                            {/* Signature & Vaccine */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">客戶簽名</h4>
+                                                    {selectedBooking.signature_url ? <img src={selectedBooking.signature_url} className="w-full h-24 object-contain bg-slate-50 dark:bg-gray-700 rounded-lg" /> : <div className="w-full h-24 bg-slate-50 dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-300 text-xs">無簽名</div>}
+                                                </div>
+                                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">疫苗證明</h4>
+                                                    {selectedBooking.vaccine_url ? <a href={selectedBooking.vaccine_url} target="_blank"><img src={selectedBooking.vaccine_url} className="w-full h-24 object-cover rounded-lg hover:opacity-80 transition-opacity" /></a> : <div className="w-full h-24 bg-slate-50 dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-300 text-xs">無照片</div>}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* 主要內容區塊 - 在電腦版佔據左側 3 欄 */}
-                                        <div className="lg:col-span-3 lg:col-start-1 lg:row-start-1 space-y-6">
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="user" size={18}/> 飼主基本資料</h3>
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                    <DetailItem label="飼主姓名" value={selectedBooking.owner_name} fieldName="owner_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="聯絡電話" value={selectedBooking.phone} fieldName="phone" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="身分證字號" value={selectedBooking.raw_data.owner_id} fieldName="owner_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="Email" value={selectedBooking.raw_data.email} fieldName="email" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="地址" value={selectedBooking.raw_data.address} fieldName="address" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="緊急聯絡人" value={selectedBooking.raw_data.emergency_name} fieldName="emergency_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="緊急聯絡電話" value={selectedBooking.raw_data.emergency_phone} fieldName="emergency_phone" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    
-                                                    {/* 第二緊急聯絡人 (藍色區塊) */}
-                                                    {(selectedBooking.raw_data.emergency2_name || isEditing) && (
-                                                        <>
-                                                            <div className="col-span-2 md:col-span-3 border-t border-dashed border-blue-200 my-2"></div>
-                                                            <div className={`col-span-1 bg-blue-50 p-3 rounded-xl border border-blue-100`}>
-                                                                <label className="text-[10px] font-bold text-blue-400 uppercase block mb-1">第二緊急聯絡人 (住宿)</label>
-                                                                {isEditing ? (
-                                                                    <input className="edit-input" value={editForm.emergency2_name || ''} onChange={e => handleEditChange('emergency2_name', e.target.value)} />
-                                                                ) : (
-                                                                    <div className="font-bold text-blue-600 text-sm">{selectedBooking.raw_data.emergency2_name}</div>
-                                                                )}
+                                        {/* Sidebar */}
+                                        <div className="space-y-4">
+                                            {/* Status */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                <label className="text-xs font-bold text-slate-400 mb-3 block">訂單狀態</label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {STATUS_OPTIONS.map(status => (
+                                                        <button key={status.value} onClick={() => updateStatus(selectedBooking.id, status.value)} className={`py-2 px-3 rounded-lg font-bold text-sm flex items-center justify-center gap-1 border-2 transition-all ${selectedBooking.status === status.value ? 'bg-brand-brown text-white border-brand-brown' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-100 dark:border-gray-600 hover:border-brand-brown/30'}`}>
+                                                            {status.icon} {status.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Service info */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
+                                                <div className="space-y-3">
+                                                    <DetailItem label="服務項目" value={selectedBooking.service_type} fieldName="service_type" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                </div>
+                                            </div>
+
+                                            {/* Admin Notes - 店家內部備註 */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-purple-400">
+                                                <label className="text-xs font-bold text-slate-400 mb-3 flex items-center gap-2">
+                                                    <Icon name="sticky-note" size={14} /> 店家內部備註
+                                                </label>
+                                                <textarea 
+                                                    className="w-full edit-input h-24 text-sm" 
+                                                    placeholder="輸入內部備註（僅店家可見）..."
+                                                    value={editForm.admin_notes || selectedBooking.raw_data?.admin_notes || ''}
+                                                    onChange={e => handleEditChange('admin_notes', e.target.value)}
+                                                    disabled={!isEditing}
+                                                />
+                                                {!isEditing && selectedBooking.raw_data?.admin_notes && (
+                                                    <div className="mt-2 text-xs text-slate-500 dark:text-gray-400">
+                                                        {selectedBooking.raw_data.admin_notes}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Order History Timeline - 訂單歷史記錄 */}
+                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                                <label className="text-xs font-bold text-slate-400 mb-3 flex items-center gap-2">
+                                                    <Icon name="history" size={14} /> 狀態變更記錄
+                                                </label>
+                                                <div className="space-y-3 max-h-48 overflow-y-auto">
+                                                    {(selectedBooking.raw_data?.status_history || []).length > 0 ? (
+                                                        selectedBooking.raw_data.status_history.map((h, idx) => (
+                                                            <div key={idx} className="flex items-start gap-3 text-xs">
+                                                                <div className="w-2 h-2 rounded-full bg-brand-brown mt-1.5 shrink-0"></div>
+                                                                <div className="flex-1">
+                                                                    <div className="font-bold text-slate-700 dark:text-white">
+                                                                        {STATUS_OPTIONS.find(s => s.value === h.from)?.label || '新建'} → {STATUS_OPTIONS.find(s => s.value === h.to)?.label}
+                                                                    </div>
+                                                                    <div className="text-slate-400">{formatDateTime(h.changed_at)}</div>
+                                                                </div>
                                                             </div>
-                                                            <div className={`col-span-1 bg-blue-50 p-3 rounded-xl border border-blue-100`}>
-                                                                <label className="text-[10px] font-bold text-blue-400 uppercase block mb-1">第二聯絡電話</label>
-                                                                {isEditing ? (
-                                                                    <input className="edit-input" value={editForm.emergency2_phone || ''} onChange={e => handleEditChange('emergency2_phone', e.target.value)} />
-                                                                ) : (
-                                                                    <div className="font-bold text-blue-600 text-sm">{selectedBooking.raw_data.emergency2_phone}</div>
-                                                                )}
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-center text-slate-400 text-xs py-4">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></div>
+                                                                <div className="flex-1 text-left">
+                                                                    <div className="font-bold text-slate-700 dark:text-white">訂單建立</div>
+                                                                    <div className="text-slate-400">{formatDateTime(selectedBooking.created_at)}</div>
+                                                                </div>
                                                             </div>
-                                                        </>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="dog" size={18}/> 寵物基本資料</h3>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <DetailItem label="寵物名字" value={selectedBooking.pet_name} fieldName="pet_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="品種" value={selectedBooking.raw_data.breed} fieldName="breed" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="性別" value={selectedBooking.raw_data.sex} fieldName="sex" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="結紮" value={selectedBooking.raw_data.fix} fieldName="fix" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="年齡" value={selectedBooking.raw_data.age} fieldName="age" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="體重" value={selectedBooking.raw_data.weight} fieldName="weight" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="晶片狀態" value={selectedBooking.raw_data.chip_status} fieldName="chip_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="晶片號碼" value={selectedBooking.raw_data.chip_id} fieldName="chip_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="指定獸醫" value={selectedBooking.raw_data.preferred_clinic} fieldName="preferred_clinic" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-[#F7E7B5]">
-                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="activity" size={18}/> 行為與健康問卷 (完整紀錄)</h3>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <DetailItem label="親狗程度" value={selectedBooking.raw_data.dog_traits} fieldName="dog_traits" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <DetailItem label="容易吠叫" value={selectedBooking.raw_data.is_barking} fieldName="is_barking" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <DetailItem label="吠叫情境" value={selectedBooking.raw_data.barking_detail} fieldName="barking_detail" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    </div>
-                                                    <DetailItem label="護食狀況" value={selectedBooking.raw_data.food_aggr} fieldName="food_aggr" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="定點如廁" value={selectedBooking.raw_data.pad_toilet} fieldName="pad_toilet" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="住宿經驗" value={selectedBooking.raw_data.stay_exp} fieldName="stay_exp" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="籠內訓練" value={selectedBooking.raw_data.crate_status} fieldName="crate_status" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4 bg-red-50 p-4 rounded-xl">
-                                                        <DetailItem label="過往病史" value={selectedBooking.raw_data.medical_status} fieldName="medical_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <DetailItem label="病史說明" value={selectedBooking.raw_data.medical_history} fieldName="medical_history" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <DetailItem label="其他病史" value={selectedBooking.raw_data.medical_history_other} fieldName="medical_history_other" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <DetailItem label="定期疫苗" value={selectedBooking.raw_data.vaccine} fieldName="vaccine" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <DetailItem label="定期驅蟲" value={selectedBooking.raw_data.deworm} fieldName="deworm" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                        <DetailItem label="驅蟲品牌" value={selectedBooking.raw_data.deworm_brand} fieldName="deworm_brand" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="clipboard-list" size={18}/> 備註與需求</h3>
-                                                <div className="space-y-4">
-                                                    <DetailItem label="過敏資訊" value={selectedBooking.raw_data.allergy} fieldName="allergy" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="個性與分離焦慮" value={selectedBooking.raw_data.personality} fieldName="personality" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="特別注意事項" value={selectedBooking.raw_data.special_notes} fieldName="special_notes" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">客戶簽名</h4>
-                                                    {selectedBooking.signature_url ? <img src={selectedBooking.signature_url} className="w-full h-32 object-contain bg-slate-50 rounded-lg" /> : <div className="w-full h-32 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 text-xs">無簽名</div>}
-                                                </div>
-                                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">疫苗證明</h4>
-                                                    {selectedBooking.vaccine_url ? <a href={selectedBooking.vaccine_url} target="_blank" className="block relative group"><img src={selectedBooking.vaccine_url} className="w-full h-32 object-cover rounded-lg" /><div className="absolute inset-0 bg-black/20 flex items-center justify-center text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="zoom-in" size={24}/></div></a> : <div className="w-full h-32 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 text-xs">無照片</div>}
-                                                </div>
-                                            </div>
+                                            {/* Delete button */}
+                                            {!isEditing && (
+                                                <button onClick={() => triggerAction('delete')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900 transition-all border border-transparent hover:border-red-100">
+                                                    <Icon name="trash-2" size={16}/> 刪除此訂單
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
                             <PrintContract data={selectedBooking} />
                         </div>
                     )}
 
-                    <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
+                    <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} showToast={showToast} />
                     <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={executeAction} title={confirmAction === 'delete' ? '刪除確認' : '儲存變更確認'} loading={actionLoading} />
                 </div>
             );
         };
+
+        // ===== Web Push 通知管理 =====
+        const PushNotificationManager = {
+            // VAPID 公鑰 - 需要替換成你自己的金鑰
+            // 可使用 https://web-push-codelab.glitch.me/ 生成
+            // 或使用 npx web-push generate-vapid-keys
+            VAPID_PUBLIC_KEY: 'YOUR_VAPID_PUBLIC_KEY_HERE',
+            
+            // 檢查瀏覽器是否支援推送通知
+            isSupported() {
+                return 'serviceWorker' in navigator && 
+                       'PushManager' in window && 
+                       'Notification' in window;
+            },
+            
+            // 取得目前的通知權限狀態
+            getPermissionStatus() {
+                if (!this.isSupported()) return 'unsupported';
+                return Notification.permission; // 'default', 'granted', 'denied'
+            },
+            
+            // 請求通知權限
+            async requestPermission() {
+                if (!this.isSupported()) {
+                    throw new Error('此瀏覽器不支援推送通知');
+                }
+                
+                const permission = await Notification.requestPermission();
+                return permission;
+            },
+            
+            // 訂閱推送通知
+            async subscribe() {
+                try {
+                    const permission = await this.requestPermission();
+                    if (permission !== 'granted') {
+                        throw new Error('通知權限被拒絕');
+                    }
+                    
+                    const registration = await navigator.serviceWorker.ready;
+                    
+                    // 檢查是否已有訂閱
+                    let subscription = await registration.pushManager.getSubscription();
+                    
+                    if (!subscription) {
+                        // 建立新訂閱
+                        subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: this.urlBase64ToUint8Array(this.VAPID_PUBLIC_KEY)
+                        });
+                    }
+                    
+                    // 儲存訂閱資訊到 localStorage（實際應用應發送到後端）
+                    localStorage.setItem('pushSubscription', JSON.stringify(subscription.toJSON()));
+                    
+                    console.log('Push subscription:', subscription);
+                    return subscription;
+                } catch (error) {
+                    console.error('訂閱推送通知失敗:', error);
+                    throw error;
+                }
+            },
+            
+            // 取消訂閱
+            async unsubscribe() {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    
+                    if (subscription) {
+                        await subscription.unsubscribe();
+                        localStorage.removeItem('pushSubscription');
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    console.error('取消訂閱失敗:', error);
+                    throw error;
+                }
+            },
+            
+            // 檢查是否已訂閱
+            async isSubscribed() {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    return !!subscription;
+                } catch {
+                    return false;
+                }
+            },
+            
+            // 發送本地通知（透過 Service Worker）
+            async showLocalNotification(title, body, url) {
+                if (Notification.permission !== 'granted') {
+                    console.warn('通知權限未授予');
+                    return false;
+                }
+                
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    registration.active.postMessage({
+                        type: 'SHOW_NOTIFICATION',
+                        title,
+                        body,
+                        url
+                    });
+                    return true;
+                } catch (error) {
+                    console.error('發送通知失敗:', error);
+                    return false;
+                }
+            },
+            
+            // 工具函數：將 Base64 轉換為 Uint8Array
+            urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding)
+                    .replace(/-/g, '+')
+                    .replace(/_/g, '/');
+                
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            },
+            
+            // 取得訂閱資訊（用於發送到後端）
+            async getSubscriptionInfo() {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    return subscription ? subscription.toJSON() : null;
+                } catch {
+                    return null;
+                }
+            }
+        };
+
+        // 推送通知設定元件
+        const PushNotificationSettings = ({ showToast }) => {
+            const [isSupported, setIsSupported] = React.useState(false);
+            const [permission, setPermission] = React.useState('default');
+            const [isSubscribed, setIsSubscribed] = React.useState(false);
+            const [loading, setLoading] = React.useState(false);
+            const [subscriptionInfo, setSubscriptionInfo] = React.useState(null);
+            const [showInfo, setShowInfo] = React.useState(false);
+
+            React.useEffect(() => {
+                const checkStatus = async () => {
+                    setIsSupported(PushNotificationManager.isSupported());
+                    setPermission(PushNotificationManager.getPermissionStatus());
+                    
+                    if (PushNotificationManager.isSupported()) {
+                        const subscribed = await PushNotificationManager.isSubscribed();
+                        setIsSubscribed(subscribed);
+                        
+                        if (subscribed) {
+                            const info = await PushNotificationManager.getSubscriptionInfo();
+                            setSubscriptionInfo(info);
+                        }
+                    }
+                };
+                checkStatus();
+            }, []);
+
+            const handleSubscribe = async () => {
+                setLoading(true);
+                try {
+                    await PushNotificationManager.subscribe();
+                    setIsSubscribed(true);
+                    setPermission('granted');
+                    const info = await PushNotificationManager.getSubscriptionInfo();
+                    setSubscriptionInfo(info);
+                    showToast('推送通知已啟用！', 'success');
+                } catch (error) {
+                    showToast(error.message || '啟用推送通知失敗', 'error');
+                }
+                setLoading(false);
+            };
+
+            const handleUnsubscribe = async () => {
+                setLoading(true);
+                try {
+                    await PushNotificationManager.unsubscribe();
+                    setIsSubscribed(false);
+                    setSubscriptionInfo(null);
+                    showToast('已取消推送通知', 'info');
+                } catch (error) {
+                    showToast('取消訂閱失敗', 'error');
+                }
+                setLoading(false);
+            };
+
+            const handleTestNotification = async () => {
+                const success = await PushNotificationManager.showLocalNotification(
+                    '🐕 測試通知',
+                    '這是一則測試推送通知，恭喜設定成功！',
+                    './admin.html'
+                );
+                if (success) {
+                    showToast('測試通知已發送', 'success');
+                } else {
+                    showToast('發送測試通知失敗', 'error');
+                }
+            };
+
+            if (!isSupported) {
+                return (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+                        <div className="flex items-center gap-3">
+                            <Icon name="alert-triangle" size={20} className="text-yellow-600" />
+                            <div>
+                                <div className="font-bold text-yellow-800 dark:text-yellow-200">不支援推送通知</div>
+                                <div className="text-sm text-yellow-600 dark:text-yellow-400">
+                                    此瀏覽器不支援 Web Push API。請使用 Chrome、Firefox、Edge 或 Safari 16.4+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Icon name="bell" size={20} className="text-brand-brown" />
+                            <h3 className="font-bold text-slate-700 dark:text-white">推送通知設定</h3>
+                        </div>
+                        <button 
+                            onClick={() => setShowInfo(!showInfo)}
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                            <Icon name="info" size={18} />
+                        </button>
+                    </div>
+                    
+                    <div className="p-4 space-y-4">
+                        {/* 狀態顯示 */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="font-bold text-slate-700 dark:text-white">通知狀態</div>
+                                <div className="text-sm text-slate-500 dark:text-gray-400">
+                                    {permission === 'granted' && isSubscribed ? (
+                                        <span className="text-green-600">✅ 已啟用</span>
+                                    ) : permission === 'denied' ? (
+                                        <span className="text-red-600">❌ 已封鎖（需在瀏覽器設定中解除）</span>
+                                    ) : (
+                                        <span className="text-yellow-600">⚠️ 未啟用</span>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {permission !== 'denied' && (
+                                <button
+                                    onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
+                                    disabled={loading}
+                                    className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
+                                        isSubscribed 
+                                            ? 'bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-red-50 hover:text-red-600' 
+                                            : 'bg-brand-brown text-white hover:bg-brand-dark-brown'
+                                    }`}
+                                >
+                                    {loading ? (
+                                        <Icon name="loader-2" size={16} className="animate-spin" />
+                                    ) : isSubscribed ? (
+                                        <>
+                                            <Icon name="bell-off" size={16} />
+                                            取消訂閱
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Icon name="bell-ring" size={16} />
+                                            啟用通知
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* 測試通知按鈕 */}
+                        {isSubscribed && (
+                            <button
+                                onClick={handleTestNotification}
+                                className="w-full py-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
+                            >
+                                <Icon name="send" size={16} />
+                                發送測試通知
+                            </button>
+                        )}
+
+                        {/* 說明資訊 */}
+                        {showInfo && (
+                            <div className="bg-slate-50 dark:bg-gray-700 rounded-xl p-4 text-sm space-y-3">
+                                <div className="font-bold text-slate-700 dark:text-white">📱 手機推送通知設定說明</div>
+                                <ol className="list-decimal list-inside space-y-2 text-slate-600 dark:text-gray-300">
+                                    <li>
+                                        <strong>iOS (iPhone/iPad)：</strong>
+                                        <ul className="ml-5 mt-1 list-disc text-xs text-slate-500">
+                                            <li>需使用 Safari 16.4 或更新版本</li>
+                                            <li>將網站「加入主畫面」作為 PWA</li>
+                                            <li>從主畫面開啟後才能接收推送</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>Android：</strong>
+                                        <ul className="ml-5 mt-1 list-disc text-xs text-slate-500">
+                                            <li>使用 Chrome 或 Firefox</li>
+                                            <li>建議「加入主畫面」以獲得最佳體驗</li>
+                                            <li>確保瀏覽器通知權限已開啟</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>電腦版：</strong>
+                                        <ul className="ml-5 mt-1 list-disc text-xs text-slate-500">
+                                            <li>Chrome、Firefox、Edge 皆支援</li>
+                                            <li>需允許網站通知權限</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                                
+                                {/* 訂閱資訊（開發用） */}
+                                {subscriptionInfo && (
+                                    <details className="mt-4">
+                                        <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
+                                            🔧 開發者資訊（訂閱詳情）
+                                        </summary>
+                                        <pre className="mt-2 p-2 bg-slate-100 dark:bg-gray-800 rounded text-[10px] overflow-x-auto">
+                                            {JSON.stringify(subscriptionInfo, null, 2)}
+                                        </pre>
+                                        <p className="mt-2 text-[10px] text-slate-400">
+                                            ⚠️ 完整的 Web Push 需要後端伺服器配合。
+                                            請將上述訂閱資訊發送到你的後端，並使用 VAPID 私鑰發送推送。
+                                        </p>
+                                    </details>
+                                )}
+                            </div>
+                        )}
+
+                        {/* 權限被拒絕的提示 */}
+                        {permission === 'denied' && (
+                            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                                <div className="font-bold text-red-800 dark:text-red-200 mb-2">如何重新啟用通知？</div>
+                                <ol className="list-decimal list-inside text-sm text-red-600 dark:text-red-400 space-y-1">
+                                    <li>點擊網址列左側的鎖頭/資訊圖示</li>
+                                    <li>找到「通知」設定</li>
+                                    <li>將其改為「允許」</li>
+                                    <li>重新整理頁面</li>
+                                </ol>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('sw.js');
+                    console.log('SW registered:', registration);
+                    
+                    // 檢查更新
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // 有新版本可用
+                                console.log('New SW version available');
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('SW registration failed:', error);
+                }
+            });
+        }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
