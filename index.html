@@ -10,43 +10,104 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
-        :root { --brand-yellow: #F7E7B5; --brand-brown: #736357; --brand-light: #fefcf9; --line-green: #06C755; }
-        body { font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; background: var(--brand-light); color: var(--brand-brown); -webkit-font-smoothing: antialiased; }
-        .glass-card { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(16px); border: 1px solid rgba(115, 99, 87, 0.08); border-bottom: 4px solid var(--brand-yellow); box-shadow: 0 10px 30px -10px rgba(115, 99, 87, 0.1); border-radius: 2rem; transition: all 0.4s ease; }
-        .cute-input { background: #fdfaf6; border: 2px solid rgba(115, 99, 87, 0.05); transition: all 0.3s ease; }
-        .cute-input:focus { background: #ffffff; border-color: var(--brand-yellow); box-shadow: 0 0 0 4px rgba(247, 231, 181, 0.3); outline: none; }
-        .canvas-container { position: relative; touch-action: none; user-select: none; border-radius: 1.5rem; overflow: hidden; background: #fff; }
-        @keyframes pulse-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
-        .line-btn-animated { background-color: var(--line-green); animation: pulse-soft 2.5s infinite ease-in-out; }
-        .section-dot { width: 6px; height: 6px; background: var(--brand-brown); border-radius: 50%; opacity: 0.3; }
-        /* 下方動畫 */
-        .fade-enter { opacity: 0; transform: translateY(10px); }
-        .fade-enter-active { opacity: 1; transform: translateY(0); transition: all 0.4s ease; }
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
+    
+    :root { 
+        --brand-yellow: #F7E7B5; 
+        --brand-brown: #736357; 
+        --brand-light: #fefcf9; 
+        --line-green: #06C755; 
+    }
+
+    body { 
+        font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
+        background: var(--brand-light); 
+        color: var(--brand-brown); 
+        -webkit-font-smoothing: antialiased; 
+        /* 防止 iOS 點擊閃爍 */
+        -webkit-tap-highlight-color: transparent; 
+    }
+
+    .glass-card { 
+        background: rgba(255, 255, 255, 0.98); 
+        backdrop-filter: blur(16px); 
+        border: 1px solid rgba(115, 99, 87, 0.08); 
+        border-bottom: 4px solid var(--brand-yellow); 
+        box-shadow: 0 10px 30px -10px rgba(115, 99, 87, 0.1); 
+        border-radius: 2rem; 
+        transition: all 0.4s ease; 
+    }
+
+    .cute-input { 
+        background: #fdfaf6; 
+        border: 2px solid rgba(115, 99, 87, 0.05); 
+        transition: all 0.3s ease; 
+    }
+
+    .cute-input:focus { 
+        background: #ffffff; 
+        border-color: var(--brand-yellow); 
+        box-shadow: 0 0 0 4px rgba(247, 231, 181, 0.3); 
+        outline: none; 
+    }
+
+    /* ✨✨✨ 重點優化：簽名板容器 ✨✨✨ */
+    .canvas-container { 
+        position: relative; 
+        border-radius: 1.5rem; 
+        overflow: hidden; 
+        background: #fff; 
         
-        /* 震動錯誤動畫 */
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        .shake-error {
-            animation: shake 0.4s ease-in-out;
-            border-color: #ef4444 !important; /* 強制變紅 */
-            background-color: #fff1f2 !important;
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
-        }
-        /* 群組按鈕的錯誤樣式 */
-        .group-error {
-            padding: 6px;
-            border-radius: 1rem;
-            border: 2px solid #ef4444;
-            background-color: #fff1f2;
-            animation: shake 0.4s ease-in-out;
-        }
-    </style>
-</head>
+        /* 關鍵：強制禁止所有瀏覽器預設觸控行為（捲動、縮放） */
+        touch-action: none; 
+        
+        /* 禁止選取，避免拖曳時反白 */
+        user-select: none;
+        -webkit-user-select: none; 
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+
+    /* 確保 canvas 元素本身也繼承這些屬性 */
+    .canvas-container canvas {
+        touch-action: none;
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* 呼吸動畫 */
+    @keyframes pulse-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+    .line-btn-animated { background-color: var(--line-green); animation: pulse-soft 2.5s infinite ease-in-out; }
+
+    /* 下方動畫 */
+    .fade-enter { opacity: 0; transform: translateY(10px); }
+    .fade-enter-active { opacity: 1; transform: translateY(0); transition: all 0.4s ease; }
+
+    /* 震動錯誤動畫 */
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    
+    .shake-error {
+        animation: shake 0.4s ease-in-out;
+        border-color: #ef4444 !important; /* 強制變紅 */
+        background-color: #fff1f2 !important;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
+    }
+
+    /* 群組按鈕的錯誤樣式 */
+    .group-error {
+        padding: 6px;
+        border-radius: 1rem;
+        border: 2px solid #ef4444;
+        background-color: #fff1f2;
+        animation: shake 0.4s ease-in-out;
+    }
+</style>
 <body>
     <div id="root"></div>
 
@@ -276,20 +337,42 @@
                 setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
             };
 
+// --- ✨✨✨ 簽名板初始化與效能優化 (電腦版流暢度修正) ✨✨✨ ---
             useEffect(() => {
                 let timer;
                 if (showFullSig && fullSigCanvasRef.current) {
                     timer = setTimeout(() => {
                         const canvas = fullSigCanvasRef.current;
+                        
+                        // 1. 解析度優化：確保在 Retina/手機螢幕上清晰，電腦上不模糊
                         const ratio = Math.max(window.devicePixelRatio || 1, 1);
                         canvas.width = canvas.offsetWidth * ratio;
                         canvas.height = canvas.offsetHeight * ratio;
                         canvas.getContext("2d").scale(ratio, ratio);
-                        padInstance.current = new SignaturePad(canvas, { penColor: "rgb(115, 99, 87)" });
-                    }, 200);
+
+                        // 2. 初始化參數設定 (針對電腦版卡頓修正)
+                        padInstance.current = new SignaturePad(canvas, { 
+                            penColor: "rgb(115, 99, 87)", // 品牌色
+                            minWidth: 1.5,                // 線條最細寬度
+                            maxWidth: 4.0,                // 線條最粗寬度 (稍微加粗更有筆觸感)
+                            
+                            // 關鍵修正 1：throttle (節流)
+                            // 設定為 16ms (約 60FPS)。太低(0-8)會導致電腦版卡頓，太高(>30)會導致線條不圓滑
+                            throttle: 16, 
+                            
+                            // 關鍵修正 2：minDistance (最小距離)
+                            // 只有當移動超過 3px 時才繪製，這能有效過濾滑鼠微小的抖動，讓線條更直順
+                            minDistance: 3,
+
+                            // 平滑度權重 (0.5 - 0.8 是最佳範圍)
+                            velocityFilterWeight: 0.7,
+                        });
+                    }, 200); // 稍微延遲確保 DOM 渲染完畢
                 }
                 return () => { if (timer) clearTimeout(timer); if (padInstance.current) padInstance.current.off(); };
             }, [showFullSig]);
+            // --------------------------------------------------
+            
 
             const pillBtn = (field, val, active) => (
                 <button type="button" onClick={() => handleChange(field, val)} 
@@ -642,7 +725,6 @@
                                                     onClick={() => {
                                                         const event = { target: { value: '' } };
                                                         setFormData({...formData, pickup_time: ''});
-                                                        // 這裡不需要手動切回 text，因為下一次 render 會根據 type={...} 自動切換
                                                     }}
                                                     className="text-xs font-bold text-slate-400 underline decoration-dashed ml-1 hover:text-[#736357] transition-colors"
                                                 >
@@ -675,13 +757,15 @@
                                 </section>
                             )}
 
-                            {/* 4. 法律條款與數位簽署 */}
+                            {/* ✨✨✨ 4. 法律條款與數位簽署 (更新版) ✨✨✨ */}
                             <section className="glass-card p-8 md:p-10 space-y-10">
                                 <div className="flex items-center gap-3 border-b border-[#736357]/10 pb-5">
                                     <Icon name="edit-3" size={24} className="text-[#736357]"/>
                                     <h3 className="text-xl font-bold text-[#736357]">法律條款與數位簽署</h3>
                                 </div>
+                                
                                 <div className="bg-[#fefcf9] rounded-[2.5rem] p-8 md:p-10 space-y-6 border border-slate-50 shadow-inner">
+                                    {/* 契約閱讀區塊 */}
                                     {isBoarding && (
                                         <div className="space-y-4">
                                             <button type="button" onClick={() => setBoardingOpen(!boardingOpen)} className="w-full flex justify-between items-center text-sm font-black text-[#736357] bg-white px-8 py-5 rounded-2xl shadow-sm border border-[#736357]/5 hover:bg-[#F7E7B5]/20 transition-all">
@@ -707,6 +791,7 @@
                                             </div>
                                         )}
                                     </div>
+                                    
                                     <div className="pt-6 border-t border-slate-100">
                                         <label id="legal_agree" className={`flex items-center gap-5 cursor-pointer group p-4 rounded-2xl transition-all ${errors.legal_agree ? 'shake-error' : ''}`}>
                                             <input type="checkbox" checked={formData.legal_agree} onChange={e=>handleChange('legal_agree', e.target.checked)} className="accent-[#736357] w-7 h-7 cursor-pointer" />
@@ -715,13 +800,51 @@
                                     </div>
                                 </div>
 
-                                <div id="signature" onClick={() => setShowFullSig(true)} className={`bg-white border-4 border-dashed h-64 rounded-[3rem] flex flex-col items-center justify-center cursor-pointer hover:bg-white/50 transition-all overflow-hidden relative shadow-inner group ${errors.signature ? 'shake-error border-red-500' : 'border-[#F7E7B5]'}`}>
-                                    {realtimeSig ? <img src={realtimeSig} className="h-full object-contain p-10 drop-shadow-md" /> : (
-                                        <div className="text-center space-y-5">
-                                            <div className="w-16 h-16 bg-[#736357] text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg group-hover:scale-110 transition-transform">
-                                                <Icon name="pen-tool" size={32} />
+                                {/* ✨✨✨ 簽名板 UI 更新處 ✨✨✨ */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end px-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">飼主簽名處 *</label>
+                                        {realtimeSig && (
+                                            <span className="text-[10px] bg-[#06C755]/10 text-[#06C755] px-3 py-1 rounded-full font-bold animate-in fade-in">
+                                                ✓ 已完成簽署
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div 
+                                        id="signature" 
+                                        className={`relative w-full rounded-[2.5rem] transition-all duration-300 overflow-hidden group ${realtimeSig ? 'bg-white shadow-lg border-2 border-[#736357]' : 'bg-[#fdfaf6] border-4 border-dashed border-[#F7E7B5] hover:border-[#736357]/30 hover:bg-[#F7E7B5]/10 cursor-pointer'} ${errors.signature ? 'shake-error border-red-500' : ''}`}
+                                        onClick={() => !realtimeSig && setShowFullSig(true)}
+                                    >
+                                        {/* 1. 已簽名狀態 */}
+                                        {realtimeSig ? (
+                                            <div className="relative h-64 flex items-center justify-center p-8 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]">
+                                                <img src={realtimeSig} className="h-full object-contain drop-shadow-sm rotate-[-2deg] scale-110" alt="簽名預覽" />
                                             </div>
-                                            <p className="text-xl font-black text-[#736357] tracking-tighter italic">點擊此處開啟數位簽名板</p>
+                                        ) : (
+                                            /* 2. 未簽名狀態 */
+                                            <div className="h-64 flex flex-col items-center justify-center space-y-4">
+                                                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm border border-[#736357]/10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                                                    <Icon name="pen-tool" className="text-[#736357]" size={32} />
+                                                </div>
+                                                <div className="text-center space-y-1">
+                                                    <p className="text-xl font-black text-[#736357] tracking-tight">點擊此處開啟數位簽名板</p>
+                                                    <p className="text-xs font-bold text-slate-400">請在框線內簽上您的全名</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* ✨✨✨ 新增：獨立的清除重簽按鈕 ✨✨✨ */}
+                                    {realtimeSig && (
+                                        <div className="flex justify-center pt-2 animate-in fade-in">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => { setShowFullSig(true); }} 
+                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-sm hover:bg-[#736357] hover:text-white hover:shadow-lg transition-all active:scale-95"
+                                            >
+                                                <Icon name="rotate-ccw" size={16}/> 清除重簽
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -750,7 +873,7 @@
                                 </div>
                                 <div className="absolute bottom-10 w-full flex justify-center">
                                     <button onClick={()=>padInstance.current.clear()} className="bg-white text-[#736357] text-xs font-black px-10 py-4 rounded-full shadow-lg border border-[#736357]/10 hover:bg-[#F7E7B5]/20 transition-all flex items-center gap-3">
-                                        <Icon name="eraser" size={16}/> 清除重簽
+                                        <Icon name="eraser" size={16}/> 清除
                                     </button>
                                 </div>
                             </div>
