@@ -701,44 +701,113 @@
 
             // 儲存當前滾動位置
             const scrollPositionRef = useRef(0);
+            // 儲存簽名數據的 ref（用於螢幕旋轉時保持數據）
+            const signatureDataRef = useRef(null);
 
             useEffect(() => {
                 let timer;
                 let resizeTimeout;
+                let orientationTimeout;
                 let currentOrientation = window.screen?.orientation?.angle || window.orientation || 0;
+                let isResizing = false;
                 
-                const resizeCanvas = () => {
+                const resizeCanvas = (delay = 100) => {
                     // 使用 debounce 避免頻繁觸發
                     clearTimeout(resizeTimeout);
                     resizeTimeout = setTimeout(() => {
-                        if (fullSigCanvasRef.current && padInstance.current) {
+                        if (fullSigCanvasRef.current && padInstance.current && !isResizing) {
+                            isResizing = true;
+                            
                             const canvas = fullSigCanvasRef.current;
                             const container = canvas.parentElement;
+                            
+                            if (!container) {
+                                isResizing = false;
+                                return;
+                            }
+                            
                             const ratio = Math.max(window.devicePixelRatio || 1, 1);
                             
-                            // 保存當前簽名數據
-                            const signatureData = padInstance.current.toData();
+                            // 保存當前簽名數據到 ref
+                            try {
+                                const currentData = padInstance.current.toData();
+                                if (currentData && currentData.length > 0) {
+                                    signatureDataRef.current = currentData;
+                                }
+                            } catch (e) {
+                                console.warn('Failed to save signature data:', e);
+                            }
+                            
+                            // 獲取容器的實際尺寸
+                            const containerWidth = container.offsetWidth || container.clientWidth;
+                            const containerHeight = container.offsetHeight || container.clientHeight;
+                            
+                            if (containerWidth <= 0 || containerHeight <= 0) {
+                                isResizing = false;
+                                // 如果尺寸無效，稍後重試
+                                setTimeout(() => resizeCanvas(200), 100);
+                                return;
+                            }
+                            
+                            // 清除舊的 SignaturePad 實例
+                            padInstance.current.off();
                             
                             // 重新設定畫布尺寸
-                            canvas.width = container.offsetWidth * ratio;
-                            canvas.height = container.offsetHeight * ratio;
-                            canvas.getContext("2d").scale(ratio, ratio);
+                            canvas.width = containerWidth * ratio;
+                            canvas.height = containerHeight * ratio;
+                            
+                            // 重置 canvas context
+                            const ctx = canvas.getContext("2d");
+                            ctx.setTransform(1, 0, 0, 1, 0, 0); // 重置變換矩陣
+                            ctx.scale(ratio, ratio);
+                            
+                            // 重新創建 SignaturePad 實例
+                            padInstance.current = new SignaturePad(canvas, { 
+                                penColor: "rgb(115, 99, 87)",
+                                backgroundColor: "rgb(255, 255, 255)", 
+                                minWidth: 1.5,
+                                maxWidth: 4.0,
+                                throttle: 16, 
+                                minDistance: 3, 
+                                velocityFilterWeight: 0.7,
+                            });
                             
                             // 恢復簽名數據
-                            if (signatureData && signatureData.length > 0) {
-                                padInstance.current.fromData(signatureData);
+                            if (signatureDataRef.current && signatureDataRef.current.length > 0) {
+                                try {
+                                    // 需要根據新的畫布尺寸調整簽名數據的座標
+                                    padInstance.current.fromData(signatureDataRef.current);
+                                } catch (e) {
+                                    console.warn('Failed to restore signature data:', e);
+                                }
                             }
+                            
+                            isResizing = false;
                         }
-                    }, 100);
+                    }, delay);
                 };
 
                 const handleOrientationChange = () => {
                     const newOrientation = window.screen?.orientation?.angle || window.orientation || 0;
-                    if (newOrientation !== currentOrientation) {
+                    
+                    // 清除之前的延遲
+                    clearTimeout(orientationTimeout);
+                    
+                    // 螢幕旋轉時，需要等待較長時間讓瀏覽器完成佈局更新
+                    // 使用多次延遲確保尺寸正確
+                    orientationTimeout = setTimeout(() => {
                         currentOrientation = newOrientation;
-                        // 延遲執行以等待螢幕旋轉完成
-                        setTimeout(resizeCanvas, 300);
-                    }
+                        resizeCanvas(50);
+                        
+                        // 再次延遲執行以確保尺寸正確
+                        setTimeout(() => resizeCanvas(50), 300);
+                        setTimeout(() => resizeCanvas(50), 600);
+                    }, 100);
+                };
+
+                // 處理 visualViewport 變化（更可靠的視窗大小檢測）
+                const handleViewportResize = () => {
+                    resizeCanvas(150);
                 };
 
                 // 阻止觸控事件導致頁面滾動
@@ -748,23 +817,42 @@
                     }
                 };
 
+                // 阻止雙指縮放
+                const preventGesture = (e) => {
+                    if (showFullSig) {
+                        e.preventDefault();
+                    }
+                };
+
                 if (showFullSig && fullSigCanvasRef.current) {
                     // 儲存當前滾動位置
                     scrollPositionRef.current = window.scrollY;
+                    
+                    // 清除之前的簽名數據（如果是重新簽名）
+                    signatureDataRef.current = null;
                     
                     // 添加 signing-mode class 禁止頁面滾動
                     document.body.classList.add('signing-mode');
                     document.body.style.top = `-${scrollPositionRef.current}px`;
                     
-                    // 阻止觸控滾動
+                    // 阻止觸控滾動和手勢
                     document.addEventListener('touchmove', preventTouchMove, { passive: false });
+                    document.addEventListener('gesturestart', preventGesture, { passive: false });
+                    document.addEventListener('gesturechange', preventGesture, { passive: false });
+                    document.addEventListener('gestureend', preventGesture, { passive: false });
                     
                     timer = setTimeout(() => {
                         const canvas = fullSigCanvasRef.current;
                         const container = canvas.parentElement;
+                        
+                        if (!canvas || !container) return;
+                        
                         const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                        canvas.width = container.offsetWidth * ratio;
-                        canvas.height = container.offsetHeight * ratio;
+                        const containerWidth = container.offsetWidth || container.clientWidth;
+                        const containerHeight = container.offsetHeight || container.clientHeight;
+                        
+                        canvas.width = containerWidth * ratio;
+                        canvas.height = containerHeight * ratio;
                         canvas.getContext("2d").scale(ratio, ratio);
                         
                         padInstance.current = new SignaturePad(canvas, { 
@@ -778,12 +866,17 @@
                         });
                         
                         // 監聽視窗大小變化和螢幕旋轉
-                        window.addEventListener("resize", resizeCanvas);
+                        window.addEventListener("resize", handleOrientationChange);
                         window.addEventListener("orientationchange", handleOrientationChange);
                         
                         // 針對 iOS 的額外處理
                         if (window.screen?.orientation) {
                             window.screen.orientation.addEventListener("change", handleOrientationChange);
+                        }
+                        
+                        // 使用 visualViewport API（如果可用）
+                        if (window.visualViewport) {
+                            window.visualViewport.addEventListener("resize", handleViewportResize);
                         }
                     }, 200);
                 }
@@ -791,6 +884,7 @@
                 return () => { 
                     if (timer) clearTimeout(timer);
                     if (resizeTimeout) clearTimeout(resizeTimeout);
+                    if (orientationTimeout) clearTimeout(orientationTimeout);
                     if (padInstance.current) padInstance.current.off(); 
                     
                     // 移除 signing-mode class 並恢復滾動位置
@@ -800,10 +894,16 @@
                     
                     // 移除事件監聽器
                     document.removeEventListener('touchmove', preventTouchMove);
-                    window.removeEventListener("resize", resizeCanvas);
+                    document.removeEventListener('gesturestart', preventGesture);
+                    document.removeEventListener('gesturechange', preventGesture);
+                    document.removeEventListener('gestureend', preventGesture);
+                    window.removeEventListener("resize", handleOrientationChange);
                     window.removeEventListener("orientationchange", handleOrientationChange);
                     if (window.screen?.orientation) {
                         window.screen.orientation.removeEventListener("change", handleOrientationChange);
+                    }
+                    if (window.visualViewport) {
+                        window.visualViewport.removeEventListener("resize", handleViewportResize);
                     }
                 };
             }, [showFullSig]);
