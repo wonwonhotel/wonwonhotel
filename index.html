@@ -94,7 +94,7 @@
         }
 
         .canvas-container canvas {
-            touch-action: none;
+touch-action: none; /* 關鍵：告訴瀏覽器這裡的觸控由程式碼接管，不進行捲動或縮放 */
             display: block;
             width: 100%;
             height: 100%;
