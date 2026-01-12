@@ -2,236 +2,743 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>汪汪犬旅 | 旗艦管理系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>汪汪犬旅 | 後台管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; background: #fdfaf6; color: #736357; }
-        .glass-card { background: white; border-radius: 1.5rem; border: 1px solid rgba(115, 99, 87, 0.08); box-shadow: 0 4px 12px rgba(115,99,87,0.03); }
-        .tab-active { background: #736357; color: white !important; }
-        .sub-tab-active { background: white; color: #736357; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-radius: 0.75rem; }
-        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid #f8fafc; }
-        .info-label { color: #94a3b8; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
-        .info-value { font-weight: 600; color: #736357; font-size: 0.9rem; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .vip-badge { background: linear-gradient(45deg, #f59e0b, #fbbf24); color: white; }
+        
+        :root { 
+            --brand-yellow: #F7E7B5; 
+            --brand-brown: #736357; 
+            --brand-light: #fbf9f6; 
+            --line-green: #06C755; 
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
+            background-color: #f3f4f6;
+            color: #374151; 
+            -webkit-font-smoothing: antialiased; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .login-bg {
+            background-color: var(--brand-light);
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+        }
+
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.6); 
+            box-shadow: 0 10px 25px -5px rgba(115, 99, 87, 0.1); 
+            border-radius: 1.5rem; 
+        }
+
+        /* 編輯模式輸入框樣式 */
+        .edit-input {
+            width: 100%;
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            font-size: 16px; /* 防止 iOS 縮放 */
+            color: #374151;
+            transition: all 0.2s;
+        }
+        .edit-input:focus {
+            border-color: var(--brand-brown);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(115, 99, 87, 0.1);
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        
+        input, select, textarea, button { font-size: 16px !important; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { 
+                position: absolute; left: 0; top: 0; width: 100%; 
+                padding: 20px; background: white; color: black; 
+            }
+            .no-print { display: none !important; }
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .print-label { font-weight: bold; color: #555; font-size: 10px; }
+            .print-value { font-weight: bold; color: #000; }
+        }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- 1. Supabase 設定 ---
+        const SUPABASE_URL = 'https://fpkzuotxxbsqisgwupix.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_VsAJfSi7Fb3zu_A5Ksm2wA_mAUkDLBs'; 
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ★★★ 請修改這裡：您在 Supabase 註冊的管理者 Email ★★★
+        const ADMIN_EMAIL = "wonwonhotel@gmail.com"; 
 
         const Icon = ({ name, size = 20, className = "" }) => {
             const iconRef = useRef(null);
-            useEffect(() => { if (window.lucide) { window.lucide.createIcons({ root: iconRef.current }); } }, [name]);
-            return <span ref={iconRef} className={className}><i data-lucide={name} style={{ width: size, height: size }}></i></span>;
+            useEffect(() => {
+                if (window.lucide && iconRef.current) {
+                    window.lucide.createIcons({ root: iconRef.current, attrs: { "stroke-width": 2.5, class: className } });
+                }
+            }, [name, className]);
+            return <span ref={iconRef} key={name} className="inline-flex items-center justify-center"><i data-lucide={name} style={{ width: size, height: size }}></i></span>;
+        };
+
+        // --- 輔助函式：判斷服務類型顯示文字 ---
+        const getServiceLabel = (serviceType) => {
+            if (!serviceType) return '';
+            if (serviceType.includes('住宿')) {
+                return '🏠 住宿＋洗澡';
+            }
+            return `✂️ ${serviceType}`;
+        };
+
+        // --- 二次確認密碼視窗 ---
+        const ConfirmModal = ({ isOpen, onClose, onConfirm, title, loading }) => {
+            const [confirmPassword, setConfirmPassword] = useState('');
+            
+            useEffect(() => {
+                if (!isOpen) setConfirmPassword('');
+            }, [isOpen]);
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+                        <div className="text-center">
+                            <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Icon name="lock" size={24} />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-700">{title}</h3>
+                            <p className="text-sm text-slate-500 mt-1">此為敏感操作，請輸入管理密碼以確認。</p>
+                        </div>
+                        <input 
+                            type="password" 
+                            placeholder="請輸入密碼" 
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full text-center py-3 border-2 border-slate-200 rounded-xl focus:border-[#736357] outline-none font-bold"
+                            autoFocus
+                        />
+                        <div className="flex gap-3 pt-2">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all">取消</button>
+                            <button 
+                                onClick={() => onConfirm(confirmPassword)} 
+                                disabled={loading || !confirmPassword}
+                                className="flex-1 py-3 rounded-xl bg-[#736357] text-white font-bold hover:bg-[#5e5046] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Icon name="loader-2" className="animate-spin" /> : '確認執行'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 契約列印版面 ---
+        const PrintContract = ({ data }) => {
+            if (!data) return null;
+            const r = data.raw_data || {};
+            const isBoarding = !!data.checkin_date;
+            
+            return (
+                <div id="print-area" className="hidden">
+                    <div className="max-w-[210mm] mx-auto space-y-4">
+                        <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-4">
+                            <h1 className="text-2xl font-black">汪汪犬旅 | 服務契約書</h1>
+                            <div className="text-right text-xs">
+                                <p>單號：#{data.id}</p>
+                                <p>填表日期：{new Date(data.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div className="print-grid">
+                            <div className="space-y-1 border p-2 rounded">
+                                <h3 className="font-bold border-b pb-1 mb-1">甲方 (飼主資料)</h3>
+                                <div><span className="print-label">姓名:</span> <span className="print-value">{data.owner_name}</span></div>
+                                <div><span className="print-label">電話:</span> <span className="print-value">{data.phone}</span></div>
+                                <div><span className="print-label">身分證:</span> <span className="print-value">{r.owner_id}</span></div>
+                                <div><span className="print-label">地址:</span> <span className="print-value">{r.address}</span></div>
+                                <div><span className="print-label">Email:</span> <span className="print-value">{r.email}</span></div>
+                                <div><span className="print-label">緊急聯絡:</span> <span className="print-value">{r.emergency_name} ({r.emergency_phone})</span></div>
+                            </div>
+                            <div className="space-y-1 border p-2 rounded">
+                                <h3 className="font-bold border-b pb-1 mb-1">乙方 (寵物資料)</h3>
+                                <div><span className="print-label">名字:</span> <span className="print-value">{data.pet_name}</span></div>
+                                <div><span className="print-label">品種:</span> <span className="print-value">{r.breed}</span></div>
+                                <div><span className="print-label">性別/結紮:</span> <span className="print-value">{r.sex} / {r.fix}</span></div>
+                                <div><span className="print-label">年齡/體重:</span> <span className="print-value">{r.age} / {r.weight} kg</span></div>
+                                <div><span className="print-label">晶片:</span> <span className="print-value">{r.chip_status} {r.chip_id ? `(${r.chip_id})` : ''}</span></div>
+                                <div><span className="print-label">指定獸醫:</span> <span className="print-value">{r.preferred_clinic || '無'}</span></div>
+                            </div>
+                        </div>
+                        <div className="border-2 border-black p-3 rounded mt-2">
+                            <h3 className="font-bold text-sm mb-2">服務內容確認</h3>
+                            <div className="print-grid">
+                                <div>
+                                    <span className="print-label">項目:</span> <span className="print-value">{getServiceLabel(data.service_type)} {r.service_type_other}</span>
+                                </div>
+                                <div><span className="print-label">金額:</span> <span className="print-value text-lg">NT$ {data.service_price}</span></div>
+                                {isBoarding ? (
+                                    <>
+                                        <div><span className="print-label">入住:</span> <span className="print-value">{data.checkin_date}</span></div>
+                                        <div><span className="print-label">退房:</span> <span className="print-value">{data.checkout_date}</span></div>
+                                    </>
+                                ) : (
+                                    <div><span className="print-label">預計接回:</span> <span className="print-value">{data.pickup_time || '另行通知'}</span></div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="border p-2 rounded mt-2 space-y-2">
+                            <h3 className="font-bold border-b pb-1">健康與行為問卷</h3>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div><span className="print-label">過往病史:</span> <span className="print-value">{r.medical_status==='有' ? (r.medical_history||[]).join(',') + (r.medical_history_other||'') : '無'}</span></div>
+                                <div><span className="print-label">親狗程度:</span> <span className="print-value">{(r.dog_traits||[]).join(', ')}</span></div>
+                                <div><span className="print-label">容易吠叫:</span> <span className="print-value">{r.is_barking} {r.barking_detail ? `(${r.barking_detail})` : ''}</span></div>
+                                <div><span className="print-label">住宿經驗:</span> <span className="print-value">{r.stay_exp}</span></div>
+                                <div><span className="print-label">護食狀況:</span> <span className="print-value">{r.food_aggr}</span></div>
+                                <div><span className="print-label">定點如廁:</span> <span className="print-value">{r.pad_toilet}</span></div>
+                                <div><span className="print-label">定期疫苗:</span> <span className="print-value">{r.vaccine}</span></div>
+                                <div><span className="print-label">定期驅蟲:</span> <span className="print-value">{r.deworm} {r.deworm_brand}</span></div>
+                                <div className="col-span-3"><span className="print-label">籠內訓練:</span> <span className="print-value">{(r.crate_status||[]).join(', ')}</span></div>
+                            </div>
+                        </div>
+                        <div className="border p-2 rounded mt-2">
+                            <h3 className="font-bold border-b pb-1">重要備註</h3>
+                            <div className="space-y-1">
+                                <p><span className="print-label">過敏資訊:</span> <span className="print-value">{r.allergy || '無'}</span></p>
+                                <p><span className="print-label">個性與分離焦慮:</span> <span className="print-value">{r.personality}</span></p>
+                                <p><span className="print-label">特別注意事項:</span> <span className="print-value">{r.special_notes}</span></p>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-2 border-t-2 border-black">
+                            <p className="text-[10px] mb-2">本人(甲方)已詳閱並同意本館之服務條款，確認上述填寫資料屬實無誤，並同意委託乙方進行服務。</p>
+                            <div className="flex justify-between items-end mt-4">
+                                <div className="w-1/2">
+                                    <p className="font-bold mb-1">飼主簽署：</p>
+                                    {data.signature_url ? <img src={data.signature_url} className="h-16 object-contain border-b border-dashed border-gray-400 w-full" /> : <div className="h-16 border-b border-dashed border-gray-400 w-full"></div>}
+                                </div>
+                                <div className="text-right"><p className="text-xs">簽署時間：{new Date(data.created_at).toLocaleString()}</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         const App = () => {
-            const [currentTab, setCurrentTab] = useState('contracts'); 
-            const [contractSubTab, setContractSubTab] = useState('all');
-            const [selectedRecord, setSelectedRecord] = useState(null);
-            const [selectedClient, setSelectedClient] = useState(null);
-            const [isEditingPrice, setIsEditingPrice] = useState(false);
-            const [priceInput, setPriceInput] = useState("");
-            const [clientSearch, setClientSearch] = useState("");
+            const [session, setSession] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [password, setPassword] = useState('');
+            const [loginError, setLoginError] = useState('');
+            
+            const [bookings, setBookings] = useState([]);
+            const [filter, setFilter] = useState('');
+            const [selectedBooking, setSelectedBooking] = useState(null);
+            const [stats, setStats] = useState({ today: 0, pending: 0, boarding: 0 });
 
-            // 數據源 (模擬完整填寫資料)
-            const [records, setRecords] = useState([
-                {
-                    id: 'CON-001', service_type: 'both', created_at: '2026-01-11 10:30',
-                    owner_name: '王小明', owner_id: 'A123456789', phone: '0912-345-678', email: 'won@example.com', address: '台北市大安區忠孝東路',
-                    emergency_name: '陳小姐', emergency_phone: '0988-111-222',
-                    pet_name: '豆豆', breed: '柴犬', sex: '公', age: '3歲', weight: '12', fix: '是',
-                    chip_status: '有晶片', chip_id: '900138000', preferred_clinic: '汪汪診所',
-                    checkin_date: '2026-01-20', checkout_date: '2026-01-25', pickup_time: '18:30',
-                    is_barking: '會', barking_detail: '看到生人會叫', stay_exp: '有', food_aggr: '無', pad_toilet: '會',
-                    vaccine: '有', deworm: '有', deworm_brand: '一錠除', crate_status: ['有平常在家圍欄內'],
-                    allergy: '雞肉', personality: '活潑', special_notes: '無',
-                    service_price: '5500', sig: 'https://via.placeholder.com/300x150?text=Signature1'
-                },
-                {
-                    id: 'CON-002', service_type: 'grooming', created_at: '2026-01-11 14:00',
-                    owner_name: '李美美', phone: '0988-000-111', pet_name: '哈哈', breed: '柯基', 
-                    service_item: '大美容', pickup_time: '18:00', service_price: '1500',
-                    allergy: '無', personality: '害羞', sig: 'https://via.placeholder.com/300x150?text=Signature2'
-                }
-            ]);
+            // 編輯模式狀態
+            const [isEditing, setIsEditing] = useState(false);
+            const [editForm, setEditForm] = useState({});
 
-            // CRM 邏輯
-            const clientList = useMemo(() => {
-                const groups = {};
-                records.forEach(r => {
-                    const key = `${r.owner_name}_${r.phone}`;
-                    if (!groups[key]) groups[key] = { name: r.owner_name, phone: r.phone, total: 0, pets: new Set(), history: [] };
-                    groups[key].total += Number(r.service_price);
-                    groups[key].pets.add(`${r.pet_name}(${r.breed})`);
-                    groups[key].history.push(r);
+            // 敏感操作確認狀態
+            const [showConfirm, setShowConfirm] = useState(false);
+            const [confirmAction, setConfirmAction] = useState(null); // 'save' or 'delete'
+            const [actionLoading, setActionLoading] = useState(false);
+
+            useEffect(() => {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    setSession(session);
+                    if(session) fetchBookings();
+                    setLoading(false);
                 });
-                return Object.values(groups).filter(c => c.name.includes(clientSearch) || c.phone.includes(clientSearch));
-            }, [records, clientSearch]);
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    setSession(session);
+                    if(session) fetchBookings();
+                });
+                return () => subscription.unsubscribe();
+            }, []);
 
-            const filteredContracts = records.filter(r => contractSubTab === 'all' || r.service_type === contractSubTab);
-
-            const jumpToContract = (id) => {
-                const target = records.find(r => r.id === id);
-                if(target) { setSelectedClient(null); setCurrentTab('contracts'); setSelectedRecord(target); setPriceInput(target.service_price); }
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setLoginError('');
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: ADMIN_EMAIL,
+                    password: password,
+                });
+                if (error) {
+                    setLoginError('密碼錯誤，請重試');
+                    setLoading(false);
+                }
             };
 
+            const handleLogout = async () => {
+                await supabase.auth.signOut();
+                setBookings([]);
+            };
+
+            const fetchBookings = async () => {
+                setLoading(true);
+                const { data, error } = await supabase
+                    .from('bookings')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                if (error) console.error('Error fetching bookings:', error);
+                else {
+                    setBookings(data);
+                    calculateStats(data);
+                }
+                setLoading(false);
+            };
+
+            const calculateStats = (data) => {
+                const today = new Date().toISOString().split('T')[0];
+                const s = { today: 0, pending: 0, boarding: 0 };
+                data.forEach(b => {
+                    const created = b.created_at.split('T')[0];
+                    if (created === today) s.today++;
+                    if (b.status === 'pending') s.pending++;
+                    if (b.service_type.includes('住宿')) s.boarding++;
+                });
+                setStats(s);
+            };
+
+            const updateStatus = async (id, newStatus) => {
+                const { error } = await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
+                if (!error) {
+                    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+                    if (selectedBooking && selectedBooking.id === id) {
+                        setSelectedBooking(prev => ({ ...prev, status: newStatus }));
+                    }
+                }
+            };
+
+            // 觸發敏感操作（開啟確認視窗）
+            const triggerAction = (action) => {
+                setConfirmAction(action);
+                setShowConfirm(true);
+            };
+
+            // 執行敏感操作（驗證密碼後）
+            const executeAction = async (confirmPassword) => {
+                setActionLoading(true);
+                
+                // 1. 驗證密碼
+                const { error: authError } = await supabase.auth.signInWithPassword({
+                    email: ADMIN_EMAIL,
+                    password: confirmPassword,
+                });
+
+                if (authError) {
+                    alert("密碼錯誤，無法執行操作");
+                    setActionLoading(false);
+                    return;
+                }
+
+                // 2. 驗證成功，執行對應操作
+                if (confirmAction === 'save') {
+                    await handleSaveLogic();
+                } else if (confirmAction === 'delete') {
+                    await handleDeleteLogic();
+                }
+
+                setActionLoading(false);
+                setShowConfirm(false);
+            };
+
+            const handleDeleteLogic = async () => {
+                const { error } = await supabase.from('bookings').delete().eq('id', selectedBooking.id);
+                if (!error) {
+                    setBookings(prev => prev.filter(b => b.id !== selectedBooking.id));
+                    setSelectedBooking(null);
+                    calculateStats(bookings.filter(b => b.id !== selectedBooking.id));
+                } else {
+                    alert("刪除失敗，請檢查網路連線");
+                }
+            };
+
+            const startEditing = () => {
+                setEditForm({
+                    ...selectedBooking,
+                    ...selectedBooking.raw_data 
+                });
+                setIsEditing(true);
+            };
+
+            const handleEditChange = (field, value) => {
+                setEditForm(prev => ({ ...prev, [field]: value }));
+            };
+
+            const handleSaveLogic = async () => {
+                const topLevelUpdates = {
+                    owner_name: editForm.owner_name,
+                    phone: editForm.phone,
+                    pet_name: editForm.pet_name,
+                    service_type: editForm.service_type,
+                    checkin_date: editForm.checkin_date,
+                    checkout_date: editForm.checkout_date,
+                    pickup_time: editForm.pickup_time,
+                    service_price: editForm.service_price
+                };
+
+                const newRawData = { ...selectedBooking.raw_data, ...editForm };
+                delete newRawData.id;
+                delete newRawData.created_at;
+                delete newRawData.status;
+                delete newRawData.raw_data;
+                delete newRawData.signature_url;
+                delete newRawData.vaccine_url;
+
+                const { data, error } = await supabase
+                    .from('bookings')
+                    .update({ ...topLevelUpdates, raw_data: newRawData })
+                    .eq('id', selectedBooking.id)
+                    .select();
+
+                if (!error && data) {
+                    const updatedBooking = data[0];
+                    setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+                    setSelectedBooking(updatedBooking);
+                    setIsEditing(false);
+                } else {
+                    alert("儲存失敗，請重試");
+                    console.error(error);
+                }
+            };
+
+            const filteredBookings = bookings.filter(b => 
+                b.owner_name.includes(filter) || 
+                b.pet_name.includes(filter) || 
+                b.phone.includes(filter)
+            );
+
+            // 輔助函式：顯示欄位 (支援編輯模式)
+            const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false }) => {
+                if (isEditing && fieldName) {
+                    const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
+                    return (
+                        <div className={`${fullWidth ? 'col-span-2' : ''} bg-white p-3 rounded-xl border-2 border-brand-yellow/50`}>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
+                            {isMultiline ? (
+                                <textarea className="edit-input h-24" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
+                            ) : (
+                                <input type={fieldName.includes('date') ? 'date' : 'text'} className="edit-input" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
+                            )}
+                        </div>
+                    );
+                }
+                if (!value || value === '無' || (Array.isArray(value) && value.length === 0)) return null;
+                return (
+                    <div className={`${fullWidth ? 'col-span-2' : ''} bg-slate-50 p-3 rounded-xl border border-slate-100`}>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
+                        <div className="font-bold text-[#736357] text-sm break-words">
+                            {Array.isArray(value) ? value.join(', ') : value}
+                        </div>
+                    </div>
+                );
+            };
+
+            // --- 登入畫面 ---
+            if (!session) {
+                return (
+                    <div className="min-h-screen login-bg flex items-center justify-center p-4">
+                        <div className="glass-card w-full max-w-md p-10 text-center animate-in fade-in zoom-in duration-300">
+                            <div className="w-32 h-32 mx-auto mb-8 rounded-full shadow-2xl shadow-[#736357]/20 overflow-hidden bg-white border-4 border-white">
+                                <img src="./logo.png" className="w-full h-full object-cover" alt="Logo" />
+                            </div>
+                            <h1 className="text-2xl font-black text-[#736357] mb-2 tracking-tight">汪汪犬旅 | 管理後台</h1>
+                            <p className="text-slate-400 text-sm mb-8">請輸入管理密碼以存取資料</p>
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div className="relative">
+                                    <Icon name="lock" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input type="password" placeholder="輸入密碼" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-[#736357] focus:ring-0 outline-none transition-all font-bold text-lg text-center tracking-widest placeholder:tracking-normal" autoFocus />
+                                </div>
+                                {loginError && <p className="text-red-500 text-sm font-bold animate-pulse">{loginError}</p>}
+                                <button disabled={loading} className="w-full bg-[#736357] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-[#5e5046] active:scale-95 transition-all flex items-center justify-center gap-2">
+                                    {loading ? <Icon name="loader-2" className="animate-spin" /> : <>登入系統 <Icon name="arrow-right" size={20} /></>}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // --- 主畫面 ---
             return (
-                <div className="min-h-screen flex flex-col md:flex-row pb-20 md:pb-0">
-                    <nav className="fixed bottom-0 w-full bg-white border-t md:relative md:w-24 md:bg-[#736357] flex md:flex-col justify-around p-3 z-50">
-                        <button onClick={() => setCurrentTab('contracts')} className={`flex flex-col items-center p-2 rounded-2xl ${currentTab === 'contracts' ? 'text-orange-500 md:tab-active' : 'text-slate-400'}`}>
-                            <Icon name="file-text" size={24}/><span className="text-[10px] font-bold">契約</span>
-                        </button>
-                        <button onClick={() => setCurrentTab('clients')} className={`flex flex-col items-center p-2 rounded-2xl ${currentTab === 'clients' ? 'text-orange-500 md:tab-active' : 'text-slate-400'}`}>
-                            <Icon name="users" size={24}/><span className="text-[10px] font-bold">客戶</span>
-                        </button>
+                <div className="min-h-screen flex flex-col no-print">
+                    <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden shadow-md shrink-0 bg-white border border-slate-100"><img src="./logo.png" className="w-full h-full object-cover" /></div>
+                            <span className="font-black text-lg md:text-xl text-[#736357]">後台管理</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={fetchBookings} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"><Icon name="rotate-cw" size={20} className={loading ? "animate-spin" : ""} /></button>
+                            <button onClick={handleLogout} className="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors"><Icon name="log-out" size={20} /></button>
+                        </div>
                     </nav>
 
-                    <main className="flex-1 p-5 md:p-10 overflow-y-auto">
-                        <header className="mb-6 flex justify-between items-end">
-                            <h2 className="text-2xl font-black">{currentTab === 'contracts' ? '契約中心' : '客戶 CRM'}</h2>
-                            {currentTab === 'clients' && (
-                                <input placeholder="搜尋姓名/電話" className="text-xs p-2 border rounded-lg outline-none" value={clientSearch} onChange={e=>setClientSearch(e.target.value)} />
-                            )}
-                        </header>
-
-                        {currentTab === 'contracts' && (
-                            <div className="space-y-6">
-                                <div className="bg-slate-200/50 p-1 rounded-xl flex max-w-sm">
-                                    {['all', 'grooming', 'both'].map(type => (
-                                        <button key={type} onClick={()=>setContractSubTab(type)} className={`flex-1 py-2 text-xs font-black transition-all ${contractSubTab === type ? 'sub-tab-active' : 'text-slate-400'}`}>{type==='all'?'全部':type==='grooming'?'美容':'住宿'}</button>
-                                    ))}
+                    <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6 md:space-y-8">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                            {[
+                                { title: '今日新增', count: stats.today, icon: 'plus-circle', color: 'blue' },
+                                { title: '待確認', count: stats.pending, icon: 'alert-circle', color: 'yellow' },
+                                { title: '住宿預約', count: stats.boarding, icon: 'home', color: 'orange' },
+                                { title: '總訂單數', count: bookings.length, icon: 'file-text', color: 'purple' }
+                            ].map((item, idx) => (
+                                <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-28 md:h-32">
+                                    <div className="flex justify-between items-start">
+                                        <div className="text-slate-400 text-xs font-bold uppercase tracking-wider">{item.title}</div>
+                                        <div className={`bg-${item.color}-50 text-${item.color}-500 p-1.5 rounded-lg`}><Icon name={item.icon} size={18}/></div>
+                                    </div>
+                                    <div className="text-2xl md:text-3xl font-black text-slate-700">{item.count}</div>
                                 </div>
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                    {filteredContracts.map(r => (
-                                        <div key={r.id} className={`glass-card p-5 relative border-t-8 ${r.service_type === 'both' ? 'border-orange-400' : 'border-blue-400'}`}>
-                                            <div className="flex justify-between items-start mb-4">
-                                                <h3 className="font-black text-lg">{r.pet_name} <span className="text-xs font-normal opacity-60">({r.owner_name})</span></h3>
-                                                <div className="text-orange-500 font-black italic">NT${r.service_price}</div>
-                                            </div>
-                                            
-                                            {/* 重要：首頁顯示接回/美容完成時間 */}
-                                            <div className="space-y-2 mb-4">
-                                                {r.service_type === 'both' ? (
-                                                    <div className="flex items-center gap-2 text-xs font-black text-orange-500 bg-orange-50 p-2 rounded-lg">
-                                                        <Icon name="clock" size={14}/> 預計接回：{r.checkout_date} {r.pickup_time}
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-xs font-black text-blue-500 bg-blue-50 p-2 rounded-lg">
-                                                        <Icon name="scissors" size={14}/> 美容完成：今天 {r.pickup_time}
-                                                    </div>
-                                                )}
-                                            </div>
+                            ))}
+                        </div>
 
-                                            <div className="flex gap-2">
-                                                <button onClick={() => {setSelectedRecord(r); setPriceInput(r.service_price);}} className="flex-1 py-3 bg-[#736357] text-white rounded-xl text-xs font-bold">查看詳情/修改</button>
-                                                <button onClick={() => {if(window.confirm("確定刪除？")) setRecords(records.filter(x=>x.id!==r.id))}} className="px-4 bg-red-50 text-red-400 rounded-xl"><Icon name="trash-2" size={16}/></button>
-                                            </div>
-                                        </div>
-                                    ))}
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[60vh] flex flex-col">
+                            <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center bg-[#fcfbf9]">
+                                <div className="relative w-full md:w-96">
+                                    <Icon name="search" size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input type="text" placeholder="搜尋電話、寵物名、飼主..." value={filter} onChange={e => setFilter(e.target.value)} className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 bg-white focus:border-[#736357] outline-none transition-all shadow-sm" />
                                 </div>
                             </div>
-                        )}
 
-                        {/* 客戶頁面同前版功能 */}
-                        {currentTab === 'clients' && (
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {clientList.map(c => (
-                                    <div key={c.phone} onClick={() => setSelectedClient(c)} className="glass-card p-6 cursor-pointer hover:border-orange-200 transition-all border-b-4 border-b-orange-100 group">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-[#736357] group-hover:bg-orange-500 group-hover:text-white transition-all">{c.name[0]}</div>
-                                            <span className="text-orange-500 bg-orange-50 px-3 py-1 rounded-full text-[10px] font-black italic">來訪 {c.history.length} 次</span>
+                            <div className="md:hidden p-4 space-y-4 bg-slate-50 min-h-full flex-1">
+                                {filteredBookings.map(b => (
+                                    <div key={b.id} onClick={() => { setSelectedBooking(b); setIsEditing(false); }} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 active:scale-[0.98] transition-transform flex justify-between items-center">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-[#736357] text-lg">{b.pet_name}</span>
+                                                <span className="text-xs text-slate-400">({new Date(b.created_at).toLocaleDateString()})</span>
+                                            </div>
+                                            <div className="text-sm text-slate-600 font-bold">{getServiceLabel(b.service_type)}</div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{b.status === 'confirmed' ? '已確認' : b.status === 'completed' ? '已完成' : b.status === 'cancelled' ? '已取消' : '待處理'}</span>
+                                                <span className="text-xs font-bold text-slate-500">${b.service_price}</span>
+                                            </div>
                                         </div>
-                                        <h3 className="text-xl font-black">{c.name}</h3>
-                                        <p className="text-xs font-bold text-slate-400 mb-4">{c.phone}</p>
-                                        <div className="flex justify-between border-t pt-4 text-xs font-black"><span className="text-slate-300">總消費 <span className="text-orange-500">NT${c.total}</span></span></div>
+                                        <div className="text-slate-300"><Icon name="chevron-right" size={24} /></div>
                                     </div>
                                 ))}
+                                {filteredBookings.length === 0 && <div className="text-center py-10 text-slate-400 text-sm">沒有找到訂單</div>}
                             </div>
-                        )}
-                    </main>
 
-                    {/* --- 詳情抽屜：包含所有表單欄位 --- */}
-                    {(selectedRecord || selectedClient) && (
-                        <div className="fixed inset-0 z-[100] flex justify-end">
-                            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => {setSelectedRecord(null); setSelectedClient(null); setIsEditingPrice(false);}}></div>
-                            <div className="relative bg-white w-full max-w-xl h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 overflow-hidden">
-                                <div className="p-6 border-b flex justify-between items-center bg-white z-10">
-                                    <h3 className="text-xl font-black italic">{selectedRecord ? '契約完整資訊' : '客戶歷史紀錄'}</h3>
-                                    <button onClick={() => {setSelectedRecord(null); setSelectedClient(null);}} className="p-2 bg-slate-100 rounded-full"><Icon name="x" size={20}/></button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar pb-32">
-                                    {selectedRecord && (
-                                        <div className="space-y-8">
-                                            {/* 金額修改 */}
-                                            <div className="p-5 rounded-2xl bg-orange-50 border-2 border-orange-100 flex justify-between items-center">
-                                                {isEditingPrice ? (
-                                                    <div className="flex gap-2 w-full"><input type="number" value={priceInput} onChange={e=>setPriceInput(e.target.value)} className="flex-1 p-2 rounded-lg font-black" /><button onClick={()=>{setRecords(records.map(r=>r.id===selectedRecord.id?{...r, service_price:priceInput}:r)); setSelectedRecord({...selectedRecord, service_price:priceInput}); setIsEditingPrice(false);}} className="bg-orange-500 text-white px-4 rounded-lg font-bold">儲存</button></div>
-                                                ) : (
-                                                    <React.Fragment><span className="text-2xl font-black text-orange-600">NT$ {selectedRecord.service_price}</span><button onClick={()=>setIsEditingPrice(true)} className="text-xs font-black underline">修改金額</button></React.Fragment>
-                                                )}
-                                            </div>
-
-                                            {/* 消費者填寫的所有資訊 */}
-                                            <section className="space-y-1">
-                                                <h4 className="text-xs font-black text-slate-300 uppercase mb-3 border-b pb-1">👤 飼主基本資料</h4>
-                                                <div className="info-grid"><div className="info-label">姓名/身分證</div><div className="info-value">{selectedRecord.owner_name} / {selectedRecord.owner_id}</div></div>
-                                                <div className="info-grid"><div className="info-label">電話/信箱</div><div className="info-value">{selectedRecord.phone} / {selectedRecord.email}</div></div>
-                                                <div className="info-grid"><div className="info-label">通訊地址</div><div className="info-value text-xs">{selectedRecord.address}</div></div>
-                                                <div className="info-grid"><div className="info-label text-red-400">緊急聯絡人</div><div className="info-value">{selectedRecord.emergency_name} / {selectedRecord.emergency_phone}</div></div>
-                                            </section>
-
-                                            <section className="space-y-1">
-                                                <h4 className="text-xs font-black text-slate-300 uppercase mb-3 border-b pb-1">🐶 毛孩詳細資訊</h4>
-                                                <div className="info-grid"><div className="info-label">名字/品種</div><div className="info-value">{selectedRecord.pet_name} / {selectedRecord.breed}</div></div>
-                                                <div className="info-grid"><div className="info-label">性別/年齡</div><div className="info-value">{selectedRecord.sex} / {selectedRecord.age} ({selectedRecord.weight}kg)</div></div>
-                                                <div className="info-grid"><div className="info-label">晶片/結紮</div><div className="info-value">{selectedRecord.chip_status} ({selectedRecord.chip_id}) / {selectedRecord.fix}</div></div>
-                                                <div className="info-grid"><div className="info-label">病史/指定醫院</div><div className="info-value">{selectedRecord.medical_status} / {selectedRecord.preferred_clinic}</div></div>
-                                                <div className="info-grid"><div className="info-label">過敏狀況</div><div className="info-value text-orange-500">{selectedRecord.allergy}</div></div>
-                                                <div className="info-grid"><div className="info-label">個性特徵</div><div className="info-value text-xs leading-relaxed">{selectedRecord.personality}</div></div>
-                                            </section>
-
-                                            {selectedRecord.service_type === 'both' && (
-                                                <section className="space-y-1 bg-orange-50/50 p-4 rounded-2xl">
-                                                    <h4 className="text-xs font-black text-orange-400 uppercase mb-3 border-b border-orange-100 pb-1">🏠 住宿與問卷資訊</h4>
-                                                    <div className="info-grid border-orange-100/30"><div className="info-label">預約日期</div><div className="info-value">{selectedRecord.checkin_date} ～ {selectedRecord.checkout_date}</div></div>
-                                                    <div className="info-grid border-orange-100/30"><div className="info-label">籠內訓練</div><div className="info-value text-xs">{selectedRecord.crate_status?.join(', ')}</div></div>
-                                                    <div className="info-grid border-orange-100/30"><div className="info-label">疫苗/驅蟲</div><div className="info-value">{selectedRecord.vaccine} / {selectedRecord.deworm} ({selectedRecord.deworm_brand})</div></div>
-                                                    <div className="info-grid border-none"><div className="info-label">吠叫狀況</div><div className="info-value text-xs">{selectedRecord.is_barking} ({selectedRecord.barking_detail})</div></div>
-                                                </section>
-                                            )}
-
-                                            <section>
-                                                <h4 className="text-xs font-black text-slate-300 uppercase mb-3">✍️ 數位簽名</h4>
-                                                <div className="bg-slate-50 border-2 border-dashed rounded-3xl p-4 flex justify-center">{selectedRecord.sig ? <img src={selectedRecord.sig} className="max-h-32" /> : '未簽署'}</div>
-                                            </section>
-                                        </div>
-                                    )}
-
-                                    {/* 客戶歷史同前版設計：包含歷史契約跳轉連結 */}
-                                    {selectedClient && (
-                                        <div className="space-y-6">
-                                            {selectedClient.history.map((h, i) => (
-                                                <div key={i} className="glass-card p-5 border-l-4 border-slate-200 flex justify-between items-center">
-                                                    <div><p className="text-[10px] font-black text-slate-300">{h.created_at}</p><p className="font-black">{h.pet_name} - {h.service_type==='both'?'住宿':'美容'}</p></div>
-                                                    <button onClick={()=>jumpToContract(h.id)} className="text-[10px] font-black bg-slate-50 px-3 py-2 rounded-lg hover:bg-[#736357] hover:text-white transition-all">查看原始契約</button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="hidden md:block overflow-x-auto flex-1">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider">
+                                        <tr><th className="px-6 py-4">建立時間</th><th className="px-6 py-4">飼主 / 電話</th><th className="px-6 py-4">寵物</th><th className="px-6 py-4">服務項目</th><th className="px-6 py-4">金額</th><th className="px-6 py-4">狀態</th><th className="px-6 py-4 text-right">操作</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredBookings.map(b => (
+                                            <tr key={b.id} className="hover:bg-[#F7E7B5]/5 transition-colors cursor-pointer group" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                <td className="px-6 py-4 text-sm font-medium text-slate-600">{new Date(b.created_at).toLocaleDateString()}<br/><span className="text-xs text-slate-400">{new Date(b.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></td>
+                                                <td className="px-6 py-4"><div className="font-bold text-[#736357]">{b.owner_name}</div><div className="text-xs text-slate-400">{b.phone}</div></td>
+                                                <td className="px-6 py-4"><span className="bg-[#736357]/10 text-[#736357] px-2 py-1 rounded-md text-xs font-bold">{b.pet_name}</span></td>
+                                                <td className="px-6 py-4 text-sm text-slate-600 font-bold">{getServiceLabel(b.service_type)}{b.checkin_date && <div className="text-xs text-slate-400 mt-1 font-normal">{b.checkin_date} 入住</div>}</td>
+                                                <td className="px-6 py-4 font-bold text-slate-700">${b.service_price}</td>
+                                                <td className="px-6 py-4"><span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${b.status === 'confirmed' ? 'bg-green-50 text-green-600 border-green-100' : b.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-100' : b.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'}`}><span className={`w-1.5 h-1.5 rounded-full ${b.status === 'confirmed' ? 'bg-green-500' : b.status === 'completed' ? 'bg-blue-500' : b.status === 'cancelled' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>{b.status === 'confirmed' ? '已確認' : b.status === 'completed' ? '已完成' : b.status === 'cancelled' ? '已取消' : '待處理'}</span></td>
+                                                <td className="px-6 py-4 text-right"><button className="text-slate-300 group-hover:text-[#736357] transition-colors"><Icon name="chevron-right" size={20}/></button></td>
+                                            </tr>
+                                        ))}
+                                        {filteredBookings.length === 0 && <tr><td colSpan="7" className="px-6 py-20 text-center text-slate-400">沒有找到相關訂單</td></tr>}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
+                    </main>
+
+                    {/* 詳細資料 Modal */}
+                    {selectedBooking && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-[#5D4D41]/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget && !isEditing) setSelectedBooking(null); }}>
+                            <div className="bg-white w-full h-full md:h-[90vh] md:max-w-6xl md:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden relative">
+                                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-[#fcfbf9] shrink-0">
+                                    <div>
+                                        <h2 className="text-xl md:text-2xl font-black text-[#736357]">訂單 #{selectedBooking.id}</h2>
+                                        <p className="text-slate-400 text-xs">{isEditing ? '編輯模式' : new Date(selectedBooking.created_at).toLocaleString()}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {isEditing ? (
+                                            <>
+                                                <button onClick={() => triggerAction('save')} className="bg-[#06C755] text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-[#05a044] transition-all shadow-sm">
+                                                    <Icon name="save" size={18}/> 儲存
+                                                </button>
+                                                <button onClick={() => setIsEditing(false)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition-all">
+                                                    取消
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button onClick={startEditing} className="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-100 transition-all text-sm">
+                                                    <Icon name="pencil" size={16}/> 編輯
+                                                </button>
+                                                <button onClick={() => window.print()} className="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm text-sm">
+                                                    <Icon name="printer" size={16}/> <span className="hidden md:inline">列印</span>
+                                                </button>
+                                                <button onClick={() => setSelectedBooking(null)} className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">
+                                                    <Icon name="x" size={20}/>
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
+                                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                        <div className="lg:col-span-3 space-y-6">
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="user" size={18}/> 飼主基本資料</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                    <DetailItem label="飼主姓名" value={selectedBooking.owner_name} fieldName="owner_name" />
+                                                    <DetailItem label="聯絡電話" value={selectedBooking.phone} fieldName="phone" />
+                                                    <DetailItem label="身分證字號" value={selectedBooking.raw_data.owner_id} fieldName="owner_id" />
+                                                    <DetailItem label="Email" value={selectedBooking.raw_data.email} fieldName="email" fullWidth />
+                                                    <DetailItem label="地址" value={selectedBooking.raw_data.address} fieldName="address" fullWidth />
+                                                    <DetailItem label="緊急聯絡人" value={selectedBooking.raw_data.emergency_name} fieldName="emergency_name" />
+                                                    <DetailItem label="緊急聯絡電話" value={selectedBooking.raw_data.emergency_phone} fieldName="emergency_phone" />
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="dog" size={18}/> 寵物基本資料</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <DetailItem label="寵物名字" value={selectedBooking.pet_name} fieldName="pet_name" />
+                                                    <DetailItem label="品種" value={selectedBooking.raw_data.breed} fieldName="breed" />
+                                                    <DetailItem label="性別" value={selectedBooking.raw_data.sex} fieldName="sex" />
+                                                    <DetailItem label="結紮" value={selectedBooking.raw_data.fix} fieldName="fix" />
+                                                    <DetailItem label="年齡" value={selectedBooking.raw_data.age} fieldName="age" />
+                                                    <DetailItem label="體重" value={selectedBooking.raw_data.weight} fieldName="weight" />
+                                                    <DetailItem label="晶片狀態" value={selectedBooking.raw_data.chip_status} fieldName="chip_status" />
+                                                    <DetailItem label="晶片號碼" value={selectedBooking.raw_data.chip_id} fieldName="chip_id" />
+                                                    <DetailItem label="指定獸醫" value={selectedBooking.raw_data.preferred_clinic} fieldName="preferred_clinic" fullWidth />
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-[#F7E7B5]">
+                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="activity" size={18}/> 行為與健康問卷 (完整紀錄)</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <DetailItem label="親狗程度" value={selectedBooking.raw_data.dog_traits} fieldName="dog_traits" fullWidth />
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <DetailItem label="容易吠叫" value={selectedBooking.raw_data.is_barking} fieldName="is_barking" />
+                                                        <DetailItem label="吠叫情境" value={selectedBooking.raw_data.barking_detail} fieldName="barking_detail" />
+                                                    </div>
+                                                    <DetailItem label="護食狀況" value={selectedBooking.raw_data.food_aggr} fieldName="food_aggr" />
+                                                    <DetailItem label="定點如廁" value={selectedBooking.raw_data.pad_toilet} fieldName="pad_toilet" />
+                                                    <DetailItem label="住宿經驗" value={selectedBooking.raw_data.stay_exp} fieldName="stay_exp" />
+                                                    <DetailItem label="籠內訓練" value={selectedBooking.raw_data.crate_status} fieldName="crate_status" fullWidth />
+                                                    <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4 bg-red-50 p-4 rounded-xl">
+                                                        <DetailItem label="過往病史" value={selectedBooking.raw_data.medical_status} fieldName="medical_status" />
+                                                        <DetailItem label="病史說明" value={selectedBooking.raw_data.medical_history} fieldName="medical_history" fullWidth />
+                                                        <DetailItem label="其他病史" value={selectedBooking.raw_data.medical_history_other} fieldName="medical_history_other" fullWidth />
+                                                        <DetailItem label="定期疫苗" value={selectedBooking.raw_data.vaccine} fieldName="vaccine" />
+                                                        <DetailItem label="定期驅蟲" value={selectedBooking.raw_data.deworm} fieldName="deworm" />
+                                                        <DetailItem label="驅蟲品牌" value={selectedBooking.raw_data.deworm_brand} fieldName="deworm_brand" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                                <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="clipboard-list" size={18}/> 備註與需求</h3>
+                                                <div className="space-y-4">
+                                                    <DetailItem label="過敏資訊" value={selectedBooking.raw_data.allergy} fieldName="allergy" fullWidth isMultiline />
+                                                    <DetailItem label="個性與分離焦慮" value={selectedBooking.raw_data.personality} fieldName="personality" fullWidth isMultiline />
+                                                    <DetailItem label="特別注意事項" value={selectedBooking.raw_data.special_notes} fieldName="special_notes" fullWidth isMultiline />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">客戶簽名</h4>
+                                                    {selectedBooking.signature_url ? <img src={selectedBooking.signature_url} className="w-full h-32 object-contain bg-slate-50 rounded-lg" /> : <div className="w-full h-32 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 text-xs">無簽名</div>}
+                                                </div>
+                                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">疫苗證明</h4>
+                                                    {selectedBooking.vaccine_url ? <a href={selectedBooking.vaccine_url} target="_blank" className="block relative group"><img src={selectedBooking.vaccine_url} className="w-full h-32 object-cover rounded-lg" /><div className="absolute inset-0 bg-black/20 flex items-center justify-center text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="zoom-in" size={24}/></div></a> : <div className="w-full h-32 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 text-xs">無照片</div>}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="lg:col-span-1 space-y-4">
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 sticky top-0">
+                                                <label className="text-xs font-bold text-slate-400 mb-3 block uppercase tracking-wider">訂單狀態</label>
+                                                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 mb-6">
+                                                    {['pending', 'confirmed', 'completed', 'cancelled'].map(status => (
+                                                        <button key={status} onClick={() => updateStatus(selectedBooking.id, status)} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center lg:justify-between px-4 border-2 transition-all ${selectedBooking.status === status ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#736357]/30'}`}>
+                                                            <span>{status === 'pending' ? '🟡 待處理' : status === 'confirmed' ? '🟢 已確認' : status === 'completed' ? '🔵 已完成' : '🔴 已取消'}</span>
+                                                            {selectedBooking.status === status && <Icon name="check" size={16} className="hidden lg:block"/>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <div className="border-t border-slate-100 pt-6 mt-4">
+                                                    <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">金額與日期</label>
+                                                    <div className="mb-4">
+                                                        <DetailItem label="總金額" value={selectedBooking.service_price} fieldName="service_price" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {/* 優化顯示：直接呼叫 getServiceLabel */}
+                                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">服務項目</label>
+                                                            <div className="font-bold text-[#736357] text-sm">{getServiceLabel(selectedBooking.service_type)}</div>
+                                                        </div>
+                                                        <DetailItem label="其他項目" value={selectedBooking.raw_data.service_type_other} fieldName="service_type_other" />
+                                                        
+                                                        <div className="pt-2 border-t border-dashed border-slate-200 mt-2">
+                                                            <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" />
+                                                            <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" />
+                                                            <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {!isEditing && (
+                                                    <div className="mt-8 pt-4 border-t border-slate-100">
+                                                        <button onClick={() => triggerAction('delete')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100">
+                                                            <Icon name="trash-2" size={16}/> 刪除此訂單
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <PrintContract data={selectedBooking} />
+                        </div>
                     )}
+
+                    {/* 二次確認 Modal */}
+                    <ConfirmModal 
+                        isOpen={showConfirm} 
+                        onClose={() => setShowConfirm(false)} 
+                        onConfirm={executeAction} 
+                        title={confirmAction === 'delete' ? '刪除確認' : '儲存變更確認'} 
+                        loading={actionLoading} 
+                    />
                 </div>
             );
         };
