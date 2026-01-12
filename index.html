@@ -22,7 +22,7 @@
             --brand-light: #fbf9f6; 
             --line-green: #06C755; 
             --error-red: #ef4444;
-            --info-blue: #3b82f6; /* 新增藍色變數 */
+            --info-blue: #3b82f6;
         }
 
         body { 
@@ -93,7 +93,6 @@
             box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
         }
 
-/* 修改這裡：加上 .canvas-container, 讓外框也生效 */
         .canvas-container, 
         .canvas-container canvas {
             touch-action: none;
@@ -330,7 +329,7 @@
                                         <div className="text-[10px] text-slate-400 font-bold uppercase mb-1 tracking-widest">預估金額</div>
                                         <div className="text-4xl font-black text-[#736357] leading-none tracking-tight">
                                             <span className="text-sm align-top mr-1 font-bold opacity-60">NT$</span>
-                                            {data.service_price}
+                                            {data.service_price || 0}
                                         </div>
                                     </div>
                                 </div>
@@ -377,8 +376,7 @@
             const [formData, setFormData] = useState({
                 email: '', owner_name: '', owner_id: '', phone: '', address: '', 
                 emergency_name: '', emergency_phone: '',
-                // 新增第二緊急聯絡人欄位
-                emergency2_name: '', emergency2_phone: '',
+                // 移除 emergency2_name, emergency2_phone
                 pet_name: '', breed: '', sex: '', age: '', weight: '', fix: '', 
                 chip_status: '', chip_id: '', preferred_clinic: '',
                 dog_traits: [], is_barking: '', barking_detail: '',
@@ -489,6 +487,7 @@
                 const { 
                     checkin_date, checkout_date, pickup_time, service_price, 
                     signature, legal_agree, boarding_notice_agree, vaccine_file,
+                    emergency2_name, emergency2_phone, // 排除舊資料的第二聯絡人
                     ...reusableData 
                 } = oldData;
 
@@ -557,9 +556,8 @@
                 if (isBoarding) {
                     if (!formData.checkin_date) newErrors.checkin_date = true;
                     if (!formData.checkout_date) newErrors.checkout_date = true;
-                    // 住宿時需要填寫第二緊急聯絡人
-                    if (!formData.emergency2_name || formData.emergency2_name.trim() === '') newErrors.emergency2_name = true;
-                    if (!formData.emergency2_phone || !validatePhone(formData.emergency2_phone)) newErrors.emergency2_phone = true;
+                    
+                    // 移除住宿時第二緊急聯絡人的驗證
 
                     if (formData.checkin_date && formData.checkout_date) {
                         const start = new Date(formData.checkin_date);
@@ -587,12 +585,11 @@
                     if (!formData.special_notes) newErrors.special_notes = true;
                     if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = true;
                     
-                    // 驗證金額必須大於 0
-                    if (!formData.service_price || parseInt(formData.service_price) <= 0) newErrors.service_price = true;
+                    // 住宿時不需要驗證 service_price (因為移除了輸入框)
                 } else {
                     if (!formData.service_type) newErrors.service_type = true;
                     if (formData.service_type === '其他項目' && (!formData.service_type_other || formData.service_type_other.trim() === '')) newErrors.service_type_other = true;
-                     // 驗證金額必須大於 0
+                     // 驗證金額必須大於 0 (非住宿模式)
                     if (!formData.service_price || parseInt(formData.service_price) <= 0) newErrors.service_price = true;
                 }
 
@@ -609,7 +606,7 @@
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     
                     if (newErrors.email && formData.email) showToast("⚠️ 電子郵件格式錯誤");
-                    else if ((newErrors.phone && formData.phone) || (newErrors.emergency_phone && formData.emergency_phone) || (newErrors.emergency2_phone && formData.emergency2_phone)) showToast("⚠️ 電話號碼格式錯誤");
+                    else if ((newErrors.phone && formData.phone) || (newErrors.emergency_phone && formData.emergency_phone)) showToast("⚠️ 電話號碼格式錯誤");
                     else if (newErrors.owner_id && formData.owner_id) showToast("⚠️ 身分證字號無效 (請檢查格式或數字)");
                     else if (newErrors.weight) showToast("⚠️ 體重必須大於 0");
                     else if (newErrors.service_price) showToast("⚠️ 金額必須大於 0");
@@ -652,14 +649,12 @@
                             checkin_date: isBoarding ? formData.checkin_date : null,
                             checkout_date: isBoarding ? formData.checkout_date : null,
                             pickup_time: formData.pickup_time,
-                            service_price: formData.service_price,
+                            service_price: isBoarding ? 0 : formData.service_price, // 住宿時金額設為 0
                             signature_url: signatureUrl,
                             vaccine_url: vaccineUrl,
                             status: 'pending', 
-                            raw_data: formData, // raw_data 會包含所有表單欄位，包括第二緊急聯絡人
-                            // 如果你在 supabase 有開獨立欄位存第二聯絡人，這裡也要加：
-                            emergency2_name: formData.emergency2_name,
-                            emergency2_phone: formData.emergency2_phone
+                            raw_data: formData,
+                            // 移除 emergency2 相關欄位
                         });
 
                     if (insertError) throw insertError;
@@ -903,27 +898,7 @@
                                         />
                                     </div>
 
-                                    {/* 第二緊急聯絡人 (藍色系 - 僅在住宿模式顯示) */}
-                                    {isBoarding && (
-                                        <>
-                                            <div className="md:col-span-2 border-t border-slate-100 my-2"></div>
-                                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                                                <label className="text-xs font-bold text-blue-500 ml-1 flex items-center gap-1">
-                                                第二緊急聯絡人姓名 *
-                                                </label>
-                                                <input name="emergency2_name" value={formData.emergency2_name} onChange={e=>handleChange('emergency2_name', e.target.value)} 
-                                                    className={`w-full cute-input-blue rounded-xl px-5 py-3.5 font-bold text-[#736357] bg-blue-50/10 ${errors.emergency2_name ? 'shake-error' : ''}`} 
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                                                <label className="text-xs font-bold text-blue-500 ml-1">第二緊急連絡電話 *</label>
-                                                <input name="emergency2_phone" type="tel" inputMode="numeric" value={formData.emergency2_phone} 
-                                                    onChange={e=>handleChange('emergency2_phone', e.target.value.replace(/\D/g, ''))} 
-                                                    className={`w-full cute-input-blue rounded-xl px-5 py-3.5 font-bold text-[#736357] bg-blue-50/10 ${errors.emergency2_phone ? 'shake-error' : ''}`} 
-                                                />
-                                            </div>
-                                        </>
-                                    )}
+                                    {/* 已移除住宿模式下的第二緊急聯絡人 */}
 
                                 </div>
                             </section>
@@ -992,8 +967,9 @@
                                         <div className="space-y-4" id="medical_status">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">過往病史 (可複選) *</label>
                                             <div className={`flex gap-3 mb-4 ${errors.medical_status ? 'group-error' : ''}`}>
-                                                {pillBtn('medical_status', '無', formData.medical_status === '無')}
+                                                {/* 修改：有跟無順序交換 */}
                                                 {pillBtn('medical_status', '有', formData.medical_status === '有')}
+                                                {pillBtn('medical_status', '無', formData.medical_status === '無')}
                                             </div>
                                             
                                             {formData.medical_status === '有' && (
@@ -1069,10 +1045,10 @@
 
                                                             {formData.vaccine_file && !isProcessingImg && (
                                                                 <div className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#736357]/10 shadow-sm">
-                                                                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
-                                                                    <button type="button" onClick={() => setFormData({...formData, vaccine_file: null})} className="absolute top-3 right-3 bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-red-50 transition-colors">
-                                                                        <Icon name="x" size={16} />
-                                                                    </button>
+                                                                        <img src={formData.vaccine_file} className="w-full h-full object-cover" />
+                                                                        <button type="button" onClick={() => setFormData({...formData, vaccine_file: null})} className="absolute top-3 right-3 bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-red-50 transition-colors">
+                                                                            <Icon name="x" size={16} />
+                                                                        </button>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1124,21 +1100,7 @@
                                                     </label>
                                                 </div>
 
-                                                <div className="pt-6 border-t border-[#736357]/10 animate-in fade-in">
-                                                    <div className="space-y-2">
-                                                        <div className="flex flex-col">
-                                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">本次 住宿 費用 *</label>
-                                                        </div>
-                                                        <div className="relative group">
-                                                            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-bold text-[#736357] z-10">NT$</span>
-                                                            <input name="service_price" type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="0" 
-                                                                value={formData.service_price} onChange={e => handleChange('service_price', e.target.value.replace(/[^0-9]/g, ''))} 
-                                                                className={`w-full cute-input rounded-xl py-4 pr-5 pl-16 font-bold text-[#736357] text-2xl shadow-inner ${errors.service_price ? 'shake-error' : ''}`} 
-                                                            />
-                                                        </div>
-                                                        <p className="text-[10px] text-slate-400 font-bold italic mt-2.5 ml-1">※ 此金額為基礎報價，若有特殊狀況將另行告知加價。</p>
-                                                    </div>
-                                                </div>
+                                                {/* 已移除住宿費用輸入欄位 */}
 
                                             </div>
                                         </div>
@@ -1321,12 +1283,12 @@
                                         <span className="font-black text-[#736357] text-2xl tracking-tighter italic leading-none">汪汪犬旅 數位簽名</span>
                                     </div>
                                     <button onClick={() => {
-                                            if (padInstance.current.isEmpty()) { alert("⚠️ 請先簽名後再點擊完成！"); } 
-                                            else {
-                                                setRealtimeSig(padInstance.current.toDataURL("image/jpeg", 0.5)); 
-                                                setShowFullSig(false); 
-                                                handleChange('signature', true);
-                                            }
+                                        if (padInstance.current.isEmpty()) { alert("⚠️ 請先簽名後再點擊完成！"); } 
+                                        else {
+                                            setRealtimeSig(padInstance.current.toDataURL("image/jpeg", 0.5)); 
+                                            setShowFullSig(false); 
+                                            handleChange('signature', true);
+                                        }
                                     }} className="bg-[#736357] text-white px-8 py-3 rounded-xl font-black shadow-lg hover:scale-105 transition-all flex items-center gap-2">
                                         <Icon name="check" size={18}/> 完成
                                     </button>
