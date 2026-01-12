@@ -725,8 +725,9 @@
             if (view === 'entry') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-[#fefcf9] relative overflow-hidden">
-                        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#F7E7B5]/30 rounded-full blur-[100px] mix-blend-multiply animate-pulse"></div>
-                        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#736357]/10 rounded-full blur-[100px] mix-blend-multiply"></div>
+                        {/* 修正背景光暈遮擋問題：加入 pointer-events-none */}
+                        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#F7E7B5]/30 rounded-full blur-[100px] mix-blend-multiply animate-pulse pointer-events-none"></div>
+                        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#736357]/10 rounded-full blur-[100px] mix-blend-multiply pointer-events-none"></div>
                         
                         <div className="w-48 h-48 md:w-64 md:h-64 mx-auto mb-10 relative transform hover:scale-105 transition-transform duration-500">
                             <img src="./logo.png" alt="汪汪犬旅 Logo" className="w-full h-full object-contain drop-shadow-2xl" />
@@ -758,10 +759,9 @@
                             </button>
                         </div>
 
-                        {/* --- 修改後的隱藏式管理員入口 --- */}
-                        <footer className="py-8 text-center">
+                        {/* --- 修正後的管理員入口：加上 relative 和 z-index 確保在背景之上 --- */}
+                        <footer className="py-8 text-center relative z-20">
                             <a href="admin.html" className="inline-flex items-center justify-center p-4 text-slate-300 hover:text-[#736357]" title="Staff Only">
-                                {/* 加大圖示與點擊範圍，無文字，無動畫 */}
                                 <Icon name="lock" size={28} />
                             </a>
                         </footer>
@@ -789,6 +789,8 @@
                     </nav>
 
                     <main className="pt-32 px-4 max-w-4xl mx-auto space-y-8">
+                        {/* ... (其他內容保持不變) ... */}
+                        
                         <div className="text-center space-y-3 pb-4">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#736357]/5 text-[#736357] text-xs font-bold uppercase tracking-wider">
                                 {isBoarding ? "Boarding & Grooming" : "Grooming Service"}
