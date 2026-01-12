@@ -304,6 +304,32 @@
             );
         };
 
+        // ★★★ 修復 Bug：將 DetailItem 移出 App 元件外部，避免重新渲染導致 Input 失去焦點 ★★★
+        const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false, isEditing, editForm, handleEditChange }) => {
+            if (isEditing && fieldName) {
+                const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
+                return (
+                    <div className={`${fullWidth ? 'col-span-2' : ''} bg-white p-3 rounded-xl border-2 border-brand-yellow/50`}>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
+                        {isMultiline ? (
+                            <textarea className="edit-input h-24" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
+                        ) : (
+                            <input type={fieldName.includes('date') ? 'date' : 'text'} className="edit-input" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
+                        )}
+                    </div>
+                );
+            }
+            if (!value || value === '無' || (Array.isArray(value) && value.length === 0)) return null;
+            return (
+                <div className={`${fullWidth ? 'col-span-2' : ''} bg-slate-50 p-3 rounded-xl border border-slate-100`}>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
+                    <div className="font-bold text-[#736357] text-sm break-words">
+                        {Array.isArray(value) ? value.join(', ') : value}
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [session, setSession] = useState(null);
             const [loading, setLoading] = useState(true);
@@ -416,13 +442,11 @@
                     checkout_date: sanitizeDate(editForm.checkout_date),
                     pickup_time: editForm.pickup_time,
                     service_price: editForm.service_price,
-                    // 新增第二緊急聯絡人的欄位更新
                     emergency2_name: editForm.emergency2_name,
                     emergency2_phone: editForm.emergency2_phone
                 };
 
                 const newRawData = { ...selectedBooking.raw_data, ...editForm };
-                // 移除不需要存入 raw_data 的系統欄位
                 ['id', 'created_at', 'status', 'raw_data', 'signature_url', 'vaccine_url'].forEach(k => delete newRawData[k]);
 
                 const { data, error } = await supabase.from('bookings')
@@ -447,30 +471,7 @@
                 (b.phone && b.phone.includes(filter))
             );
 
-            const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false }) => {
-                if (isEditing && fieldName) {
-                    const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
-                    return (
-                        <div className={`${fullWidth ? 'col-span-2' : ''} bg-white p-3 rounded-xl border-2 border-brand-yellow/50`}>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
-                            {isMultiline ? (
-                                <textarea className="edit-input h-24" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
-                            ) : (
-                                <input type={fieldName.includes('date') ? 'date' : 'text'} className="edit-input" value={editVal} onChange={e => handleEditChange(fieldName, e.target.value)} />
-                            )}
-                        </div>
-                    );
-                }
-                if (!value || value === '無' || (Array.isArray(value) && value.length === 0)) return null;
-                return (
-                    <div className={`${fullWidth ? 'col-span-2' : ''} bg-slate-50 p-3 rounded-xl border border-slate-100`}>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
-                        <div className="font-bold text-[#736357] text-sm break-words">
-                            {Array.isArray(value) ? value.join(', ') : value}
-                        </div>
-                    </div>
-                );
-            };
+            // DetailItem 已移至外部
 
             if (!session) {
                 return (
@@ -615,17 +616,68 @@
 
                                 <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
                                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                                        <div className="lg:col-span-3 space-y-6">
+                                        
+                                        {/* ★★★ 優化：將訂單狀態/金額 Sidebar 移至程式碼結構的上方，以符合手機版置頂需求 ★★★ */}
+                                        {/* 透過 lg:col-start-4 強制在電腦版排到最右側，但在手機版會因為 DOM 順序而顯示在上方 */}
+                                        <div className="lg:col-span-1 lg:col-start-4 lg:row-start-1 space-y-4">
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 sticky top-0">
+                                                <label className="text-xs font-bold text-slate-400 mb-3 block uppercase tracking-wider">訂單狀態</label>
+                                                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 mb-6">
+                                                    {['pending', 'confirmed', 'completed', 'cancelled'].map(status => (
+                                                        <button key={status} onClick={() => updateStatus(selectedBooking.id, status)} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center lg:justify-between px-4 border-2 transition-all ${selectedBooking.status === status ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#736357]/30'}`}>
+                                                            <span>{status === 'pending' ? '🟡 待處理' : status === 'confirmed' ? '🟢 已確認' : status === 'completed' ? '🔵 已完成' : '🔴 已取消'}</span>
+                                                            {selectedBooking.status === status && <Icon name="check" size={16} className="hidden lg:block"/>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <div className="border-t border-slate-100 pt-6 mt-4">
+                                                    <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">金額與日期</label>
+                                                    <div className="mb-4">
+                                                        <DetailItem label="總金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <div className={`p-3 rounded-xl border-2 ${isEditing ? 'bg-white border-brand-yellow/50' : 'bg-slate-50 border-slate-100'}`}>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">服務項目</label>
+                                                            {isEditing ? (
+                                                                <select className="edit-input" value={editForm.service_type} onChange={e => handleEditChange('service_type', e.target.value)}>
+                                                                    {SERVICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                                                </select>
+                                                            ) : (
+                                                                <div className="font-bold text-[#736357] text-sm">{getServiceLabel(selectedBooking.service_type)}</div>
+                                                            )}
+                                                        </div>
+                                                        <DetailItem label="其他項目" value={selectedBooking.raw_data.service_type_other} fieldName="service_type_other" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <div className="pt-2 border-t border-dashed border-slate-200 mt-2">
+                                                            <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                            <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                            <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {!isEditing && (
+                                                    <div className="mt-8 pt-4 border-t border-slate-100">
+                                                        <button onClick={() => triggerAction('delete')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100">
+                                                            <Icon name="trash-2" size={16}/> 刪除此訂單
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 主要內容區塊 - 在電腦版佔據左側 3 欄 */}
+                                        <div className="lg:col-span-3 lg:col-start-1 lg:row-start-1 space-y-6">
                                             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                                                 <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="user" size={18}/> 飼主基本資料</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                    <DetailItem label="飼主姓名" value={selectedBooking.owner_name} fieldName="owner_name" />
-                                                    <DetailItem label="聯絡電話" value={selectedBooking.phone} fieldName="phone" />
-                                                    <DetailItem label="身分證字號" value={selectedBooking.raw_data.owner_id} fieldName="owner_id" />
-                                                    <DetailItem label="Email" value={selectedBooking.raw_data.email} fieldName="email" fullWidth />
-                                                    <DetailItem label="地址" value={selectedBooking.raw_data.address} fieldName="address" fullWidth />
-                                                    <DetailItem label="緊急聯絡人" value={selectedBooking.raw_data.emergency_name} fieldName="emergency_name" />
-                                                    <DetailItem label="緊急聯絡電話" value={selectedBooking.raw_data.emergency_phone} fieldName="emergency_phone" />
+                                                    <DetailItem label="飼主姓名" value={selectedBooking.owner_name} fieldName="owner_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="聯絡電話" value={selectedBooking.phone} fieldName="phone" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="身分證字號" value={selectedBooking.raw_data.owner_id} fieldName="owner_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="Email" value={selectedBooking.raw_data.email} fieldName="email" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="地址" value={selectedBooking.raw_data.address} fieldName="address" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="緊急聯絡人" value={selectedBooking.raw_data.emergency_name} fieldName="emergency_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="緊急聯絡電話" value={selectedBooking.raw_data.emergency_phone} fieldName="emergency_phone" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     
                                                     {/* 第二緊急聯絡人 (藍色區塊) */}
                                                     {(selectedBooking.raw_data.emergency2_name || isEditing) && (
@@ -655,37 +707,37 @@
                                             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                                                 <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="dog" size={18}/> 寵物基本資料</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <DetailItem label="寵物名字" value={selectedBooking.pet_name} fieldName="pet_name" />
-                                                    <DetailItem label="品種" value={selectedBooking.raw_data.breed} fieldName="breed" />
-                                                    <DetailItem label="性別" value={selectedBooking.raw_data.sex} fieldName="sex" />
-                                                    <DetailItem label="結紮" value={selectedBooking.raw_data.fix} fieldName="fix" />
-                                                    <DetailItem label="年齡" value={selectedBooking.raw_data.age} fieldName="age" />
-                                                    <DetailItem label="體重" value={selectedBooking.raw_data.weight} fieldName="weight" />
-                                                    <DetailItem label="晶片狀態" value={selectedBooking.raw_data.chip_status} fieldName="chip_status" />
-                                                    <DetailItem label="晶片號碼" value={selectedBooking.raw_data.chip_id} fieldName="chip_id" />
-                                                    <DetailItem label="指定獸醫" value={selectedBooking.raw_data.preferred_clinic} fieldName="preferred_clinic" fullWidth />
+                                                    <DetailItem label="寵物名字" value={selectedBooking.pet_name} fieldName="pet_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="品種" value={selectedBooking.raw_data.breed} fieldName="breed" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="性別" value={selectedBooking.raw_data.sex} fieldName="sex" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="結紮" value={selectedBooking.raw_data.fix} fieldName="fix" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="年齡" value={selectedBooking.raw_data.age} fieldName="age" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="體重" value={selectedBooking.raw_data.weight} fieldName="weight" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="晶片狀態" value={selectedBooking.raw_data.chip_status} fieldName="chip_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="晶片號碼" value={selectedBooking.raw_data.chip_id} fieldName="chip_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="指定獸醫" value={selectedBooking.raw_data.preferred_clinic} fieldName="preferred_clinic" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                 </div>
                                             </div>
 
                                             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-[#F7E7B5]">
                                                 <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="activity" size={18}/> 行為與健康問卷 (完整紀錄)</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <DetailItem label="親狗程度" value={selectedBooking.raw_data.dog_traits} fieldName="dog_traits" fullWidth />
+                                                    <DetailItem label="親狗程度" value={selectedBooking.raw_data.dog_traits} fieldName="dog_traits" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <div className="grid grid-cols-2 gap-4">
-                                                        <DetailItem label="容易吠叫" value={selectedBooking.raw_data.is_barking} fieldName="is_barking" />
-                                                        <DetailItem label="吠叫情境" value={selectedBooking.raw_data.barking_detail} fieldName="barking_detail" />
+                                                        <DetailItem label="容易吠叫" value={selectedBooking.raw_data.is_barking} fieldName="is_barking" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <DetailItem label="吠叫情境" value={selectedBooking.raw_data.barking_detail} fieldName="barking_detail" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     </div>
-                                                    <DetailItem label="護食狀況" value={selectedBooking.raw_data.food_aggr} fieldName="food_aggr" />
-                                                    <DetailItem label="定點如廁" value={selectedBooking.raw_data.pad_toilet} fieldName="pad_toilet" />
-                                                    <DetailItem label="住宿經驗" value={selectedBooking.raw_data.stay_exp} fieldName="stay_exp" />
-                                                    <DetailItem label="籠內訓練" value={selectedBooking.raw_data.crate_status} fieldName="crate_status" fullWidth />
+                                                    <DetailItem label="護食狀況" value={selectedBooking.raw_data.food_aggr} fieldName="food_aggr" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="定點如廁" value={selectedBooking.raw_data.pad_toilet} fieldName="pad_toilet" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="住宿經驗" value={selectedBooking.raw_data.stay_exp} fieldName="stay_exp" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="籠內訓練" value={selectedBooking.raw_data.crate_status} fieldName="crate_status" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4 bg-red-50 p-4 rounded-xl">
-                                                        <DetailItem label="過往病史" value={selectedBooking.raw_data.medical_status} fieldName="medical_status" />
-                                                        <DetailItem label="病史說明" value={selectedBooking.raw_data.medical_history} fieldName="medical_history" fullWidth />
-                                                        <DetailItem label="其他病史" value={selectedBooking.raw_data.medical_history_other} fieldName="medical_history_other" fullWidth />
-                                                        <DetailItem label="定期疫苗" value={selectedBooking.raw_data.vaccine} fieldName="vaccine" />
-                                                        <DetailItem label="定期驅蟲" value={selectedBooking.raw_data.deworm} fieldName="deworm" />
-                                                        <DetailItem label="驅蟲品牌" value={selectedBooking.raw_data.deworm_brand} fieldName="deworm_brand" />
+                                                        <DetailItem label="過往病史" value={selectedBooking.raw_data.medical_status} fieldName="medical_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <DetailItem label="病史說明" value={selectedBooking.raw_data.medical_history} fieldName="medical_history" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <DetailItem label="其他病史" value={selectedBooking.raw_data.medical_history_other} fieldName="medical_history_other" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <DetailItem label="定期疫苗" value={selectedBooking.raw_data.vaccine} fieldName="vaccine" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <DetailItem label="定期驅蟲" value={selectedBooking.raw_data.deworm} fieldName="deworm" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                        <DetailItem label="驅蟲品牌" value={selectedBooking.raw_data.deworm_brand} fieldName="deworm_brand" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     </div>
                                                 </div>
                                             </div>
@@ -693,9 +745,9 @@
                                             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                                                 <h3 className="font-bold text-[#736357] flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><Icon name="clipboard-list" size={18}/> 備註與需求</h3>
                                                 <div className="space-y-4">
-                                                    <DetailItem label="過敏資訊" value={selectedBooking.raw_data.allergy} fieldName="allergy" fullWidth isMultiline />
-                                                    <DetailItem label="個性與分離焦慮" value={selectedBooking.raw_data.personality} fieldName="personality" fullWidth isMultiline />
-                                                    <DetailItem label="特別注意事項" value={selectedBooking.raw_data.special_notes} fieldName="special_notes" fullWidth isMultiline />
+                                                    <DetailItem label="過敏資訊" value={selectedBooking.raw_data.allergy} fieldName="allergy" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="個性與分離焦慮" value={selectedBooking.raw_data.personality} fieldName="personality" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="特別注意事項" value={selectedBooking.raw_data.special_notes} fieldName="special_notes" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                 </div>
                                             </div>
 
@@ -708,53 +760,6 @@
                                                     <h4 className="text-xs font-bold text-slate-400 mb-2">疫苗證明</h4>
                                                     {selectedBooking.vaccine_url ? <a href={selectedBooking.vaccine_url} target="_blank" className="block relative group"><img src={selectedBooking.vaccine_url} className="w-full h-32 object-cover rounded-lg" /><div className="absolute inset-0 bg-black/20 flex items-center justify-center text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="zoom-in" size={24}/></div></a> : <div className="w-full h-32 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 text-xs">無照片</div>}
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="lg:col-span-1 space-y-4">
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 sticky top-0">
-                                                <label className="text-xs font-bold text-slate-400 mb-3 block uppercase tracking-wider">訂單狀態</label>
-                                                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 mb-6">
-                                                    {['pending', 'confirmed', 'completed', 'cancelled'].map(status => (
-                                                        <button key={status} onClick={() => updateStatus(selectedBooking.id, status)} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center lg:justify-between px-4 border-2 transition-all ${selectedBooking.status === status ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-400 border-slate-100 hover:border-[#736357]/30'}`}>
-                                                            <span>{status === 'pending' ? '🟡 待處理' : status === 'confirmed' ? '🟢 已確認' : status === 'completed' ? '🔵 已完成' : '🔴 已取消'}</span>
-                                                            {selectedBooking.status === status && <Icon name="check" size={16} className="hidden lg:block"/>}
-                                                        </button>
-                                                    ))}
-                                                </div>
-
-                                                <div className="border-t border-slate-100 pt-6 mt-4">
-                                                    <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">金額與日期</label>
-                                                    <div className="mb-4">
-                                                        <DetailItem label="總金額" value={selectedBooking.service_price} fieldName="service_price" />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <div className={`p-3 rounded-xl border-2 ${isEditing ? 'bg-white border-brand-yellow/50' : 'bg-slate-50 border-slate-100'}`}>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">服務項目</label>
-                                                            {isEditing ? (
-                                                                <select className="edit-input" value={editForm.service_type} onChange={e => handleEditChange('service_type', e.target.value)}>
-                                                                    {SERVICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                                                                </select>
-                                                            ) : (
-                                                                <div className="font-bold text-[#736357] text-sm">{getServiceLabel(selectedBooking.service_type)}</div>
-                                                            )}
-                                                        </div>
-                                                        <DetailItem label="其他項目" value={selectedBooking.raw_data.service_type_other} fieldName="service_type_other" />
-                                                        <div className="pt-2 border-t border-dashed border-slate-200 mt-2">
-                                                            <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" />
-                                                            <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" />
-                                                            <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {!isEditing && (
-                                                    <div className="mt-8 pt-4 border-t border-slate-100">
-                                                        <button onClick={() => triggerAction('delete')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100">
-                                                            <Icon name="trash-2" size={16}/> 刪除此訂單
-                                                        </button>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
