@@ -22,6 +22,7 @@
             --brand-light: #fbf9f6; 
             --line-green: #06C755; 
             --error-red: #ef4444;
+            --info-blue: #3b82f6; /* 新增藍色變數 */
         }
 
         body { 
@@ -62,6 +63,20 @@
             border-color: var(--brand-brown); 
             box-shadow: 0 0 0 4px rgba(115, 99, 87, 0.1); 
             outline: none; 
+            transform: translateY(-1px);
+        }
+
+        /* 藍色系輸入框樣式 */
+        .cute-input-blue {
+            background: #ffffff;
+            border: 2px solid #eff6ff; /* blue-50 */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--brand-dark-brown);
+        }
+        .cute-input-blue:focus {
+            border-color: var(--info-blue);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            outline: none;
             transform: translateY(-1px);
         }
 
@@ -343,6 +358,8 @@
             const [formData, setFormData] = useState({
                 email: '', owner_name: '', owner_id: '', phone: '', address: '', 
                 emergency_name: '', emergency_phone: '',
+                // 新增第二緊急聯絡人欄位
+                emergency2_name: '', emergency2_phone: '',
                 pet_name: '', breed: '', sex: '', age: '', weight: '', fix: '', 
                 chip_status: '', chip_id: '', preferred_clinic: '',
                 dog_traits: [], is_barking: '', barking_detail: '',
@@ -416,9 +433,8 @@
                 setIsSearching(true);
                 try {
                     // 查詢該電話的所有訂單，按時間倒序排列
-// --- 新的寫法 (走專用通道，不會被擋) ---
-const { data, error } = await supabase
-    .rpc('search_guest_history', { phone_input: phone });
+                    const { data, error } = await supabase
+                        .rpc('search_guest_history', { phone_input: phone });
                     if (error) throw error;
 
                     if (!data || data.length === 0) {
@@ -500,10 +516,18 @@ const { data, error } = await supabase
                 const newErrors = {};
                 const requiredText = ['email', 'owner_name', 'phone', 'owner_id', 'address', 'emergency_name', 'emergency_phone', 'pet_name', 'breed', 'weight', 'age', 'preferred_clinic'];
                 requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = true; });
+                
                 if (formData.email && !validateEmail(formData.email)) newErrors.email = true;
                 if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = true;
                 if (formData.emergency_phone && !validatePhone(formData.emergency_phone)) newErrors.emergency_phone = true;
                 if (formData.owner_id && !validateTwID(formData.owner_id)) newErrors.owner_id = true;
+                
+                // 驗證體重必須大於 0
+                if (!formData.weight || parseFloat(formData.weight) <= 0) {
+                     newErrors.weight = true;
+                     showToast("⚠️ 體重必須大於 0", "error");
+                }
+
                 if (!formData.sex) newErrors.sex = true;
                 if (!formData.fix) newErrors.fix = true;
                 if (!formData.chip_status) newErrors.chip_status = true;
@@ -514,6 +538,10 @@ const { data, error } = await supabase
                 if (isBoarding) {
                     if (!formData.checkin_date) newErrors.checkin_date = true;
                     if (!formData.checkout_date) newErrors.checkout_date = true;
+                    // 住宿時需要填寫第二緊急聯絡人
+                    if (!formData.emergency2_name || formData.emergency2_name.trim() === '') newErrors.emergency2_name = true;
+                    if (!formData.emergency2_phone || !validatePhone(formData.emergency2_phone)) newErrors.emergency2_phone = true;
+
                     if (formData.checkin_date && formData.checkout_date) {
                         const start = new Date(formData.checkin_date);
                         const end = new Date(formData.checkout_date);
@@ -539,11 +567,14 @@ const { data, error } = await supabase
                     if (!formData.personality) newErrors.personality = true;
                     if (!formData.special_notes) newErrors.special_notes = true;
                     if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = true;
-                    if (!formData.service_price) newErrors.service_price = true;
+                    
+                    // 驗證金額必須大於 0
+                    if (!formData.service_price || parseInt(formData.service_price) <= 0) newErrors.service_price = true;
                 } else {
                     if (!formData.service_type) newErrors.service_type = true;
                     if (formData.service_type === '其他項目' && (!formData.service_type_other || formData.service_type_other.trim() === '')) newErrors.service_type_other = true;
-                    if (!formData.service_price) newErrors.service_price = true;
+                     // 驗證金額必須大於 0
+                    if (!formData.service_price || parseInt(formData.service_price) <= 0) newErrors.service_price = true;
                 }
 
                 if (!formData.legal_agree) newErrors.legal_agree = true;
@@ -559,8 +590,10 @@ const { data, error } = await supabase
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     
                     if (newErrors.email && formData.email) showToast("⚠️ 電子郵件格式錯誤");
-                    else if ((newErrors.phone && formData.phone) || (newErrors.emergency_phone && formData.emergency_phone)) showToast("⚠️ 電話號碼格式錯誤");
+                    else if ((newErrors.phone && formData.phone) || (newErrors.emergency_phone && formData.emergency_phone) || (newErrors.emergency2_phone && formData.emergency2_phone)) showToast("⚠️ 電話號碼格式錯誤");
                     else if (newErrors.owner_id && formData.owner_id) showToast("⚠️ 身分證字號無效 (請檢查格式或數字)");
+                    else if (newErrors.weight) showToast("⚠️ 體重必須大於 0");
+                    else if (newErrors.service_price) showToast("⚠️ 金額必須大於 0");
                     else showToast("⚠️ 請填寫所有必填欄位 (紅色標示處)");
                     return;
                 }
@@ -604,7 +637,10 @@ const { data, error } = await supabase
                             signature_url: signatureUrl,
                             vaccine_url: vaccineUrl,
                             status: 'pending', 
-                            raw_data: formData 
+                            raw_data: formData, // raw_data 會包含所有表單欄位，包括第二緊急聯絡人
+                            // 如果你在 supabase 有開獨立欄位存第二聯絡人，這裡也要加：
+                            emergency2_name: formData.emergency2_name,
+                            emergency2_phone: formData.emergency2_phone
                         });
 
                     if (insertError) throw insertError;
@@ -837,6 +873,8 @@ const { data, error } = await supabase
                                         <input name="owner_id" value={formData.owner_id} onChange={e=>handleChange('owner_id', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.owner_id ? 'shake-error' : ''}`} placeholder="例如: A123456789" />
                                     </div>
                                     <div className="md:col-span-2 space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">通訊地址 *</label><input name="address" value={formData.address} onChange={e=>handleChange('address', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.address ? 'shake-error' : ''}`} placeholder="請輸入完整地址" /></div>
+                                    
+                                    {/* 第一緊急聯絡人 (紅色系) */}
                                     <div className="space-y-1.5"><label className="text-xs font-bold text-red-400 ml-1">緊急聯絡人姓名 *</label><input name="emergency_name" value={formData.emergency_name} onChange={e=>handleChange('emergency_name', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50 bg-red-50/10 focus:border-red-200 ${errors.emergency_name ? 'shake-error' : ''}`} /></div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-red-400 ml-1">緊急連絡電話 *</label>
@@ -845,6 +883,29 @@ const { data, error } = await supabase
                                             className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] border-red-50 bg-red-50/10 focus:border-red-200 ${errors.emergency_phone ? 'shake-error' : ''}`} 
                                         />
                                     </div>
+
+                                    {/* 第二緊急聯絡人 (藍色系 - 僅在住宿模式顯示) */}
+                                    {isBoarding && (
+                                        <>
+                                            <div className="md:col-span-2 border-t border-slate-100 my-2"></div>
+                                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-xs font-bold text-blue-500 ml-1 flex items-center gap-1">
+                                                第二緊急聯絡人姓名 *
+                                                </label>
+                                                <input name="emergency2_name" value={formData.emergency2_name} onChange={e=>handleChange('emergency2_name', e.target.value)} 
+                                                    className={`w-full cute-input-blue rounded-xl px-5 py-3.5 font-bold text-[#736357] bg-blue-50/10 ${errors.emergency2_name ? 'shake-error' : ''}`} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-xs font-bold text-blue-500 ml-1">第二緊急連絡電話 *</label>
+                                                <input name="emergency2_phone" type="tel" inputMode="numeric" value={formData.emergency2_phone} 
+                                                    onChange={e=>handleChange('emergency2_phone', e.target.value.replace(/\D/g, ''))} 
+                                                    className={`w-full cute-input-blue rounded-xl px-5 py-3.5 font-bold text-[#736357] bg-blue-50/10 ${errors.emergency2_phone ? 'shake-error' : ''}`} 
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
                                 </div>
                             </section>
 
@@ -876,7 +937,7 @@ const { data, error } = await supabase
                                     <div className="md:col-span-2 grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-[#736357]/10 mt-2">
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">寵物名字 *</label><input name="pet_name" value={formData.pet_name} onChange={e=>handleChange('pet_name', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.pet_name ? 'shake-error' : ''}`} /></div>
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">品種 *</label><input name="breed" value={formData.breed} onChange={e=>handleChange('breed', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.breed ? 'shake-error' : ''}`} /></div>
-                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">體重 * (kg)</label><input name="weight" type="number" value={formData.weight} onChange={e=>handleChange('weight', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.weight ? 'shake-error' : ''}`} /></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">體重 * (kg)</label><input name="weight" type="number" step="0.1" value={formData.weight} onChange={e=>handleChange('weight', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.weight ? 'shake-error' : ''}`} /></div>
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label><input name="age" value={formData.age} onChange={e=>handleChange('age', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] ${errors.age ? 'shake-error' : ''}`} /></div>
                                         <div className="space-y-2" id="sex"><label className="text-xs font-bold text-slate-400 ml-1">性別 *</label><div className={`flex gap-2 ${errors.sex ? 'group-error' : ''}`}>{pillBtn('sex', '公', formData.sex==='公')}{pillBtn('sex', '母', formData.sex==='母')}</div></div>
                                         <div className="space-y-2" id="fix"><label className="text-xs font-bold text-slate-400 ml-1">結紮 *</label><div className={`flex gap-2 ${errors.fix ? 'group-error' : ''}`}>{pillBtn('fix', '是', formData.fix==='是')}{pillBtn('fix', '否', formData.fix==='否')}</div></div>
@@ -1047,7 +1108,7 @@ const { data, error } = await supabase
                                                 <div className="pt-6 border-t border-[#736357]/10 animate-in fade-in">
                                                     <div className="space-y-2">
                                                         <div className="flex flex-col">
-                                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">住宿+洗澡 費用 *</label>
+                                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">本次 住宿 費用 *</label>
                                                         </div>
                                                         <div className="relative group">
                                                             <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-bold text-[#736357] z-10">NT$</span>
@@ -1132,7 +1193,6 @@ const { data, error } = await supabase
 
                             {/* 4. 法律條款與數位簽署 (保持不變) */}
                             <section className="glass-card p-8 md:p-10 space-y-10 section-highlight">
-                                {/* ... 法律條款 ... */}
                                 <div className="flex items-center gap-4 border-b border-[#736357]/10 pb-6">
                                     <div className="w-10 h-10 rounded-full bg-[#736357]/5 flex items-center justify-center text-[#736357]">
                                         <Icon name="edit-3" size={20}/>
