@@ -97,6 +97,9 @@
         // ★★★ 請修改這裡：您在 Supabase 註冊的管理者 Email ★★★
         const ADMIN_EMAIL = "wonwonhotel@gmail.com"; 
 
+        // 定義標準服務項目選項 (編輯模式用)
+        const SERVICE_OPTIONS = ['住宿＋洗澡', '包月洗澡', '基礎洗澡', '精緻美容', '局部修剪', '寵物安親', '其他項目'];
+
         const Icon = ({ name, size = 20, className = "" }) => {
             const iconRef = useRef(null);
             useEffect(() => {
@@ -107,9 +110,10 @@
             return <span ref={iconRef} key={name} className="inline-flex items-center justify-center"><i data-lucide={name} style={{ width: size, height: size }}></i></span>;
         };
 
-        // --- 輔助函式：判斷服務類型顯示文字 ---
+        // --- 修正：服務類型顯示邏輯 ---
         const getServiceLabel = (serviceType) => {
             if (!serviceType) return '';
+            // 只要包含「住宿」，就強制回傳固定格式，忽略後面的雜訊
             if (serviceType.includes('住宿')) {
                 return '🏠 住宿＋洗澡';
             }
@@ -163,7 +167,7 @@
         const PrintContract = ({ data }) => {
             if (!data) return null;
             const r = data.raw_data || {};
-            const isBoarding = !!data.checkin_date;
+            const isBoarding = !!data.checkin_date || (data.service_type && data.service_type.includes('住宿'));
             
             return (
                 <div id="print-area" className="hidden">
@@ -323,7 +327,7 @@
                     const created = b.created_at.split('T')[0];
                     if (created === today) s.today++;
                     if (b.status === 'pending') s.pending++;
-                    if (b.service_type.includes('住宿')) s.boarding++;
+                    if (b.service_type && b.service_type.includes('住宿')) s.boarding++;
                 });
                 setStats(s);
             };
@@ -394,14 +398,19 @@
                 setEditForm(prev => ({ ...prev, [field]: value }));
             };
 
+            // --- 修正 2：處理空日期導致儲存失敗的問題 ---
             const handleSaveLogic = async () => {
+                // 輔助函式：如果日期是空字串，轉成 null (PostgreSQL 不接受空字串為日期)
+                const sanitizeDate = (val) => (!val || val === '') ? null : val;
+
                 const topLevelUpdates = {
                     owner_name: editForm.owner_name,
                     phone: editForm.phone,
                     pet_name: editForm.pet_name,
                     service_type: editForm.service_type,
-                    checkin_date: editForm.checkin_date,
-                    checkout_date: editForm.checkout_date,
+                    // 這裡加上 sanitizeDate 處理，解決美容訂單沒日期會報錯的問題
+                    checkin_date: sanitizeDate(editForm.checkin_date),
+                    checkout_date: sanitizeDate(editForm.checkout_date),
                     pickup_time: editForm.pickup_time,
                     service_price: editForm.service_price
                 };
@@ -426,21 +435,23 @@
                     setSelectedBooking(updatedBooking);
                     setIsEditing(false);
                 } else {
-                    alert("儲存失敗，請重試");
-                    console.error(error);
+                    alert("儲存失敗，請重試 (可能是網路或資料格式問題)");
+                    console.error('Update error:', error);
                 }
             };
 
             const filteredBookings = bookings.filter(b => 
-                b.owner_name.includes(filter) || 
-                b.pet_name.includes(filter) || 
-                b.phone.includes(filter)
+                (b.owner_name && b.owner_name.includes(filter)) || 
+                (b.pet_name && b.pet_name.includes(filter)) || 
+                (b.phone && b.phone.includes(filter))
             );
 
             // 輔助函式：顯示欄位 (支援編輯模式)
             const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false }) => {
                 if (isEditing && fieldName) {
+                    // 防止 React controlled input 警告 (value 不能為 null)
                     const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
+                    
                     return (
                         <div className={`${fullWidth ? 'col-span-2' : ''} bg-white p-3 rounded-xl border-2 border-brand-yellow/50`}>
                             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{label}</label>
@@ -571,7 +582,10 @@
                                                 <td className="px-6 py-4 text-sm font-medium text-slate-600">{new Date(b.created_at).toLocaleDateString()}<br/><span className="text-xs text-slate-400">{new Date(b.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></td>
                                                 <td className="px-6 py-4"><div className="font-bold text-[#736357]">{b.owner_name}</div><div className="text-xs text-slate-400">{b.phone}</div></td>
                                                 <td className="px-6 py-4"><span className="bg-[#736357]/10 text-[#736357] px-2 py-1 rounded-md text-xs font-bold">{b.pet_name}</span></td>
-                                                <td className="px-6 py-4 text-sm text-slate-600 font-bold">{getServiceLabel(b.service_type)}{b.checkin_date && <div className="text-xs text-slate-400 mt-1 font-normal">{b.checkin_date} 入住</div>}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600 font-bold">
+                                                    {getServiceLabel(b.service_type)}
+                                                    {b.checkin_date && !b.service_type.includes('住宿') && <div className="text-xs text-slate-400 mt-1 font-normal">{b.checkin_date} 入住</div>}
+                                                </td>
                                                 <td className="px-6 py-4 font-bold text-slate-700">${b.service_price}</td>
                                                 <td className="px-6 py-4"><span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${b.status === 'confirmed' ? 'bg-green-50 text-green-600 border-green-100' : b.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-100' : b.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'}`}><span className={`w-1.5 h-1.5 rounded-full ${b.status === 'confirmed' ? 'bg-green-500' : b.status === 'completed' ? 'bg-blue-500' : b.status === 'cancelled' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>{b.status === 'confirmed' ? '已確認' : b.status === 'completed' ? '已完成' : b.status === 'cancelled' ? '已取消' : '待處理'}</span></td>
                                                 <td className="px-6 py-4 text-right"><button className="text-slate-300 group-hover:text-[#736357] transition-colors"><Icon name="chevron-right" size={20}/></button></td>
@@ -712,11 +726,22 @@
                                                         <DetailItem label="總金額" value={selectedBooking.service_price} fieldName="service_price" />
                                                     </div>
                                                     <div className="space-y-2">
-                                                        {/* 優化顯示：直接呼叫 getServiceLabel */}
-                                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                        {/* 修正：使用下拉選單取代純文字輸入框 */}
+                                                        <div className={`p-3 rounded-xl border-2 ${isEditing ? 'bg-white border-brand-yellow/50' : 'bg-slate-50 border-slate-100'}`}>
                                                             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">服務項目</label>
-                                                            <div className="font-bold text-[#736357] text-sm">{getServiceLabel(selectedBooking.service_type)}</div>
+                                                            {isEditing ? (
+                                                                <select 
+                                                                    className="edit-input" 
+                                                                    value={editForm.service_type} 
+                                                                    onChange={e => handleEditChange('service_type', e.target.value)}
+                                                                >
+                                                                    {SERVICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                                                </select>
+                                                            ) : (
+                                                                <div className="font-bold text-[#736357] text-sm">{getServiceLabel(selectedBooking.service_type)}</div>
+                                                            )}
                                                         </div>
+                                                        
                                                         <DetailItem label="其他項目" value={selectedBooking.raw_data.service_type_other} fieldName="service_type_other" />
                                                         
                                                         <div className="pt-2 border-t border-dashed border-slate-200 mt-2">
