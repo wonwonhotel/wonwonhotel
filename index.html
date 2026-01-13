@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>汪汪犬旅 | 數位契約填寫系統</title>
     
-    <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#736357">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,9 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- reCAPTCHA v3 -->
     <script src="https://www.google.com/recaptcha/api.js?render=6LcXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"></script>
-    <!-- React DatePicker -->
     <script src="https://cdn.jsdelivr.net/npm/react-datepicker@4.25.0/dist/react-datepicker.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/react-datepicker@4.25.0/dist/react-datepicker.min.css">
 
@@ -440,7 +437,7 @@
         );
 
         // --- Input with Error Component (移到 App 外部避免重新渲染導致鍵盤消失) ---
-        const InputWithError = ({ name, type = 'text', value, onChange, placeholder, error, className = '', inputMode, pattern, step }) => (
+        const InputWithError = ({ name, type = 'text', value, onChange, placeholder, error, className = '', inputMode, pattern, step, min }) => (
             <div className="space-y-1">
                 <input 
                     name={name}
@@ -449,6 +446,7 @@
                     inputMode={inputMode}
                     pattern={pattern}
                     step={step}
+                    min={min}
                     value={value} 
                     onChange={onChange} 
                     className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${error ? 'input-error shake-error' : ''} ${className}`} 
@@ -659,6 +657,7 @@
             const [realtimeSig, setRealtimeSig] = useState(null);
             const [boardingOpen, setBoardingOpen] = useState(false);
             const [groomingOpen, setGroomingOpen] = useState(false);
+            const [seniorOpen, setSeniorOpen] = useState(false);
             const [isSubmitting, setIsSubmitting] = useState(false);
             const [showSuccess, setShowSuccess] = useState(false); 
             const [toast, setToast] = useState(null);
@@ -692,6 +691,12 @@
 
             const fullSigCanvasRef = useRef(null);
             const padInstance = useRef(null);
+
+            // --- 新增：判斷是否為高齡寵物 (8歲以上) ---
+            const isSenior = useMemo(() => {
+                const ageNum = parseFloat(formData.age);
+                return !isNaN(ageNum) && ageNum >= 8;
+            }, [formData.age]);
 
             // Simulate page loading
             useEffect(() => {
@@ -1459,6 +1464,9 @@
                                             <label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label>
                                             <InputWithError 
                                                 name="age" 
+                                                type="number"   
+                                                step="0.1"      
+                                                min="0.1"       
                                                 value={formData.age} 
                                                 onChange={e=>handleChange('age', e.target.value)} 
                                                 error={errors.age}
@@ -1634,10 +1642,10 @@
 
                                                             {formData.vaccine_file && !isProcessingImg && (
                                                                 <div className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#736357]/10 shadow-sm">
-                                                                        <img src={formData.vaccine_file} className="w-full h-full object-cover" />
-                                                                        <button type="button" onClick={() => setFormData({...formData, vaccine_file: null})} className="absolute top-3 right-3 bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-red-50 transition-colors">
-                                                                            <Icon name="x" size={16} />
-                                                                        </button>
+                                                                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
+                                                                    <button type="button" onClick={() => setFormData({...formData, vaccine_file: null})} className="absolute top-3 right-3 bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-red-50 transition-colors">
+                                                                        <Icon name="x" size={16} />
+                                                                    </button>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1802,7 +1810,7 @@
                                                     <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/30 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         <Icon name="file-text" size={20}/>
                                                     </div>
-                                                    <span className="font-bold text-[#736357] dark:text-[#F7E7B5]">📜 閱讀完整犬、貓寄養契約條款</span>
+                                                    <span className="font-bold text-[#736357] dark:text-[#F7E7B5]">閱讀完整犬、貓寄養契約條款</span>
                                                 </div>
                                                 <Icon name={boardingOpen ? "chevron-up" : "chevron-down"} size={20} className="text-slate-400"/>
                                             </button>
@@ -1827,7 +1835,7 @@
                                                 <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                     <Icon name="file-text" size={20}/>
                                                 </div>
-                                                <span className="font-bold text-[#736357] dark:text-[#F7E7B5]">📜 閱讀完整犬、貓美容契約條款</span>
+                                                <span className="font-bold text-[#736357] dark:text-[#F7E7B5]">閱讀完整犬、貓美容契約條款</span>
                                             </div>
                                             <Icon name={groomingOpen ? "chevron-up" : "chevron-down"} size={20} className="text-slate-400"/>
                                         </button>
@@ -1846,6 +1854,65 @@
                                             </div>
                                         )}
                                     </div>
+                                    
+                                    {/* --- 高風險寵物風險告知 (僅在 8 歲以上顯示) --- */}
+                                    {isSenior && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                            <button type="button" onClick={() => setSeniorOpen(!seniorOpen)} 
+                                                className="w-full flex items-center justify-between p-5 bg-red-50 dark:bg-red-900/10 rounded-2xl border-2 border-red-100 dark:border-red-900 hover:border-red-300 transition-all group shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <Icon name="alert-triangle" size={20}/>
+                                                    </div>
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-black text-red-600 dark:text-red-400">高風險寵物美容服務風險告知</span>
+                                                        <span className="text-[10px] text-red-400 font-bold">檢測到毛孩已滿 8 歲，請務必詳閱</span>
+                                                    </div>
+                                                </div>
+                                                <Icon name={seniorOpen ? "chevron-up" : "chevron-down"} size={20} className="text-red-300"/>
+                                            </button>
+                                            
+                                            {seniorOpen && (
+                                                <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-white dark:bg-gray-800 rounded-2xl border-2 border-red-100 dark:border-red-900/50 shadow-inner p-6">
+                                                    <div className="h-64 overflow-y-auto pr-2 space-y-4 text-sm text-[#736357] dark:text-gray-300 leading-relaxed scrollbar-thin scrollbar-thumb-gray-300">
+                                                        <h4 className="font-bold text-center text-lg mb-4 border-b pb-2 border-slate-100 dark:border-gray-700">【高風險寵物美容服務風險告知暨同意聲明】</h4>
+                                                        
+                                                        <div className="space-y-2">
+                                                            <p className="font-bold text-[#736357] dark:text-[#F7E7B5]">一、飼主誠實告知義務</p>
+                                                            <p className="text-xs opacity-80">本人（甲方）確認，已就本人所知悉之寵物年齡、過往病史（如心臟病、癲癇、氣喘、關節問題等）、近期手術或治療紀錄、懷孕狀況、過敏反應，以及行為特性（如咬人紀錄、特定部位敏感、抗拒保定等），向 貴店（乙方）為完整且真實之說明。</p>
+                                                            <p className="text-xs opacity-80">如因甲方未告知、未完全告知或提供不實資訊，致乙方於已盡合理專業注意義務之情形下，仍難以預見或防範風險發生者，其相關責任歸屬，雙方同意依實際情形及相關法律規定另行認定。</p>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <p className="font-bold text-[#736357] dark:text-[#F7E7B5]">二、高齡與特殊健康狀況之風險告知</p>
+                                                            <p className="text-xs opacity-80">本人知悉，若寵物屬於高齡個體、幼齡犬貓，或患有慢性疾病、潛在或隱性疾病者，其體能、心肺功能及對壓力之耐受度，可能低於一般健康寵物。</p>
+                                                            <p className="text-xs opacity-80">於美容過程中之洗澡、吹整、保定或操作，可能因緊張、興奮或身體負荷，誘發身體不適、休克、舊疾復發，甚或發生其他不可預期之風險。</p>
+                                                            <p className="text-xs opacity-80">本人已充分理解上述情形，並同意：如經判定該不利結果係源於寵物自身健康狀況或生理反應，且非因乙方之故意或重大過失所致者，乙方不負損害賠償責任。</p>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <p className="font-bold text-[#736357] dark:text-[#F7E7B5]">三、攻擊性與行為安全防護同意</p>
+                                                            <p className="text-xs opacity-80">如寵物於服務過程中出現高度緊張、攻擊行為、過度躁動或其他影響人員及寵物安全之情形，本人同意並授權乙方，基於安全考量，採取必要之防護與保定措施（包含但不限於牽繩保定、伊莉莎白頸圈、嘴套或雙人協同作業）。</p>
+                                                            <p className="text-xs opacity-80">若經專業判斷認為繼續服務恐危及寵物或人員安全，乙方得隨時中止服務，並依已完成之服務內容與進度計收費用。</p>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <p className="font-bold text-[#736357] dark:text-[#F7E7B5]">四、緊急醫療處置同意</p>
+                                                            <p className="text-xs opacity-80">服務期間如寵物發生身體不適或緊急狀況，本人同意乙方得優先將寵物送往本人指定或就近之合適動物醫院進行緊急處置，相關醫療及必要交通費用，由本人依法負擔。</p>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <p className="font-bold text-[#736357] dark:text-[#F7E7B5]">五、飼主確認</p>
+                                                            <p className="text-xs opacity-80">本人已詳閱並充分理解上述所有內容，確認已就相關風險獲得說明，並於審慎評估後，同意將寵物交付乙方進行美容服務。</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-4 pt-4 border-t border-red-100 dark:border-red-900/30 text-center">
+                                                        <p className="text-xs text-red-500 font-bold">※ 繼續填寫即代表您已詳閱並同意上述高齡寵物風險條款</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-4">
