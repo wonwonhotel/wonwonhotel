@@ -119,22 +119,24 @@
 
         .cute-input { 
             background: #ffffff; 
-            border: 2px solid #eeebe6; 
+            border: 3px solid #eeebe6; 
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             color: var(--brand-dark-brown);
+            box-shadow: 0 2px 8px rgba(115, 99, 87, 0.06), inset 0 1px 3px rgba(255, 255, 255, 0.9);
         }
 
         .cute-input:focus { 
             background: #ffffff; 
             border-color: var(--brand-brown); 
-            box-shadow: 0 0 0 4px rgba(115, 99, 87, 0.1); 
+            box-shadow: 0 0 0 5px rgba(115, 99, 87, 0.15), 0 6px 16px rgba(115, 99, 87, 0.12); 
             outline: none; 
-            transform: translateY(-1px);
+            transform: translateY(-2px);
         }
 
         .cute-input.input-error {
             border-color: var(--error-red) !important;
             background-color: #fef2f2 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), 0 4px 12px rgba(239, 68, 68, 0.2) !important;
         }
 
         .dark .cute-input.input-error {
@@ -627,7 +629,7 @@
             sex: '請選擇寵物性別',
             fix: '請選擇是否結紮',
             chip_status: '請選擇晶片狀態',
-            dog_traits: '請至少選擇一項親狗程度',
+            dog_traits: '請至少選擇一項社交狀況',
             medical_status: '請選擇是否有過往病史',
             medical_history: '請選擇病史項目',
             preferred_clinic: '請填寫指定就醫診療機構 (若無請填無)',
@@ -662,6 +664,7 @@
             const [boardingOpen, setBoardingOpen] = useState(false);
             const [groomingOpen, setGroomingOpen] = useState(false);
             const [seniorOpen, setSeniorOpen] = useState(false);
+            const [boardingRiskOpen, setBoardingRiskOpen] = useState(false);
             const [isSubmitting, setIsSubmitting] = useState(false);
             const [showSuccess, setShowSuccess] = useState(false); 
             const [toast, setToast] = useState(null);
@@ -1120,8 +1123,11 @@
 
             const pillBtn = (field, val, active) => (
                 <button type="button" onClick={() => handleChange(field, val)} 
-                    className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border transition-all duration-300 transform ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:bg-[#F7E7B5]/5'}`}>
-                    {val}
+                    className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
+                    <span className="flex items-center justify-center gap-1.5">
+                        {active && <Icon name="check-circle" size={14} />}
+                        {val}
+                    </span>
                 </button>
             );
 
@@ -1497,21 +1503,42 @@
                                     <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-4">
                                         <div className="grid md:grid-cols-2 gap-8">
                                             <div className="space-y-3" id="dog_traits">
-                                                <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">親狗程度 (可複選) *</label>
-                                                <div className={`flex flex-wrap gap-2 ${errors.dog_traits ? 'group-error' : ''}`}>
+                                                <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">社交狀況 (可複選) *</label>
+                                                <div className={`flex flex-col gap-2.5 pt-1 ${errors.dog_traits ? 'group-error' : ''}`}>
                                                     {['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
-                                                        <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`pill-button px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${formData.dog_traits.includes(v) ? 'bg-[#736357] text-white border-[#736357] shadow-md' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5]'}`}>{v}</button>
+                                                        <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.dog_traits.includes(v) ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{v}</button>
                                                     ))}
                                                 </div>
                                                 <FieldError message={errors.dog_traits} />
                                             </div>
                                         </div>
 
+                                        <div className="space-y-4" id="grooming_temperament">
+                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">寵物美容性情與攻擊性評估 *</label>
+                                            <div className={`flex flex-col gap-2.5 pt-1 ${errors.grooming_temperament ? 'group-error' : ''}`}>
+                                                {[
+                                                    { value: '天使寶寶', label: '天使寶寶：個性溫和，無任何攻擊紀錄，也不怕生。' },
+                                                    { value: '有點緊張', label: '有點緊張：膽小怕生，可能會低吼或閃躲，但未曾咬人。' },
+                                                    { value: '恰北北/護主', label: '恰北北/護主：對於特定部位（如腳、尾巴、臉）敏感，或看到陌生人/狗貓會兇，曾有攻擊或試圖咬人的紀錄。（請務必告知，讓我們做好防護準備）' }
+                                                ].map(option => (
+                                                    <button 
+                                                        type="button" 
+                                                        key={option.value} 
+                                                        onClick={() => handleChange('grooming_temperament', option.value)} 
+                                                        className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.grooming_temperament === option.value ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <FieldError message={errors.grooming_temperament} />
+                                        </div>
+
                                         <div className="space-y-4" id="chip_status">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">晶片 *</label>
-                                            <div className={`flex flex-wrap gap-4 ${errors.chip_status ? 'group-error' : ''}`}>
+                                            <div className={`flex flex-col gap-2.5 pt-1 ${errors.chip_status ? 'group-error' : ''}`}>
                                                 {['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (
-                                                    <button key={s} type="button" onClick={()=>handleChange('chip_status', s)} className={`pill-button px-5 py-3 rounded-xl font-bold text-sm border transition-all ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357] shadow-md' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5]'}`}>{s}</button>
+                                                    <button key={s} type="button" onClick={()=>handleChange('chip_status', s)} className={`pill-button px-5 py-3.5 rounded-xl text-left font-bold text-sm border-2 transition-all duration-300 ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{s}</button>
                                                 ))}
                                             </div>
                                             <FieldError message={errors.chip_status} />
@@ -1678,7 +1705,7 @@
                                                 </div>
                                                 <div className={`flex flex-col gap-2.5 pt-1 ${errors.crate_status ? 'group-error' : ''}`}>
                                                     {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
-                                                        <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`pill-button px-5 py-4 rounded-xl text-left text-xs font-bold border transition-all duration-300 ${formData.crate_status.includes(v) ? 'bg-[#736357] text-white shadow-md translate-x-1' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5]'}`}>{v}</button>
+                                                        <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.crate_status.includes(v) ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{v}</button>
                                                     ))}
                                                 </div>
                                                 <FieldError message={errors.crate_status} />
@@ -1912,6 +1939,46 @@
                                                     </div>
                                                     <div className="mt-4 pt-4 border-t border-red-100 dark:border-red-900/30 text-center">
                                                         <p className="text-xs text-red-500 font-bold">※ 繼續填寫即代表您已詳閱並同意上述高齡寵物風險條款</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* --- 高風險寵物住宿服務風險告知 (僅在住宿頁面且 8 歲以上顯示) --- */}
+                                    {isBoarding && isSenior && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                            <button type="button" onClick={() => setBoardingRiskOpen(!boardingRiskOpen)} 
+                                                className="w-full flex items-center justify-between p-5 bg-red-50 dark:bg-red-900/10 rounded-2xl border-2 border-red-100 dark:border-red-900 hover:border-red-300 transition-all group shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <Icon name="alert-triangle" size={20}/>
+                                                    </div>
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-black text-red-600 dark:text-red-400">高風險寵物住宿服務風險告知</span>
+                                                        <span className="text-[10px] text-red-400 font-bold">檢測到毛孩已滿 8 歲，請務必詳閱</span>
+                                                    </div>
+                                                </div>
+                                                <Icon name={boardingRiskOpen ? "chevron-up" : "chevron-down"} size={20} className="text-red-300"/>
+                                            </button>
+                                            
+                                            {boardingRiskOpen && (
+                                                <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-white dark:bg-gray-800 rounded-2xl border-2 border-red-100 dark:border-red-900/50 shadow-inner p-6">
+                                                    <div className="h-64 overflow-y-auto pr-2 space-y-4 text-sm text-[#736357] dark:text-gray-300 leading-relaxed scrollbar-thin scrollbar-thumb-gray-300">
+                                                        <h4 className="font-bold text-center text-lg mb-4 border-b pb-2 border-red-500">【高風險寵物住宿服務風險告知暨同意聲明】</h4>
+                                                        
+                                                        <div className="space-y-3 text-xs leading-relaxed">
+                                                            <p>美容洗澡或住宿期間，因基因或本身遺傳問題,造成的疾病或寵物因天生病史，高齡幼犬猫，因寵物持有人遺漏、隱瞞，或已知風險、仍然堅持美容或住宿，途中若有意外休克或其他等狀況，本店會立即送至附近動物醫院救治。</p>
+                                                            
+                                                            <p>寵物若因以上因素導致疾病或死亡等問題發生，都將與汪汪犬旅寵物旅館無關，送醫途中或到院治療,所產生之相關費用都需由寵物持有人負擔。</p>
+                                                            
+                                                            <p>寵物持有人已知本店無24小時之服務，因此住宿期間若於晚上無人照護時，發生問題導致無即使救治，或因住宿或美容期間寵物本身焦慮，情緒不穩造成自己有傷害發生，都將與汪汪犬旅寵物旅館無關</p>
+                                                            
+                                                            <p>倘若發生法律上之糾紛，訴訟等相關問題，本切結書會以證據之證明呈上相關法律部門。</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-4 pt-4 border-t border-red-100 dark:border-red-900/30 text-center">
+                                                        <p className="text-xs text-red-500 font-bold">※ 繼續填寫即代表您已詳閱並同意上述住宿服務風險告知</p>
                                                     </div>
                                                 </div>
                                             )}
