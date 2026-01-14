@@ -646,6 +646,87 @@
             signature: '請完成數位簽名'
         };
 
+            const compressImage = (file) => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.src = event.target.result;
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            const max_size = 1200; 
+                            if (width > height) {
+                                if (width > max_size) {
+                                    height *= max_size / width;
+                                    width = max_size;
+                                }
+                            } else {
+                                if (height > max_size) {
+                                    width *= max_size / height;
+                                    height = max_size;
+                                }
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                            resolve(dataUrl);
+                        };
+                    };
+                });
+            };
+
+            const UnifiedLineSection = ({ formData, setFormData }) => {
+                const [lineConfirmed, setLineConfirmed] = useState(false);
+                return (
+                    <div className="glass-card section-highlight overflow-hidden border-none bg-gradient-to-br from-white via-[#fefcf9] to-[#F7E7B5]/20 dark:from-gray-800 dark:via-gray-800 dark:to-[#F7E7B5]/10 p-8 shadow-sm relative">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-[#F7E7B5]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+                        
+                        <div className="flex flex-col lg:flex-row items-center gap-8 relative z-10">
+                            <div className="flex-1 space-y-4 text-center lg:text-left">
+                                <div className="flex items-center justify-center lg:justify-start gap-3">
+                                    <div className="w-14 h-14 bg-[#06C755] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-green-200 transform -rotate-3 transition-transform hover:rotate-0">
+                                        <Icon name="message-circle" size={30} />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-[#736357] dark:text-[#F7E7B5] tracking-tight">官方 LINE 諮詢服務</h3>
+                                </div>
+                                <div className="space-y-2 text-[#736357] dark:text-gray-300 font-medium text-sm leading-relaxed opacity-90">
+                                    <p>為了更了解您的小寶貝，請先加 LINE 並 <span className="text-red-500 font-bold underline decoration-wavy underline-offset-4 decoration-2">丟個貼圖</span> 我們才看得到您哦！😊</p>
+                                    <p className="inline-flex items-center gap-1 text-[#06C755] text-xs font-bold bg-[#06C755]/10 px-3 py-1 rounded-full">
+                                        <Icon name="hash" size={12}/> LINE ID: @cik3330f
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center gap-3 min-w-[240px]">
+                                <a href="https://line.me/R/ti/p/@cik3330f" target="_blank" className="line-btn-animated w-full text-center py-4 rounded-2xl text-white font-black text-lg shadow-xl shadow-green-200 hover:shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-2">
+                                    <Icon name="message-circle" size={20}/> 立即加 LINE
+                                </a>
+                                <button type="button" onClick={() => setLineConfirmed(!lineConfirmed)} 
+                                    className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs transition-all duration-500 border-2 ${lineConfirmed ? 'bg-[#06C755] text-white border-[#06C755] shadow-inner' : 'bg-white dark:bg-gray-700 text-[#06C755] border-[#06C755] hover:bg-[#06C755]/5'}`}>
+                                    <Icon name="check-circle" size={14} className={lineConfirmed ? "" : "opacity-50"} />
+                                    {lineConfirmed ? "已加 LINE 並丟貼圖" : "確認：已加 LINE 丟貼圖"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };        
+
+            // Dark mode toggle button
+const DarkModeToggle = ({ isDark, setIsDark }) => (
+    <button 
+        onClick={() => setIsDark(!isDark)} 
+        className="dark-mode-toggle"
+        title={isDark ? '切換淺色模式' : '切換深色模式'}
+    >
+        <Icon name={isDark ? "sun" : "moon"} size={24} />
+    </button>
+);            
+
         const App = () => {
             const [view, setView] = useState('entry'); 
             const [isBoarding, setIsBoarding] = useState(false);
@@ -706,6 +787,21 @@
                 setToast({ message, type });
             };
 
+// [新增] 監聽瀏覽器上一頁 (popstate) 事件
+useEffect(() => {
+    const handlePopState = (event) => {
+        // 如果當前是填寫頁面 (client)，且使用者按了上一頁
+        if (view === 'client') {
+            // 防止瀏覽器真的離開網頁，強制切換回 entry 畫面
+            setView('entry');
+        }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+}, [view]);
+
+
             // Calculate stay duration
             const stayDuration = useMemo(() => {
                 if (!formData.checkin_date || !formData.checkout_date) return null;
@@ -716,39 +812,7 @@
                 return diffDays > 0 ? diffDays : null;
             }, [formData.checkin_date, formData.checkout_date]);
 
-            const compressImage = (file) => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.src = event.target.result;
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            let width = img.width;
-                            let height = img.height;
-                            const max_size = 1200; 
-                            if (width > height) {
-                                if (width > max_size) {
-                                    height *= max_size / width;
-                                    width = max_size;
-                                }
-                            } else {
-                                if (height > max_size) {
-                                    width *= max_size / height;
-                                    height = max_size;
-                                }
-                            }
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
-                            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                            resolve(dataUrl);
-                        };
-                    };
-                });
-            };
+
 
             const handleChange = (field, value) => {
                 let finalVal = value;
@@ -992,11 +1056,16 @@
                 window.location.reload();
             }
 
-            const selectServiceFlow = (type) => {
-                setIsBoarding(type === 'both');
-                setView('client');
-                setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
-            };
+// 在 App 元件內，找到 selectServiceFlow 並替換成以下內容：
+const selectServiceFlow = (type) => {
+    setIsBoarding(type === 'both');
+    
+    // [新增] 加入歷史紀錄，模擬進入新頁面
+    window.history.pushState({ page: 'form' }, '', '#form');
+    
+    setView('client');
+    setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
+};
 
             const scrollPositionRef = useRef(0);
             const initialOrientationRef = useRef(null);
@@ -1122,7 +1191,12 @@
                 </button>
             );
 
-            const getTodayDate = () => new Date().toISOString().split('T')[0];
+const getTodayDate = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+};
+
             const getMinCheckoutDate = () => {
                 if (!formData.checkin_date) return getTodayDate();
                 const d = new Date(formData.checkin_date);
@@ -1130,57 +1204,11 @@
                 return d.toISOString().split('T')[0];
             };
 
-            const UnifiedLineSection = ({ formData, setFormData }) => {
-                const [lineConfirmed, setLineConfirmed] = useState(false);
-                return (
-                    <div className="glass-card section-highlight overflow-hidden border-none bg-gradient-to-br from-white via-[#fefcf9] to-[#F7E7B5]/20 dark:from-gray-800 dark:via-gray-800 dark:to-[#F7E7B5]/10 p-8 shadow-sm relative">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-[#F7E7B5]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-                        
-                        <div className="flex flex-col lg:flex-row items-center gap-8 relative z-10">
-                            <div className="flex-1 space-y-4 text-center lg:text-left">
-                                <div className="flex items-center justify-center lg:justify-start gap-3">
-                                    <div className="w-14 h-14 bg-[#06C755] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-green-200 transform -rotate-3 transition-transform hover:rotate-0">
-                                        <Icon name="message-circle" size={30} />
-                                    </div>
-                                    <h3 className="text-2xl font-black text-[#736357] dark:text-[#F7E7B5] tracking-tight">官方 LINE 諮詢服務</h3>
-                                </div>
-                                <div className="space-y-2 text-[#736357] dark:text-gray-300 font-medium text-sm leading-relaxed opacity-90">
-                                    <p>為了更了解您的小寶貝，請先加 LINE 並 <span className="text-red-500 font-bold underline decoration-wavy underline-offset-4 decoration-2">丟個貼圖</span> 我們才看得到您哦！😊</p>
-                                    <p className="inline-flex items-center gap-1 text-[#06C755] text-xs font-bold bg-[#06C755]/10 px-3 py-1 rounded-full">
-                                        <Icon name="hash" size={12}/> LINE ID: @cik3330f
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-center gap-3 min-w-[240px]">
-                                <a href="https://line.me/R/ti/p/@cik3330f" target="_blank" className="line-btn-animated w-full text-center py-4 rounded-2xl text-white font-black text-lg shadow-xl shadow-green-200 hover:shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-2">
-                                    <Icon name="message-circle" size={20}/> 立即加 LINE
-                                </a>
-                                <button type="button" onClick={() => setLineConfirmed(!lineConfirmed)} 
-                                    className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs transition-all duration-500 border-2 ${lineConfirmed ? 'bg-[#06C755] text-white border-[#06C755] shadow-inner' : 'bg-white dark:bg-gray-700 text-[#06C755] border-[#06C755] hover:bg-[#06C755]/5'}`}>
-                                    <Icon name="check-circle" size={14} className={lineConfirmed ? "" : "opacity-50"} />
-                                    {lineConfirmed ? "已加 LINE 並丟貼圖" : "確認：已加 LINE 丟貼圖"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            };
-
-            // Dark mode toggle button
-            const DarkModeToggle = () => (
-                <button 
-                    onClick={() => setIsDark(!isDark)} 
-                    className="dark-mode-toggle"
-                    title={isDark ? '切換淺色模式' : '切換深色模式'}
-                >
-                    <Icon name={isDark ? "sun" : "moon"} size={24} />
-                </button>
-            );
 
             if (view === 'entry') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-[#fefcf9] dark:bg-gray-900 relative overflow-hidden">
-                        <DarkModeToggle />
+                        <DarkModeToggle isDark={isDark} setIsDark={setIsDark} />
                         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#F7E7B5]/30 rounded-full blur-[100px] mix-blend-multiply animate-pulse pointer-events-none"></div>
                         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#736357]/10 rounded-full blur-[100px] mix-blend-multiply pointer-events-none"></div>
                         
@@ -1251,7 +1279,7 @@
 
             return (
                 <div className="min-h-screen pb-32">
-                    <DarkModeToggle />
+                    <DarkModeToggle isDark={isDark} setIsDark={setIsDark} />
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
                     {showSuccess && <SuccessReceipt data={formData} signature={realtimeSig} onClose={handleSuccessClose} />}
                     {showHistoryModal && <HistoryModal records={historyRecords} onClose={() => setShowHistoryModal(false)} onSelect={handleApplyHistory} />}
@@ -1262,9 +1290,20 @@
                                 <img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain group-hover:rotate-12 transition-transform" />
                                 <div className="font-black text-xl text-[#736357] dark:text-[#F7E7B5] tracking-tight">汪汪犬旅</div>
                             </div>
-                            <button onClick={() => setView('entry')} className="text-xs font-bold text-[#736357]/60 dark:text-gray-400 hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:bg-[#736357]/5 dark:hover:bg-gray-700 px-4 py-2 border border-[#736357]/10 dark:border-gray-600 rounded-full transition-all flex items-center gap-2">
-                                <Icon name="arrow-left" size={14}/> 返回首頁
-                            </button>
+<button 
+    onClick={() => {
+        // 如果有歷史紀錄(代表是點進來的)，就用上一頁功能
+        if (window.history.state?.page === 'form') {
+            window.history.back();
+        } else {
+            // 如果是直接重新整理在這一頁，則直接切換 State
+            setView('entry');
+        }
+    }} 
+    className="text-xs font-bold text-[#736357]/60 dark:text-gray-400 hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:bg-[#736357]/5 dark:hover:bg-gray-700 px-4 py-2 border border-[#736357]/10 dark:border-gray-600 rounded-full transition-all flex items-center gap-2"
+>
+    <Icon name="arrow-left" size={14}/> 返回首頁
+</button>
                         </div>
                     </nav>
 
@@ -1336,9 +1375,16 @@
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 ml-1 flex items-center gap-1">
-                                            身分證字號 <span className="text-red-500 font-black text-[10px] bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded-md ml-1">入住時請攜帶正本核對</span> *
-                                        </label>
+<label className="text-xs font-bold text-slate-400 ml-1 flex items-center gap-1">
+    身分證字號 
+    {isBoarding && (
+        <span className="text-red-500 font-black text-[10px] bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded-md ml-1">
+            入住時請攜帶正本核對
+        </span>
+    )}
+    *
+</label>
+
                                         <InputWithError 
                                             name="owner_id" 
                                             value={formData.owner_id} 
@@ -1816,15 +1862,104 @@
                                                 <Icon name={boardingOpen ? "chevron-up" : "chevron-down"} size={20} className="text-slate-400"/>
                                             </button>
                                             {boardingOpen && (
-                                                <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-white dark:bg-gray-800 rounded-2xl border-2 border-[#736357]/10 dark:border-gray-600 shadow-inner p-6 space-y-4">
-                                                    <div className="space-y-3 text-sm text-[#736357] dark:text-gray-300 leading-relaxed">
-                                                        <p className="font-bold text-base text-[#736357] dark:text-[#F7E7B5] border-b border-[#736357]/10 dark:border-gray-600 pb-3">一、飼主誠實告知義務：</p>
-                                                        <p className="pl-2">甲方須於三天前預約住宿。本旅館採不關籠方式，入住前須在本館美容洗澡。須證明已施打疫苗並提供兩位緊急聯絡人。需自備飼料物品。逾時將加收安親費。損壞設施需照價賠償。</p>
-                                                        <p className="text-xs text-slate-400 italic pt-2 border-t border-dashed border-slate-200 dark:border-gray-600 mt-4">
-                                                            (此為範例條文並非最終版本)
-                                                        </p>
-                                                    </div>
-                                                </div>
+<div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-white dark:bg-gray-800 rounded-2xl border-2 border-[#736357]/10 dark:border-gray-600 shadow-inner p-6">
+    {/* 加入捲軸區塊，避免版面過長 */}
+    <div className="h-96 overflow-y-auto pr-3 space-y-6 text-sm text-[#736357] dark:text-gray-300 leading-relaxed scrollbar-thin scrollbar-thumb-[#736357]/20">
+        
+        <h4 className="font-black text-lg text-center text-[#736357] dark:text-[#F7E7B5] border-b-2 border-[#736357] pb-3 mb-2 sticky top-0 bg-white dark:bg-gray-800 z-10">住宿服務同意需知</h4>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">一、基本條款</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">1. 服務公約與付款：</span>飼主已詳閱並充分瞭解本工作室住宿服務之公約、計費方式及相關規則，並同意遵守與如實付款。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">2. 聯絡資料正確性：</span>飼主須正確填寫本人及緊急聯絡人資料，並確保服務期間雙方均能於營業時間（10:00-18:00）保持聯繫暢通。若因資訊錯誤或無法聯繫造成之損失，由飼主自負全責。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">3. 健康狀況誠實申報：</span>飼主應詳盡且誠實申報寵物健康狀況及特殊需求（如特殊病史、過敏症狀、近期手術、攻擊性行為等）。因隱瞞或不實陳述造成之損害，飼主須負擔全部責任及賠償。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">4. 潛在健康風險認知：</span>飼主了解服務期間可能存在潛在健康風險，寵物於服務期間或返家七日內若發生疾病或健康問題，本公司不負相關責任。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">6. 服務拒絕權利：</span>本工作室保有接受或拒絕提供服務之最終權利，尤其當寵物患有傳染性疾病且未告知、攻擊性嚴重、嚴重分離焦慮或嚴重吠叫者、或需特殊醫療照護未告知時。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">7. 資料變更通知義務：</span>個人或緊急聯絡人資料變更後三日內，飼主應主動以 LINE 通知本工作室，否則相關損失與責任由飼主自行負擔。</p>
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">二、入住須知與健康規範</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">1. 住宿計價與時間：</span>住宿以「晚」計價，入住與退房時間為每日 10:00-18:00。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">2. 身份建檔：</span>甲方需提供身份證正反面建檔，目的為防止棄養，入住手續約需 10–20 分鐘。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">3. 營業時間與超時：</span>10:00-18:00 可預約入住或退房，如需提早或延後接送的話，需收費一小時200元作為安親費，最晚不超過7點，超過打烊時間請隔日再預約接送寵物，須自付過夜費用。</p>
+                <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
+                    <p className="font-bold text-red-500 mb-1">4. 入住條件與醫療費用：</p>
+                    <p className="text-xs opacity-90">入住請提供有效疫苗接種證明文件。未接種或過期者飼主須自負風險。如發現傳染病、皮膚病或寄生蟲（蚤蟲、壁蝨），本館將立即通知並送醫驅蟲，相關醫療費及交通費由飼主負擔，並請盡速領回，另酌收館内消毒費用 1500 元。貓咪不強迫洗澡。</p>
+                </div>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">5. 特殊照護與藥物：</span>如需服藥或特殊照料，請於入住前告知並檢附藥物。褓母會盡量協助，但若犬隻嚴重抗拒或攻擊，請勿隱瞞，以免造成人員受傷。</p>
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">三、住宿與照護安排</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">1. 放風與風險：</span>提供獨立房間及戶外草皮（雨天改室內）。飼主同意放風期間可能發生輕微碰撞或爪傷。如不希望參與放風須事先告知。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">2. 不安排/單獨放風情況：</span>未施打疫苗、疫苗注射 7 日內、超過 8 歲高齡、慢性病、未結紮。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">3. 特殊收費：</span>特殊飲食照護每日另收 100–500 元。(喂藥50/次、眼藥水50/次、刷牙50/次、其他依狀況報價)。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">4. 自備物品：</span>需自備熟悉飼料、零食、毛毯。本館可冰存鮮食。食物不足須另外購買將另計收費。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">5. 禮貌帶：</span>若狗狗有抬腳尿尿情形，將會給予穿戴禮貌帶並收取費用。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">6. 損壞賠償：</span>若寵物造成設施損壞或他人受傷，甲方應負擔修繕或賠償責任。</p>
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">四、緊急狀況與送醫處理</h5>
+            <div className="pl-2 space-y-3">
+                <p>1. 若毛孩突發不適，將即時聯絡甲方，必要時送醫，費用由甲方負擔。</p>
+                <p>2. 合作獸醫院：<span className="font-bold">耐旺福動物醫院</span>（台中市北屯區松竹路二段383之5號）。急診：<span className="font-bold">康德動物醫院</span>。送醫代辦費每次 500 元（不含車資診療費）。</p>
+                <p>3. 送醫過程依實際情況判斷是否更換醫院，甲方不得指定。</p>
+                <p>4. 若因隱瞞病況發生意外，店家不負賠償責任。</p>
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">五、預約與取消條款</h5>
+            <ul className="pl-2 space-y-1 list-disc list-inside marker:text-[#F7E7B5]">
+                <li>訂房須於三日內匯款。提前退宿不退費。</li>
+                <li>15 天前取消：全額退</li>
+                <li>7–14天前：退 50%</li>
+                <li>少於 7 天：不退定金</li>
+                <li>提前退房：不退款</li>
+                <li>春節另訂規定</li>
+                <li>天災可保留定金乙次（一年內有效）</li>
+                <li>非指定銀行退款將扣除手續費</li>
+            </ul>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">六、其他條款</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">1. 惡意棄養：</span>超過 48 小時未帶回且失聯，視為惡意棄養，將交由動保機構處理並追償費用。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">2. 責任判定：</span>意外事故可委託合格動物醫院診斷，費用由提出方支付。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">3. 賠償上限：</span>若因本工作室重大過失致寵物傷亡，醫療補償上限 2,000 元，慰撫金上限 5,000 元。超過部分不另負擔。</p>
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">七、個人資料保護政策</h5>
+            <p className="pl-2">飼主同意提供之個資用於服務、緊急聯繫及行銷推廣。本工作室將妥善保存，未經同意不轉售第三方。</p>
+        </div>
+
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">八、法律條款與爭議處理</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">1. 爭議申訴：</span>需於退宿後七日內書面通知。以獸醫診斷為準。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">2. 禁止不實言論：</span>不得發布未經查證之負面評論或騷擾，違者須賠償損失。</p>
+                <p><span className="font-bold text-[#736357] dark:text-[#F7E7B5]">3. 永久效力：</span>本同意書簽署一次即具永久效力。</p>
+            </div>
+        </div>
+
+        <div className="space-y-2 pb-4">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">九、本同意書之修改</h5>
+            <p className="pl-2">本工作室保有修改權利，將於官方 LINE 公告，不另行通知。繼續使用服務視為同意新條款。</p>
+        </div>
+    </div>
+</div>
+
                                             )}
                                         </div>
                                     )}
@@ -1841,19 +1976,121 @@
                                             <Icon name={groomingOpen ? "chevron-up" : "chevron-down"} size={20} className="text-slate-400"/>
                                         </button>
                                         {groomingOpen && (
-                                            <div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-white dark:bg-gray-800 rounded-2xl border-2 border-[#736357]/10 dark:border-gray-600 shadow-inner p-6 space-y-4">
-                                                <div className="space-y-3 text-sm text-[#736357] dark:text-gray-300 leading-relaxed">
-                                                    <ul className="list-disc list-inside space-y-2 pl-2">
-                                                        <li>特殊病史請事先告知。</li>
-                                                        <li>寄生蟲將逕行除蟲，費用由飼主負擔。</li>
-                                                        <li>逾時接回將酌收安親託管費。</li>
-                                                    </ul>
-                                                    <p className="text-xs text-slate-400 italic pt-2 border-t border-dashed border-slate-200 dark:border-gray-600 mt-4">
-                                                        (此為範例條文並非最終版本)
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+<div className="animate-in fade-in slide-in-from-top-2 duration-300 bg-white dark:bg-gray-800 rounded-2xl border-2 border-[#736357]/10 dark:border-gray-600 shadow-inner p-6">
+    <div className="h-96 overflow-y-auto pr-3 space-y-6 text-sm text-[#736357] dark:text-gray-300 leading-relaxed scrollbar-thin scrollbar-thumb-[#736357]/20">
+        
+        <h4 className="font-black text-lg text-center text-[#736357] dark:text-[#F7E7B5] border-b-2 border-[#736357] pb-3 mb-2 sticky top-0 bg-white dark:bg-gray-800 z-10">美容服務同意書</h4>
+        
+        <p className="text-xs font-bold text-red-500 mb-4">為保障寵物安全及服務品質，飼主預約本工作室任一服務前，請詳閱以下條款內容。當您預約，即視為已充分了解並同意遵守以下所有規定：</p>
+
+        {/* 一、共通條款 */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">一、共通條款</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold">1. 服務公約與付款：</span>飼主已詳閱並充分瞭解本工作室美容之公約、計費方式及相關規則，並同意遵守與如實付款。</p>
+                <p><span className="font-bold">2. 聯絡資料正確性：</span>本契約應記載之寵物、甲方及乙方之基本資料，詳如本契約附件之「犬、貓美容服務簽約前詢問事項及基本資料表」。所有附件及線上表單填寫內容均視為本契約之一部分。</p>
+                <p><span className="font-bold">3. 健康狀況誠實申報：</span>飼主應詳盡且誠實申報寵物健康狀況及特殊需求。因隱瞞或不實陳述造成之損害，飼主須負擔全部責任及賠償。</p>
+                <p><span className="font-bold">4. 潛在健康風險認知：</span>飼主了解服務期間可能存在潛在健康風險，寵物於服務期間或返家七日內若發生疾病或健康問題，本工作室不負相關責任。</p>
+                <p><span className="font-bold">5. 服務拒絕權利：</span>本工作室保有接受或拒絕提供服務之最終權利，尤其當寵物患有傳染性疾病且未告知、攻擊性嚴重或需特殊醫療照護未告知時。</p>
+                <p><span className="font-bold">6. 資料變更通知義務：</span>個人或緊急聯絡人資料變更後三日內，飼主應主動以 LINE 通知本工作室，否則相關損失與責任由飼主自行負擔。</p>
+            </div>
+        </div>
+
+        {/* 二、服務項目與收費 */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">二、服務項目與收費</h5>
+            <div className="pl-2 space-y-3">
+                <p>收費以毛孩體重、體型、毛量、毛質為評估標準，現場報價為準。</p>
+                <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/30">
+                    <p className="font-bold text-red-500 mb-1">特殊費用說明：</p>
+                    <ul className="list-disc list-inside text-xs space-y-1">
+                        <li>發現跳蚤/壁蝨：環境清潔費 1000元 + 升級除蚤洗劑(200起)。</li>
+                        <li>打結/廢毛：拆結費 200元起、廢毛處理費 100元起。</li>
+                        <li>情緒管理費：300–500元 (需額外協助安撫)。</li>
+                    </ul>
+                </div>
+                <p><span className="font-bold">服務異議：</span>美容服務完成後恕不接受異議、退款或補償。費用於施作前估價，並於當日支付。</p>
+                <p><span className="font-bold">攻擊行為：</span>若過程中情緒過於緊張或有攻擊行為，將立即終止服務，不予收費。</p>
+                <p><span className="font-bold">逾時收費：</span>美容完成後應於一小時內接回，逾時依安親費收費 (未滿一小時以一小時計)：</p>
+                <ul className="list-disc list-inside pl-4 text-xs opacity-80">
+                    <li>中小型犬(10kg以下)：100元／時</li>
+                    <li>中大型犬(10-25kg)：100元／時</li>
+                    <li>貓咪：100元／時</li>
+                </ul>
+                <p><span className="font-bold">營業時間結束後：</span>若未接回且無法聯繫，將提供必要照護，飼主領回時須負擔安置費用。</p>
+                <p><span className="font-bold">逾三日未接回：</span>依《動物保護法》通報主管機關處理。</p>
+                
+                <div className="mt-4 p-4 border-2 border-dashed border-[#736357]/30 rounded-xl bg-[#F7E7B5]/10">
+                    <h6 className="font-black text-[#736357] dark:text-[#F7E7B5] mb-2">【五次美容連續回訪優惠方案】</h6>
+                    <ul className="list-decimal list-inside space-y-1 text-xs">
+                        <li>此為條件式優惠，非包月/儲值/套票。</li>
+                        <li>須自首次服務起 40日內完成第 1-4 次美容。</li>
+                        <li>第 4 次後 15 日內回店使用第 5 次美容，方可享 SPA 抵用卷優惠。</li>
+                        <li>僅第 5 次美容可折抵，前 4 次依原價計費。</li>
+                        <li>若逾期未完成，視為不符條件，第 5 次依原價計費。</li>
+                        <li>限同一毛孩使用，不得轉讓、延期。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        {/* 三、健康與接待規定 */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">三、健康與接待規定</h5>
+            <div className="pl-2 space-y-3">
+                <p className="font-bold text-red-500">❌ 恕不接待：</p>
+                <ul className="list-disc list-inside text-xs space-y-1 pl-2">
+                    <li>未滿3個月、未打完三劑疫苗幼犬貓、接種疫苗一周內。</li>
+                    <li>身上有活體寄生蟲。</li>
+                    <li>心臟病、癲癇、傳染性疾病(貓瘟/愛滋/白血/黴菌等)、呼吸道疾病、腎臟病等。</li>
+                </ul>
+                <p>美容當天若發現寄生蟲或傳染風險(打噴嚏/黴菌)，將退回並收取環境清潔費 1000元。</p>
+                <p>若故意隱瞞攻擊行為導致人員受傷，須負責醫療費用。</p>
+            </div>
+        </div>
+
+        {/* 四、其他條款 (修正編號) */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">四、其他條款</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold">1. 輕微剃傷：</span>因不可抗力或毛孩不配合導致小於1公分淺表傷口，工作室將通知並消毒。飼主需於24小時內確認，逾期視同接受。若為操作疏失最高賠償 5000 元。</p>
+                <p><span className="font-bold">2. 緊急醫療：</span>突發緊急狀況(休克/急病)且無法聯繫飼主時，將立即送醫。費用由甲方承擔。若因隱瞞病況發生意外，店家不負賠償責任。</p>
+                <p><span className="font-bold">3. 非醫療機構：</span>本工作室不提供醫療診斷或投藥服務。</p>
+            </div>
+        </div>
+
+        {/* 五、個人資料保護政策 (修正編號) */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">五、個人資料保護政策</h5>
+            <p className="pl-2">飼主個資將用於美容服務、緊急聯繫及行銷推廣。未經同意不會轉售第三方。</p>
+        </div>
+
+        {/* 六、智慧財產權聲明 (修正編號) */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">六、智慧財產權聲明</h5>
+            <p className="pl-2">同意本工作室拍攝照片/影片並無償使用於官網及行銷用途。若不同意請告知，則不會上傳。</p>
+        </div>
+
+        {/* 七、法律條款與爭議處理 (修正編號) */}
+        <div className="space-y-2">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">七、法律條款與爭議處理</h5>
+            <div className="pl-2 space-y-3">
+                <p><span className="font-bold">1. 爭議申訴：</span>需於服務完成後七日內提出。可共同委託獸醫診斷，費用由提出方負擔。</p>
+                <p><span className="font-bold">2. 禁止不實言論：</span>不得發布未經查證之負面評論，違者須賠償損失。</p>
+                <p><span className="font-bold">3. 管轄法院：</span>雙方同意以臺灣台中地方法院為第一審管轄法院。</p>
+                <p><span className="font-bold">4. 監視器畫面：</span>爭議發生後三日內可書面要求調閱。首次免費，額外拷貝收費 200 元。</p>
+            </div>
+        </div>
+
+        {/* 八、本同意書之修改 (修正編號) */}
+        <div className="space-y-2 pb-4">
+            <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">八、本同意書之修改</h5>
+            <p className="pl-2">修改內容將於官方 LINE 公告，繼續使用服務視為同意。</p>
+        </div>
+
+    </div>
+</div>
+)}  
                                     </div>
                                     
                                     {/* --- 高風險寵物風險告知 (僅在 8 歲以上顯示) --- */}
