@@ -573,24 +573,14 @@
                                             <Icon name="clock" size={22} />
                                         </div>
                                         <div>
-                                            <div className="text-[10px] text-slate-400 font-bold uppercase">預計接回時間</div>
-                                            <div className="font-bold text-[#736357] dark:text-[#F7E7B5] text-lg">
-                                                {data.pickup_time ? data.pickup_time : <span className="text-slate-400 italic font-normal text-sm">另行通知</span>}
-                                            </div>
+                                    <div className="font-bold text-[#736357] dark:text-[#F7E7B5] text-base">
+                                        需於通知完成後一小時內接回，超過時間將收取 $100/時 安親費用
+                                    </div>
                                         </div>
                                     </div>
                                 )}
                             </div>
                             <div className="border-t-2 border-dashed border-slate-200 dark:border-gray-700 pt-6 flex flex-col gap-5">
-                                <div className="flex justify-between items-end">
-                                    <div className="text-right w-full">
-                                        <div className="text-[10px] text-slate-400 font-bold uppercase mb-1 tracking-widest">預估金額</div>
-                                        <div className="text-4xl font-black text-[#736357] dark:text-[#F7E7B5] leading-none tracking-tight">
-                                            <span className="text-sm align-top mr-1 font-bold opacity-60">NT$</span>
-                                            {data.service_price || 0}
-                                        </div>
-                                    </div>
-                                </div>
                                 <div className="space-y-2">
                                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center">電子簽署憑證</div>
                                     <div className="p-6 bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 rounded-2xl flex justify-center shadow-sm relative overflow-hidden">
@@ -651,7 +641,6 @@
             boarding_notice_agree: '請勾選同意入住須知',
             service_type: '請選擇服務項目',
             service_type_other: '請填寫其他服務項目內容',
-            service_price: '請輸入有效的金額 (必須大於 0)',
             legal_agree: '請勾選同意契約條款',
             signature: '請完成數位簽名'
         };
@@ -692,7 +681,7 @@
                 vaccine: '', deworm: '', deworm_brand: '', vaccine_file: null,
                 allergy: '', personality: '', special_notes: '', boarding_notice_agree: false,
                 service_type: '', service_type_other: '', 
-                pickup_time: '', service_price: '',
+                pickup_time: '',
                 legal_agree: false
             });
 
@@ -909,7 +898,6 @@
                 } else {
                     if (!formData.service_type) newErrors.service_type = ERROR_MESSAGES.service_type;
                     if (formData.service_type === '其他項目' && (!formData.service_type_other || formData.service_type_other.trim() === '')) newErrors.service_type_other = ERROR_MESSAGES.service_type_other;
-                    if (!formData.service_price || parseInt(formData.service_price) <= 0) newErrors.service_price = ERROR_MESSAGES.service_price;
                 }
 
                 if (!formData.legal_agree) newErrors.legal_agree = ERROR_MESSAGES.legal_agree;
@@ -977,7 +965,7 @@
                             checkin_date: isBoarding ? formData.checkin_date : null,
                             checkout_date: isBoarding ? formData.checkout_date : null,
                             pickup_time: formData.pickup_time,
-                            service_price: isBoarding ? 0 : formData.service_price,
+                            service_price: 0,
                             signature_url: signatureUrl,
                             vaccine_url: vaccineUrl,
                             status: 'pending', 
@@ -1788,37 +1776,16 @@
                                         </div>
                                         
                                         <div className="space-y-2">
-                                            <div className="flex flex-col">
-                                                <label className="text-xs font-bold text-slate-400 ml-1 uppercase">預計接回時間</label>
-                                                <span className="text-[11px] text-red-500 font-bold ml-1">* 若未填寫，則另行通知接回時間</span>
+                                            <div className="w-full bg-[#F7E7B5]/20 rounded-xl p-5 border border-[#F7E7B5] flex items-center gap-4">
+                                                <div className="bg-[#F7E7B5] p-2.5 rounded-full text-[#736357] flex-shrink-0">
+                                                     <Icon name="bell" size={24} />
+                                                </div>
+                                                <div className="font-bold text-[#736357] dark:text-[#F7E7B5] text-sm leading-relaxed">
+                                                     需於通知完成後一小時內接回，超過時間將收取 $100/時 安親費用
+                                                </div>
                                             </div>
-                                            <input type={formData.pickup_time ? "time" : "text"} placeholder="(另行通知)"
-                                                onFocus={(e) => e.target.type = 'time'}
-                                                onBlur={(e) => { if(!e.target.value) e.target.type = 'text'; }}
-                                                value={formData.pickup_time} onChange={e=>setFormData({...formData, pickup_time:e.target.value})} 
-                                                className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[54px] placeholder-slate-300" 
-                                            />
-                                            {formData.pickup_time && (
-                                                <button type="button" onClick={() => setFormData({...formData, pickup_time: ''})}
-                                                    className="text-xs font-bold text-slate-400 underline decoration-dashed ml-1 hover:text-[#736357] dark:hover:text-[#F7E7B5] transition-colors">
-                                                    清除時間 (改為另行通知)
-                                                </button>
-                                            )}
-                                            <p className="text-[10px] text-red-500 font-bold italic mt-2.5 ml-1">※ 逾時 30 分鐘以上，將依每小時 $200 加收安親費。</p>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 uppercase">本次服務金額 *</label>
-                                            <div className="relative group">
-                                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-bold text-[#736357] dark:text-[#F7E7B5] z-10">NT$</span>
-                                                <input name="service_price" type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="0" 
-                                                    value={formData.service_price} onChange={e => handleChange('service_price', e.target.value.replace(/[^0-9]/g, ''))} 
-                                                    className={`w-full cute-input rounded-xl py-4 pr-5 pl-16 font-bold text-[#736357] dark:text-[#F7E7B5] text-2xl shadow-inner ${errors.service_price ? 'input-error' : ''}`} 
-                                                />
-                                            </div>
-                                            <FieldError message={errors.service_price} />
-                                            <p className="text-[10px] text-slate-400 font-bold italic mt-2.5 ml-1">※ 此金額為基礎報價，若有特殊狀況將另行告知加價。</p>
-                                        </div>
                                     </div>
                                 </section>
                             )}
