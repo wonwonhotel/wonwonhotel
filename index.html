@@ -619,6 +619,7 @@
             sex: '請選擇寵物性別',
             fix: '請選擇是否結紮',
             chip_status: '請選擇晶片狀態',
+            grooming_temperament: '請選擇寵物美容性情與攻擊性評估',
             dog_traits: '請至少選擇一項社交狀況',
             medical_status: '請選擇是否有過往病史',
             medical_history: '請選擇病史項目',
@@ -674,6 +675,7 @@
                 emergency_name: '', emergency_phone: '',
                 pet_name: '', breed: '', sex: '', age: '', weight: '', fix: '', 
                 chip_status: '', chip_id: '', preferred_clinic: '',
+                grooming_temperament: '',
                 dog_traits: [], is_barking: '', barking_detail: '',
                 medical_status: '', medical_history: [], medical_history_other: '',
                 checkin_date: '', checkout_date: '', stay_exp: '',
@@ -862,6 +864,7 @@
                 if (formData.chip_status === '有晶片' && (!formData.chip_id || formData.chip_id.trim() === '')) {
                     newErrors.chip_id = '請輸入晶片號碼';
                 }
+                if (!formData.grooming_temperament) newErrors.grooming_temperament = ERROR_MESSAGES.grooming_temperament;
                 if (formData.dog_traits.length === 0) newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
                 if (!formData.medical_status) newErrors.medical_status = ERROR_MESSAGES.medical_status;
                 else if (formData.medical_status === '有' && formData.medical_history.length === 0) newErrors.medical_history = ERROR_MESSAGES.medical_history;
@@ -1507,7 +1510,7 @@
                                                 {[
                                                     { value: '天使寶寶', label: '天使寶寶：個性溫和，無任何攻擊紀錄，也不怕生。' },
                                                     { value: '有點緊張', label: '有點緊張：膽小怕生，可能會低吼或閃躲，但未曾咬人。' },
-                                                    { value: '恰北北/護主', label: '恰北北/護主：對於特定部位（如腳、尾巴、臉）敏感，或看到陌生人/狗貓會兇，曾有攻擊或試圖咬人的紀錄。（請務必告知，讓我們做好防護準備）' }
+                                                    { value: '恰北北/護主', label: <span>恰北北/護主：對於特定部位（如腳、尾巴、臉）敏感，或看到陌生人/狗貓會兇，曾有攻擊或試圖咬人的紀錄。<span className="text-red-500 font-bold">（請務必告知，讓我們做好防護準備）</span></span> }
                                                 ].map(option => (
                                                     <button 
                                                         type="button" 
