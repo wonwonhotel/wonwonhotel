@@ -9,23 +9,18 @@
     <meta name="theme-color" content="#736357">
     
     <link rel="icon" type="image/png" href="logo.png">
-    
     <link rel="apple-touch-icon" href="logo.png">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">   
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">    
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://www.google.com/recaptcha/api.js?render=6LcXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-datepicker@4.25.0/dist/react-datepicker.min.js"></script>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/react-datepicker@4.25.0/dist/react-datepicker.min.css">
 
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // Tailwind config with dark mode
         tailwind.config = {
@@ -45,8 +40,17 @@
         }
     </script>
 
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-datepicker@4.25.0/dist/react-datepicker.min.js" defer></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=6LcXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" async defer></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+TC:wght@300;500;700&display=swap');
         
         :root { 
             --brand-yellow: #F7E7B5; 
@@ -351,6 +355,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
 
@@ -796,7 +801,7 @@ const riskType = useMemo(() => {
 
             // Simulate page loading
             useEffect(() => {
-                const timer = setTimeout(() => setIsPageLoading(false), 800);
+                const timer = setTimeout(() => setIsPageLoading(false), 300);
                 return () => clearTimeout(timer);
             }, []);
 
@@ -1851,8 +1856,7 @@ const getTodayDate = () => {
                                                 </div>
                                                 
                                                 <div className="max-w-xl mx-auto overflow-hidden rounded-[2rem] border-[6px] border-[#F7E7B5] shadow-xl bg-white dark:bg-gray-800 group hover:scale-[1.01] transition-transform duration-500">
-                                                    <img src="./boarding-notice.jpg" alt="入住須知" className="w-full h-auto object-contain block" onError={(e) => { e.target.onerror = null; e.target.parentNode.innerHTML = '<div class="p-16 text-center text-[#736357] dark:text-[#F7E7B5] font-bold bg-[#F7E7B5]/10">💡 提示：請確認 "boarding-notice.jpg" 圖片已與 HTML 置於同一路徑</div>'; }} />
-                                                    <div className="bg-[#F7E7B5] p-3.5 text-center text-[#736357] text-xs font-black tracking-widest flex items-center justify-center gap-2"><Icon name="eye" size={14}/> 請務必詳閱上方入住須知內容</div>
+<img src="./boarding-notice.jpg" loading="lazy" alt="入住須知" className="w-full h-auto object-contain block" onError={(e) => { e.target.onerror = null; e.target.parentNode.innerHTML = '<div class="p-16 text-center text-[#736357] dark:text-[#F7E7B5] font-bold bg-[#F7E7B5]/10">💡 提示：請確認 "boarding-notice.jpg" 圖片已與 HTML 置於同一路徑</div>'; }} />                                                    <div className="bg-[#F7E7B5] p-3.5 text-center text-[#736357] text-xs font-black tracking-widest flex items-center justify-center gap-2"><Icon name="eye" size={14}/> 請務必詳閱上方入住須知內容</div>
                                                 </div>
 
                                                 <div className="pt-4">
