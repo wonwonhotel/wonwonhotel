@@ -1090,15 +1090,17 @@ const { error: insertError } = await supabase
 
 // 在 App 元件內，找到 selectServiceFlow 並替換成以下內容：
 const selectServiceFlow = (type) => {
-    setIsBoarding(type === 'both');
-    
-    // [新增] 加入歷史紀錄，模擬進入新頁面
-    window.history.pushState({ page: 'form' }, '', '#form');
-    
-    setView('client');
-    setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
-};
-
+            setIsBoarding(type === 'both');
+            
+            // 判斷要顯示的網址後綴 (Hash)
+            const targetHash = type === 'both' ? '#boarding' : '#grooming';
+            
+            // 加入歷史紀錄，並改變網址為對應的 hash
+            window.history.pushState({ page: 'form' }, '', targetHash);
+            
+            setView('client');
+            setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
+        };
             const scrollPositionRef = useRef(0);
             const initialOrientationRef = useRef(null);
             const canvasSizeRef = useRef({ width: 0, height: 0 });
