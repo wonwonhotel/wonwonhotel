@@ -359,7 +359,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+<script type="text/babel">
         const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
         const SUPABASE_URL = 'https://fpkzuotxxbsqisgwupix.supabase.co';
@@ -447,7 +447,7 @@
             </div>
         );
 
-        // --- Input with Error Component (移到 App 外部避免重新渲染導致鍵盤消失) ---
+        // --- Input with Error Component ---
         const InputWithError = ({ name, type = 'text', value, onChange, placeholder, error, className = '', inputMode, pattern, step, min }) => (
             <div className="space-y-1">
                 <input 
@@ -651,92 +651,103 @@
             signature: '請完成數位簽名'
         };
 
-            const compressImage = (file) => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.src = event.target.result;
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            let width = img.width;
-                            let height = img.height;
-                            const max_size = 1200; 
-                            if (width > height) {
-                                if (width > max_size) {
-                                    height *= max_size / width;
-                                    width = max_size;
-                                }
-                            } else {
-                                if (height > max_size) {
-                                    width *= max_size / height;
-                                    height = max_size;
-                                }
+        const compressImage = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const max_size = 1200; 
+                        if (width > height) {
+                            if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
                             }
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
-                            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                            resolve(dataUrl);
-                        };
+                        } else {
+                            if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                            }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        resolve(dataUrl);
                     };
-                });
-            };
+                };
+            });
+        };
 
-            const UnifiedLineSection = () => {
-                const [lineConfirmed, setLineConfirmed] = useState(false);
-                return (
-                    <div className="glass-card section-highlight overflow-hidden border-none bg-white dark:bg-gray-800 p-6 md:p-8 shadow-sm relative">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#06C755]/10 rounded-full blur-3xl"></div>
-                        <div className="relative z-10 space-y-6">
-                            <div className="text-center space-y-2">
-                                <h3 className="text-2xl font-black text-[#736357] dark:text-[#F7E7B5] flex items-center justify-center gap-2">
-                                    <img src="line.png" className="w-8 h-8 object-contain" alt="LINE" />
-                                    加入官方 LINE
-                                </h3>
-                                <p className="text-sm text-slate-500 font-bold">ID: @cik3330f</p>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <a href="https://line.me/R/ti/p/@cik3330f" target="_blank" className="bg-[#fbf9f6] dark:bg-gray-700 border-2 border-[#06C755]/20 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-[#06C755]/5 transition-colors group">
-                                    <div className="w-8 h-8 rounded-full bg-[#06C755] text-white flex items-center justify-center font-black text-sm mb-1">1</div>
-                                    <span className="font-bold text-lg text-[#06C755]">點擊加入好友</span>
-                                    <span className="text-xs text-slate-400">開啟 LINE APP</span>
-                                    <div className="mt-2 w-full py-2 bg-[#06C755] text-white rounded-lg text-center font-bold text-sm shadow-md group-hover:scale-105 transition-transform">立即加 LINE</div>
-                                </a>
-                                <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-200 dark:border-red-900 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden">
-                                    <div className="absolute -right-4 -top-4 text-red-100 dark:text-red-900/20 opacity-50 transform rotate-12"><Icon name="message-circle" size={100} /></div>
-                                    <div className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center font-black text-sm mb-1 relative z-10">2</div>
-                                    <span className="font-bold text-lg text-red-600 dark:text-red-400 relative z-10">務必「傳送貼圖」</span>
-                                    <span className="text-xs font-bold text-red-500 relative z-10">⚠️ 沒傳貼圖，我們就找不到您囉！</span>
-                                </div>
-                            </div>
-                            <button type="button" onClick={() => setLineConfirmed(!lineConfirmed)} className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold transition-all duration-300 border-2 ${lineConfirmed ? 'bg-[#06C755] text-white border-[#06C755] shadow-lg scale-[1.02]' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#06C755] hover:text-[#06C755]'}`}>
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${lineConfirmed ? 'border-white bg-white/20' : 'border-current'}`}>{lineConfirmed && <Icon name="check" size={12} />}</div>
-                                {lineConfirmed ? "OK！我已加入並傳送貼圖" : "確認：我已完成上述兩步驟"}
-                            </button>
+        const UnifiedLineSection = () => {
+            const [lineConfirmed, setLineConfirmed] = useState(false);
+            return (
+                <div className="glass-card section-highlight overflow-hidden border-none bg-white dark:bg-gray-800 p-6 md:p-8 shadow-sm relative">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#06C755]/10 rounded-full blur-3xl"></div>
+                    <div className="relative z-10 space-y-6">
+                        <div className="text-center space-y-2">
+                            <h3 className="text-2xl font-black text-[#736357] dark:text-[#F7E7B5] flex items-center justify-center gap-2">
+                                <img src="line.png" className="w-8 h-8 object-contain" alt="LINE" />
+                                加入官方 LINE
+                            </h3>
+                            <p className="text-sm text-slate-500 font-bold">ID: @cik3330f</p>
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <a href="https://line.me/R/ti/p/@cik3330f" target="_blank" className="bg-[#fbf9f6] dark:bg-gray-700 border-2 border-[#06C755]/20 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-[#06C755]/5 transition-colors group">
+                                <div className="w-8 h-8 rounded-full bg-[#06C755] text-white flex items-center justify-center font-black text-sm mb-1">1</div>
+                                <span className="font-bold text-lg text-[#06C755]">點擊加入好友</span>
+                                <span className="text-xs text-slate-400">開啟 LINE APP</span>
+                                <div className="mt-2 w-full py-2 bg-[#06C755] text-white rounded-lg text-center font-bold text-sm shadow-md group-hover:scale-105 transition-transform">立即加 LINE</div>
+                            </a>
+                            <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-200 dark:border-red-900 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden">
+                                <div className="absolute -right-4 -top-4 text-red-100 dark:text-red-900/20 opacity-50 transform rotate-12"><Icon name="message-circle" size={100} /></div>
+                                <div className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center font-black text-sm mb-1 relative z-10">2</div>
+                                <span className="font-bold text-lg text-red-600 dark:text-red-400 relative z-10">務必「傳送貼圖」</span>
+                                <span className="text-xs font-bold text-red-500 relative z-10">⚠️ 沒傳貼圖，我們就找不到您囉！</span>
+                            </div>
+                        </div>
+                        <button type="button" onClick={() => setLineConfirmed(!lineConfirmed)} className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold transition-all duration-300 border-2 ${lineConfirmed ? 'bg-[#06C755] text-white border-[#06C755] shadow-lg scale-[1.02]' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#06C755] hover:text-[#06C755]'}`}>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${lineConfirmed ? 'border-white bg-white/20' : 'border-current'}`}>{lineConfirmed && <Icon name="check" size={12} />}</div>
+                            {lineConfirmed ? "OK！我已加入並傳送貼圖" : "確認：我已完成上述兩步驟"}
+                        </button>
                     </div>
-                );
-            };
+                </div>
+            );
+        };
 
-            
-
-            // Dark mode toggle button
-const DarkModeToggle = ({ isDark, setIsDark }) => (
-    <button 
-        onClick={() => setIsDark(!isDark)} 
-        className="dark-mode-toggle"
-        title={isDark ? '切換淺色模式' : '切換深色模式'}
-    >
-        <Icon name={isDark ? "sun" : "moon"} size={24} />
-    </button>
-);            
+        // Dark mode toggle button
+        const DarkModeToggle = ({ isDark, setIsDark }) => (
+            <button 
+                onClick={() => setIsDark(!isDark)} 
+                className="dark-mode-toggle"
+                title={isDark ? '切換淺色模式' : '切換深色模式'}
+            >
+                <Icon name={isDark ? "sun" : "moon"} size={24} />
+            </button>
+        );            
 
         const App = () => {
-            const [view, setView] = useState('entry'); 
-            const [isBoarding, setIsBoarding] = useState(false);
+            // 1. 定義解析網址 Hash 的函式
+            const getInitialState = useCallback(() => {
+                const hash = window.location.hash;
+                if (hash === '#boarding') return { view: 'client', isBoarding: true };
+                if (hash === '#grooming') return { view: 'client', isBoarding: false };
+                return { view: 'entry', isBoarding: false };
+            }, []);
+
+            const initialState = getInitialState();
+
+            // 2. 設定 State
+            const [view, setView] = useState(initialState.view); 
+            const [isBoarding, setIsBoarding] = useState(initialState.isBoarding);
+            
+            // 其他狀態
             const [showFullSig, setShowFullSig] = useState(false);
             const [realtimeSig, setRealtimeSig] = useState(null);
             const [boardingOpen, setBoardingOpen] = useState(false);
@@ -761,7 +772,7 @@ const DarkModeToggle = ({ isDark, setIsDark }) => (
             const [formData, setFormData] = useState({
                 email: '', owner_name: '', owner_id: '', phone: '', address: '', 
                 emergency_name: '', emergency_phone: '',
-pet_name: '', breed: '', sex: '', age: '', age_months: '', is_under_one: false, weight: '', fix: '',
+                pet_name: '', breed: '', sex: '', age: '', age_months: '', is_under_one: false, weight: '', fix: '',
                 chip_status: '', chip_id: '', preferred_clinic: '',
                 grooming_temperament: '',
                 dog_traits: [], is_barking: '', barking_detail: '',
@@ -778,26 +789,25 @@ pet_name: '', breed: '', sex: '', age: '', age_months: '', is_under_one: false, 
             const fullSigCanvasRef = useRef(null);
             const padInstance = useRef(null);
 
-// --- 修改：計算實際年齡（含月份轉換）---
-const actualAge = useMemo(() => {
-    if (formData.is_under_one && formData.age_months) {
-        // 未滿一歲：將月份轉換成年齡（例如 5個月 = 0.42歲）
-        return parseFloat(formData.age_months) / 12;
-    }
-    return parseFloat(formData.age) || 0;
-}, [formData.age, formData.age_months, formData.is_under_one]);
+            // --- 計算實際年齡 ---
+            const actualAge = useMemo(() => {
+                if (formData.is_under_one && formData.age_months) {
+                    return parseFloat(formData.age_months) / 12;
+                }
+                return parseFloat(formData.age) || 0;
+            }, [formData.age, formData.age_months, formData.is_under_one]);
 
-// --- 判斷是否為高風險寵物 (8歲以上 或 5個月以下) ---
-const isHighRisk = useMemo(() => {
-    return actualAge >= 8 || actualAge < 0.42; // 5個月 ≈ 0.42歲
-}, [actualAge]);
+            // --- 判斷是否為高風險寵物 ---
+            const isHighRisk = useMemo(() => {
+                return actualAge >= 8 || actualAge < 0.42;
+            }, [actualAge]);
 
-// 判斷具體風險類型
-const riskType = useMemo(() => {
-    if (actualAge >= 8) return 'senior'; // 高齡
-    if (actualAge < 0.42) return 'puppy'; // 幼齡
-    return null;
-}, [actualAge]);
+            // 判斷具體風險類型
+            const riskType = useMemo(() => {
+                if (actualAge >= 8) return 'senior'; 
+                if (actualAge < 0.42) return 'puppy';
+                return null;
+            }, [actualAge]);
 
             // Simulate page loading
             useEffect(() => {
@@ -809,20 +819,39 @@ const riskType = useMemo(() => {
                 setToast({ message, type });
             };
 
-// [新增] 監聽瀏覽器上一頁 (popstate) 事件
-useEffect(() => {
-    const handlePopState = (event) => {
-        // 如果當前是填寫頁面 (client)，且使用者按了上一頁
-        if (view === 'client') {
-            // 防止瀏覽器真的離開網頁，強制切換回 entry 畫面
-            setView('entry');
-        }
-    };
+            // 監聽網址變化
+            useEffect(() => {
+                const handleHashChange = () => {
+                    const hash = window.location.hash;
+                    let newState = { view: 'entry', isBoarding: false };
+                    
+                    if (hash === '#boarding') newState = { view: 'client', isBoarding: true };
+                    else if (hash === '#grooming') newState = { view: 'client', isBoarding: false };
+                    
+                    setView(newState.view);
+                    setIsBoarding(newState.isBoarding);
+                    
+                    if (newState.view === 'entry') {
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    } else {
+                        setTimeout(() => window.scrollTo({top: 0, behavior: 'smooth'}), 100);
+                    }
+                };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-}, [view]);
+                window.addEventListener('hashchange', handleHashChange);
+                window.addEventListener('popstate', handleHashChange);
 
+                return () => {
+                    window.removeEventListener('hashchange', handleHashChange);
+                    window.removeEventListener('popstate', handleHashChange);
+                };
+            }, []);
+
+            // 選擇服務流程（透過 Hash 觸發）
+            const selectServiceFlow = (type) => {
+                const targetHash = type === 'both' ? '#boarding' : '#grooming';
+                window.location.hash = targetHash;
+            };
 
             // Calculate stay duration
             const stayDuration = useMemo(() => {
@@ -833,8 +862,6 @@ useEffect(() => {
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 return diffDays > 0 ? diffDays : null;
             }, [formData.checkin_date, formData.checkout_date]);
-
-
 
             const handleChange = (field, value) => {
                 let finalVal = value;
@@ -933,14 +960,12 @@ useEffect(() => {
                 const newErrors = {};
                 const requiredText = ['email', 'owner_name', 'phone', 'owner_id', 'address', 'emergency_name', 'emergency_phone', 'pet_name', 'breed', 'weight', 'age', 'preferred_clinic'];
                 requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
-                requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
 
-// [新增] 年齡驗證：未滿一歲必須選月份，滿一歲必須填年齡
-if (formData.is_under_one) {
-    if (!formData.age_months) newErrors.age = '請選擇月齡';
-} else {
-    if (!formData.age) newErrors.age = '請輸入年齡';
-}
+                if (formData.is_under_one) {
+                    if (!formData.age_months) newErrors.age = '請選擇月齡';
+                } else {
+                    if (!formData.age) newErrors.age = '請輸入年齡';
+                }
 
                 if (formData.email && !validateEmail(formData.email)) newErrors.email = ERROR_MESSAGES.email;
                 if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = ERROR_MESSAGES.phone;
@@ -954,7 +979,7 @@ if (formData.is_under_one) {
                 if (!formData.sex) newErrors.sex = ERROR_MESSAGES.sex;
                 if (!formData.fix) newErrors.fix = ERROR_MESSAGES.fix;
                 if (!formData.chip_status) newErrors.chip_status = ERROR_MESSAGES.chip_status;
-                // 晶片號碼驗證：選擇「有晶片」時必填
+                
                 if (formData.chip_status === '有晶片' && (!formData.chip_id || formData.chip_id.trim() === '')) {
                     newErrors.chip_id = '請輸入晶片號碼';
                 }
@@ -962,7 +987,7 @@ if (formData.is_under_one) {
                 if (formData.dog_traits.length === 0) newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
                 if (!formData.medical_status) newErrors.medical_status = ERROR_MESSAGES.medical_status;
                 else if (formData.medical_status === '有' && formData.medical_history.length === 0) newErrors.medical_history = ERROR_MESSAGES.medical_history;
-                // 其他病史驗證：選擇「其他」時必填
+                
                 if (formData.medical_status === '有' && formData.medical_history.includes('其他') && (!formData.medical_history_other || formData.medical_history_other.trim() === '')) {
                     newErrors.medical_history_other = '請填寫其他病史內容';
                 }
@@ -1016,18 +1041,14 @@ if (formData.is_under_one) {
                 setIsSubmitting(true);
 
                 try {
-                    // reCAPTCHA v3 驗證
+                    // reCAPTCHA v3
                     let recaptchaToken = null;
                     if (window.grecaptcha && window.grecaptcha.execute) {
                         try {
                             recaptchaToken = await window.grecaptcha.execute('6LcXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', { action: 'submit_booking' });
-                            console.log('reCAPTCHA token obtained:', recaptchaToken ? 'success' : 'failed');
                         } catch (recaptchaError) {
-                            console.warn('reCAPTCHA 驗證失敗，繼續提交:', recaptchaError);
-                            // 如果 reCAPTCHA 失敗，仍然允許提交（避免阻擋正常用戶）
+                            console.warn('reCAPTCHA failed:', recaptchaError);
                         }
-                    } else {
-                        console.warn('reCAPTCHA 未載入，跳過驗證');
                     }
 
                     let signatureUrl = null;
@@ -1052,15 +1073,14 @@ if (formData.is_under_one) {
                         vaccineUrl = publicUrl;
                     }
 
-const { error: insertError } = await supabase
-    .from('bookings')
-    .insert({
-        owner_name: formData.owner_name,
-        phone: formData.phone,
-        pet_name: formData.pet_name,
-        service_type: isBoarding ? '住宿＋美容' : formData.service_type,
-        pet_age: actualAge, // [新增] 儲存計算後的實際年齡
-
+                    const { error: insertError } = await supabase
+                        .from('bookings')
+                        .insert({
+                            owner_name: formData.owner_name,
+                            phone: formData.phone,
+                            pet_name: formData.pet_name,
+                            service_type: isBoarding ? '住宿＋美容' : formData.service_type,
+                            pet_age: actualAge,
                             checkin_date: isBoarding ? formData.checkin_date : null,
                             checkout_date: isBoarding ? formData.checkout_date : null,
                             pickup_time: formData.pickup_time,
@@ -1072,6 +1092,85 @@ const { error: insertError } = await supabase
                         });
 
                     if (insertError) throw insertError;
+
+                    // Email Logic
+                    let riskClauseHtml = '';
+                    if (isHighRisk) {
+                        const riskTypeStr = riskType === 'senior' ? '高齡(8歲以上)' : '幼齡(5個月以下)';
+                        riskClauseHtml = `
+                            <div style="background-color: #fff5f5; border: 2px dashed #fc8181; border-radius: 12px; padding: 15px; margin-top: 20px;">
+                                <h3 style="color: #e53e3e; margin: 0 0 10px 0; font-size: 16px;">⚠️ 高風險寵物服務特別告知</h3>
+                                <p style="font-size: 13px; color: #742a2a; margin: 0;">
+                                    系統檢測本寵物為 <strong>${riskTypeStr}</strong>，飼主已詳閱並同意「高風險寵物服務風險告知」之所有內容。
+                                </p>
+                                <ul style="font-size: 12px; color: #742a2a; padding-left: 20px; margin-top: 8px;">
+                                    <li>同意承擔因年齡或潛在疾病可能引發之突發狀況風險。</li>
+                                    <li>同意授權店家於緊急時刻進行必要之醫療處置或送醫。</li>
+                                    <li>確認已誠實告知寵物身體狀況，無隱瞞重大病史。</li>
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    const serviceClauseTitle = isBoarding ? '住宿服務同意書' : '美容服務同意書';
+                    
+                    const emailHtml = `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background-color: #ffffff;">
+                            <div style="background-color: #736357; padding: 24px; text-align: center;">
+                                <h1 style="color: #ffffff; margin: 0; font-size: 24px;">汪汪犬旅</h1>
+                                <p style="color: #F7E7B5; margin: 5px 0 0 0; font-size: 14px;">數位服務契約副本</p>
+                            </div>
+
+                            <div style="padding: 30px; color: #5D4D41;">
+                                <p>親愛的 <strong>${formData.owner_name}</strong> 您好：</p>
+                                <p>感謝您選擇汪汪犬旅！這是您剛剛為毛孩 <strong>${formData.pet_name}</strong> 簽署的服務契約內容。</p>
+                                
+                                <div style="background-color: #fbf9f6; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                                    <h3 style="color: #736357; margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">🐾 服務明細</h3>
+                                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; line-height: 1.8;">
+                                        <li><strong>寵物：</strong> ${formData.pet_name} (${formData.breed} / ${formData.sex})</li>
+                                        <li><strong>服務：</strong> ${isBoarding ? '住宿＋美容' : formData.service_type}</li>
+                                        ${isBoarding ? `<li><strong>入住時間：</strong> ${formData.checkin_date} ~ ${formData.checkout_date}</li>` : ''}
+                                        <li><strong>特殊備註：</strong> ${formData.special_notes || '無'}</li>
+                                    </ul>
+                                </div>
+
+                                ${riskClauseHtml}
+
+                                <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;">
+                                    <h3 style="color: #736357; font-size: 16px;">✍️ 簽署確認</h3>
+                                    <p style="font-size: 13px; color: #666; line-height: 1.5;">
+                                        飼主已審閱並同意<strong>【${serviceClauseTitle}】</strong>${isHighRisk ? '及<strong>【高風險寵物特別告知】</strong>' : ''}之所有條款，並承諾遵守相關規範。
+                                    </p>
+                                    
+                                    <div style="margin-top: 15px;">
+                                        <p style="font-size: 12px; color: #999; margin-bottom: 5px;">電子簽章憑證：</p>
+                                        <img src="${signatureUrl}" alt="飼主簽名" style="max-width: 200px; height: auto; border: 1px dashed #ccc; padding: 5px; border-radius: 8px;" />
+                                    </div>
+                                </div>
+
+                                <hr style="border: none; border-top: 1px dashed #ddd; margin: 30px 0;">
+                                
+                                <p style="font-size: 12px; color: #999; text-align: center;">
+                                    此信件為系統自動發送，請勿直接回覆。<br/>
+                                    如有任何疑問，請透過官方 LINE (@cik3330f) 與我們聯繫。
+                                </p>
+                            </div>
+                        </div>
+                    `;
+
+                    const { data: funcData, error: funcError } = await supabase.functions.invoke('send-contract', {
+                        body: {
+                            email: formData.email,
+                            owner_name: formData.owner_name,
+                            pet_name: formData.pet_name,
+                            htmlContent: emailHtml 
+                        }
+                    });
+
+                    if (funcError) console.error("寄信失敗:", funcError);
+                    else console.log("寄信成功:", funcData);
+
                     localStorage.removeItem('wangwang_form_draft');
                     setShowSuccess(true);
 
@@ -1088,19 +1187,6 @@ const { error: insertError } = await supabase
                 window.location.reload();
             }
 
-// 在 App 元件內，找到 selectServiceFlow 並替換成以下內容：
-const selectServiceFlow = (type) => {
-            setIsBoarding(type === 'both');
-            
-            // 判斷要顯示的網址後綴 (Hash)
-            const targetHash = type === 'both' ? '#boarding' : '#grooming';
-            
-            // 加入歷史紀錄，並改變網址為對應的 hash
-            window.history.pushState({ page: 'form' }, '', targetHash);
-            
-            setView('client');
-            setTimeout(() => { window.scrollTo({top: 0, behavior: 'smooth'}); }, 100);
-        };
             const scrollPositionRef = useRef(0);
             const initialOrientationRef = useRef(null);
             const canvasSizeRef = useRef({ width: 0, height: 0 });
@@ -1225,11 +1311,11 @@ const selectServiceFlow = (type) => {
                 </button>
             );
 
-const getTodayDate = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().split('T')[0];
-};
+            const getTodayDate = () => {
+                const d = new Date();
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().split('T')[0];
+            };
 
             const getMinCheckoutDate = () => {
                 if (!formData.checkin_date) return getTodayDate();
@@ -1387,17 +1473,18 @@ const getTodayDate = () => {
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-400 ml-1">連絡電話 *</label>
                                         <div className="flex gap-2">
-                                            <div className="flex-1">
-                                                <InputWithError 
-                                                    name="phone" 
-                                                    type="tel" 
-                                                    inputMode="numeric" 
-                                                    value={formData.phone} 
-                                                    onChange={e=>handleChange('phone', e.target.value.replace(/\D/g, ''))} 
-                                                    placeholder="0912345678"
-                                                    error={errors.phone}
-                                                />
-                                            </div>
+<div className="flex-1">
+    <InputWithError 
+        name="phone" 
+        type="tel" 
+        inputMode="numeric" 
+        value={formData.phone} 
+        // 👇 修改這裡
+        onChange={e=>handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} 
+        placeholder="0912345678"
+        error={errors.phone}
+    />
+</div>
                                             <button 
                                                 onClick={handleSearchHistory} 
                                                 disabled={isSearching}
@@ -1449,19 +1536,21 @@ const getTodayDate = () => {
                                             className="border-red-50 bg-red-50/10 focus:border-red-200"
                                         />
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-red-400 ml-1">緊急連絡電話 *</label>
-                                        <InputWithError 
-                                            name="emergency_phone" 
-                                            type="tel" 
-                                            inputMode="numeric" 
-                                            value={formData.emergency_phone} 
-                                            onChange={e=>handleChange('emergency_phone', e.target.value.replace(/\D/g, ''))} 
-                                            placeholder=""
-                                            error={errors.emergency_phone}
-                                            className="border-red-50 bg-red-50/10 focus:border-red-200"
-                                        />
-                                    </div>
+<div className="space-y-1.5">
+    <label className="text-xs font-bold text-red-400 ml-1">緊急連絡電話 *</label>
+    <InputWithError 
+        name="emergency_phone" 
+        type="tel" 
+        inputMode="numeric" 
+        value={formData.emergency_phone} 
+        // 👇 修改這裡
+        onChange={e=>handleChange('emergency_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} 
+        placeholder=""
+        error={errors.emergency_phone}
+        className="border-red-50 bg-red-50/10 focus:border-red-200"
+    />
+</div>
+
                                 </div>
                             </section>
 
@@ -2468,5 +2557,5 @@ const getTodayDate = () => {
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
-</body>
+    </body>
 </html>
