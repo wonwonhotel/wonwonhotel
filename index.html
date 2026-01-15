@@ -756,7 +756,7 @@ const DarkModeToggle = ({ isDark, setIsDark }) => (
             const [formData, setFormData] = useState({
                 email: '', owner_name: '', owner_id: '', phone: '', address: '', 
                 emergency_name: '', emergency_phone: '',
-                pet_name: '', breed: '', sex: '', age: '', weight: '', fix: '', 
+pet_name: '', breed: '', sex: '', age: '', age_months: '', is_under_one: false, weight: '', fix: '',
                 chip_status: '', chip_id: '', preferred_clinic: '',
                 grooming_temperament: '',
                 dog_traits: [], is_barking: '', barking_detail: '',
@@ -773,11 +773,26 @@ const DarkModeToggle = ({ isDark, setIsDark }) => (
             const fullSigCanvasRef = useRef(null);
             const padInstance = useRef(null);
 
-            // --- 新增：判斷是否為高齡寵物 (8歲以上) ---
-            const isSenior = useMemo(() => {
-                const ageNum = parseFloat(formData.age);
-                return !isNaN(ageNum) && ageNum >= 8;
-            }, [formData.age]);
+// --- 修改：計算實際年齡（含月份轉換）---
+const actualAge = useMemo(() => {
+    if (formData.is_under_one && formData.age_months) {
+        // 未滿一歲：將月份轉換成年齡（例如 5個月 = 0.42歲）
+        return parseFloat(formData.age_months) / 12;
+    }
+    return parseFloat(formData.age) || 0;
+}, [formData.age, formData.age_months, formData.is_under_one]);
+
+// --- 判斷是否為高風險寵物 (8歲以上 或 5個月以下) ---
+const isHighRisk = useMemo(() => {
+    return actualAge >= 8 || actualAge < 0.42; // 5個月 ≈ 0.42歲
+}, [actualAge]);
+
+// 判斷具體風險類型
+const riskType = useMemo(() => {
+    if (actualAge >= 8) return 'senior'; // 高齡
+    if (actualAge < 0.42) return 'puppy'; // 幼齡
+    return null;
+}, [actualAge]);
 
             // Simulate page loading
             useEffect(() => {
@@ -913,7 +928,15 @@ useEffect(() => {
                 const newErrors = {};
                 const requiredText = ['email', 'owner_name', 'phone', 'owner_id', 'address', 'emergency_name', 'emergency_phone', 'pet_name', 'breed', 'weight', 'age', 'preferred_clinic'];
                 requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
-                
+                requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
+
+// [新增] 年齡驗證：未滿一歲必須選月份，滿一歲必須填年齡
+if (formData.is_under_one) {
+    if (!formData.age_months) newErrors.age = '請選擇月齡';
+} else {
+    if (!formData.age) newErrors.age = '請輸入年齡';
+}
+
                 if (formData.email && !validateEmail(formData.email)) newErrors.email = ERROR_MESSAGES.email;
                 if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = ERROR_MESSAGES.phone;
                 if (formData.emergency_phone && !validatePhone(formData.emergency_phone)) newErrors.emergency_phone = ERROR_MESSAGES.emergency_phone;
@@ -1024,13 +1047,15 @@ useEffect(() => {
                         vaccineUrl = publicUrl;
                     }
 
-                    const { error: insertError } = await supabase
-                        .from('bookings')
-                        .insert({
-                            owner_name: formData.owner_name,
-                            phone: formData.phone,
-                            pet_name: formData.pet_name,
-                            service_type: isBoarding ? '住宿＋美容' : formData.service_type,
+const { error: insertError } = await supabase
+    .from('bookings')
+    .insert({
+        owner_name: formData.owner_name,
+        phone: formData.phone,
+        pet_name: formData.pet_name,
+        service_type: isBoarding ? '住宿＋美容' : formData.service_type,
+        pet_age: actualAge, // [新增] 儲存計算後的實際年齡
+
                             checkin_date: isBoarding ? formData.checkin_date : null,
                             checkout_date: isBoarding ? formData.checkout_date : null,
                             pickup_time: formData.pickup_time,
@@ -1509,18 +1534,72 @@ const getTodayDate = () => {
                                                 error={errors.weight}
                                             />
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label>
-                                            <InputWithError 
-                                                name="age" 
-                                                type="number"   
-                                                step="0.1"      
-                                                min="0.1"       
-                                                value={formData.age} 
-                                                onChange={e=>handleChange('age', e.target.value)} 
-                                                error={errors.age}
-                                            />
-                                        </div>
+<div className="space-y-2" id="age">
+    <label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label>
+    
+    {/* 年齡類型切換按鈕 */}
+    <div className="flex gap-2">
+        <button 
+            type="button" 
+            onClick={() => {
+                setFormData(prev => ({ ...prev, is_under_one: false, age_months: '', age: '' }));
+                if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+            }}
+            className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${!formData.is_under_one ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}
+        >
+            <span className="flex items-center justify-center gap-1.5">
+                {!formData.is_under_one && <Icon name="check-circle" size={14} />}
+                滿一歲以上
+            </span>
+        </button>
+        <button 
+            type="button" 
+            onClick={() => {
+                setFormData(prev => ({ ...prev, is_under_one: true, age: '', age_months: '' }));
+                if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+            }}
+            className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.is_under_one ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}
+        >
+            <span className="flex items-center justify-center gap-1.5">
+                {formData.is_under_one && <Icon name="check-circle" size={14} />}
+                未滿一歲
+            </span>
+        </button>
+    </div>
+
+    {/* 根據選擇顯示不同輸入 */}
+    {formData.is_under_one ? (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-1">
+            <select 
+                name="age_months"
+                value={formData.age_months}
+                onChange={e => handleChange('age_months', e.target.value)}
+                className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error' : ''}`}
+            >
+                <option value="">請選擇月齡</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => (
+                    <option key={m} value={m}>{m} 個月</option>
+                ))}
+            </select>
+            <FieldError message={errors.age} />
+        </div>
+    ) : (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-1">
+            <input 
+                name="age"
+                type="number"
+                min="1"
+                step="1"
+                value={formData.age}
+                onChange={e => handleChange('age', e.target.value)}
+                placeholder="請輸入年齡（整數）"
+                className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error' : ''}`}
+            />
+            <FieldError message={errors.age} />
+        </div>
+    )}
+</div>
+
                                         <div className="space-y-2" id="sex">
                                             <label className="text-xs font-bold text-slate-400 ml-1">性別 *</label>
                                             <div className={`flex gap-2 ${errors.sex ? 'group-error' : ''}`}>
@@ -1805,26 +1884,69 @@ const getTodayDate = () => {
                                         <h3 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">本次服務內容</h3>
                                     </div>
                                     <div className="grid md:grid-cols-2 gap-8">
-                                        <div className="md:col-span-2 space-y-4">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider uppercase">服務項目 *</label>
-                                            <div id="service_type" className={`flex flex-wrap gap-3 ${errors.service_type ? 'group-error' : ''}`}>
-                                                {['包月洗澡','基礎洗澡','精緻美容','局部修剪','寵物安親','其他項目'].map(s => (
-                                                    <button key={s} type="button" onClick={()=>handleChange('service_type', s)} 
-                                                        className={`pill-button px-6 py-4 rounded-2xl font-bold text-sm border transition-all ${formData.service_type === s ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5]'}`}>
-                                                        {s}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <FieldError message={errors.service_type} />
-                                            {formData.service_type === '其他項目' && (
-                                                <div className="mt-3 animate-in fade-in space-y-1">
-                                                    <input name="service_type_other" value={formData.service_type_other} onChange={e=>handleChange('service_type_other', e.target.value)} 
-                                                        className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.service_type_other ? 'input-error' : ''}`} placeholder="請填寫其他服務項目內容..."
-                                                    />
-                                                    <FieldError message={errors.service_type_other} />
-                                                </div>
-                                            )}
-                                        </div>
+<div className="md:col-span-2 space-y-4">
+    <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider uppercase">服務項目 *</label>
+    <div id="service_type" className={`grid grid-cols-1 gap-3 ${errors.service_type ? 'group-error' : ''}`}>
+        {/* 基礎洗澡 */}
+        <button type="button" onClick={()=>handleChange('service_type', '基礎洗澡')} 
+            className={`pill-button p-4 rounded-2xl font-bold text-left border-2 transition-all ${formData.service_type === '基礎洗澡' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20' : 'bg-white dark:bg-gray-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}>
+            <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg flex-shrink-0 ${formData.service_type === '基礎洗澡' ? 'bg-white/20' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                    <Icon name="droplet" size={20} className={formData.service_type === '基礎洗澡' ? 'text-white' : 'text-blue-600 dark:text-blue-400'} />
+                </div>
+                <div className="flex-1">
+                    <div className="font-black text-base mb-1">基礎洗澡</div>
+                    <div className={`text-xs leading-relaxed ${formData.service_type === '基礎洗澡' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'}`}>
+                        二次洗毛+潤絲 · 剪指甲 · 清耳朵 · 剃腳底/肚子/肛門毛 · 擠肛門腺 · 眼部小修
+                    </div>
+                </div>
+                {formData.service_type === '基礎洗澡' && <Icon name="check-circle" size={24} className="text-white flex-shrink-0" />}
+            </div>
+        </button>
+
+        {/* 精緻美容 */}
+        <button type="button" onClick={()=>handleChange('service_type', '精緻美容')} 
+            className={`pill-button p-4 rounded-2xl font-bold text-left border-2 transition-all ${formData.service_type === '精緻美容' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20' : 'bg-white dark:bg-gray-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}>
+            <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg flex-shrink-0 ${formData.service_type === '精緻美容' ? 'bg-white/20' : 'bg-purple-100 dark:bg-purple-900/30'}`}>
+                    <Icon name="sparkles" size={20} className={formData.service_type === '精緻美容' ? 'text-white' : 'text-purple-600 dark:text-purple-400'} />
+                </div>
+                <div className="flex-1">
+                    <div className="font-black text-base mb-1">精緻美容</div>
+                    <div className={`text-xs leading-relaxed ${formData.service_type === '精緻美容' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'}`}>
+                        基礎洗澡 <span className="font-bold">+</span> 造型修剪
+                    </div>
+                </div>
+                {formData.service_type === '精緻美容' && <Icon name="check-circle" size={24} className="text-white flex-shrink-0" />}
+            </div>
+        </button>
+
+        {/* 其他選項（簡潔版） */}
+        <div className="grid grid-cols-2 gap-3">
+            {['局部修剪','寵物安親','其他項目'].map(s => (
+                <button key={s} type="button" onClick={()=>handleChange('service_type', s)} 
+                    className={`pill-button px-4 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.service_type === s ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}>
+                    <div className="flex items-center justify-center gap-2">
+                        {formData.service_type === s && <Icon name="check-circle" size={16} />}
+                        <span>{s}</span>
+                    </div>
+                </button>
+            ))}
+        </div>
+    </div>
+    <FieldError message={errors.service_type} />
+    
+    {formData.service_type === '其他項目' && (
+        <div className="mt-3 animate-in fade-in space-y-1">
+            <input name="service_type_other" value={formData.service_type_other} onChange={e=>handleChange('service_type_other', e.target.value)} 
+                className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.service_type_other ? 'input-error' : ''}`} placeholder="請填寫其他服務項目內容..."
+            />
+            <FieldError message={errors.service_type_other} />
+        </div>
+    )}
+</div>
+
+
                                         
                                         <div className="space-y-2">
                                             <div className="w-full bg-[#F7E7B5]/20 rounded-xl p-5 border border-[#F7E7B5] flex items-center gap-4">
@@ -2095,8 +2217,8 @@ const getTodayDate = () => {
 )}  
                                     </div>
                                     
-                                    {/* --- 高風險寵物風險告知 (僅在 8 歲以上顯示) --- */}
-                                    {isSenior && (
+{/* --- 高風險寵物風險告知 (8歲以上 或 5個月以下顯示) --- */}
+{isHighRisk && (
                                         <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
                                             <button type="button" onClick={() => setSeniorOpen(!seniorOpen)} 
                                                 className="w-full flex items-center justify-between p-5 bg-red-50 dark:bg-red-900/10 rounded-2xl border-2 border-red-100 dark:border-red-900 hover:border-red-300 transition-all group shadow-sm">
@@ -2105,8 +2227,11 @@ const getTodayDate = () => {
                                                         <Icon name="alert-triangle" size={20}/>
                                                     </div>
                                                     <div className="flex flex-col text-left">
-                                                        <span className="font-black text-red-600 dark:text-red-400">高風險寵物美容服務風險告知</span>
-                                                        <span className="text-[10px] text-red-400 font-bold">檢測到毛孩已滿 8 歲，請務必詳閱</span>
+<span className="font-black text-red-600 dark:text-red-400">高風險寵物美容服務風險告知</span>
+<span className="text-[10px] text-red-400 font-bold">
+    {riskType === 'senior' && '檢測到毛孩已滿 8 歲，請務必詳閱'}
+    {riskType === 'puppy' && '檢測到毛孩未滿 5 個月，請務必詳閱'}
+</span>
                                                     </div>
                                                 </div>
                                                 <Icon name={seniorOpen ? "chevron-up" : "chevron-down"} size={20} className="text-red-300"/>
@@ -2154,8 +2279,8 @@ const getTodayDate = () => {
                                         </div>
                                     )}
                                     
-                                    {/* --- 高風險寵物住宿服務風險告知 (僅在住宿頁面且 8 歲以上顯示) --- */}
-                                    {isBoarding && isSenior && (
+{/* --- 高風險寵物住宿服務風險告知 (住宿頁面且高風險顯示) --- */}
+{isBoarding && isHighRisk && (
                                         <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
                                             <button type="button" onClick={() => setBoardingRiskOpen(!boardingRiskOpen)} 
                                                 className="w-full flex items-center justify-between p-5 bg-red-50 dark:bg-red-900/10 rounded-2xl border-2 border-red-100 dark:border-red-900 hover:border-red-300 transition-all group shadow-sm">
@@ -2164,8 +2289,11 @@ const getTodayDate = () => {
                                                         <Icon name="alert-triangle" size={20}/>
                                                     </div>
                                                     <div className="flex flex-col text-left">
-                                                        <span className="font-black text-red-600 dark:text-red-400">高風險寵物住宿服務風險告知</span>
-                                                        <span className="text-[10px] text-red-400 font-bold">檢測到毛孩已滿 8 歲，請務必詳閱</span>
+<span className="font-black text-red-600 dark:text-red-400">高風險寵物住宿服務風險告知</span>
+<span className="text-[10px] text-red-400 font-bold">
+    {riskType === 'senior' && '檢測到毛孩已滿 8 歲，請務必詳閱'}
+    {riskType === 'puppy' && '檢測到毛孩未滿 5 個月，請務必詳閱'}
+</span>
                                                     </div>
                                                 </div>
                                                 <Icon name={boardingRiskOpen ? "chevron-up" : "chevron-down"} size={20} className="text-red-300"/>
