@@ -997,18 +997,19 @@ const handleApplyHistory = (record) => {
 
             const validateEmail = (email) => /\S+@\S+\.com/.test(email);
             const validatePhone = (phone) => /^09\d{8}$/.test(phone);
-            const validateTwID = (id) => {
-                if (!/^[A-Z][12]\d{8}$/.test(id)) return false;
-                const letters = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
-                const letterVal = letters.indexOf(id[0]) + 10;
-                const n1 = Math.floor(letterVal / 10);
-                const n2 = letterVal % 10;
-                const numbers = [n1, n2, ...id.slice(1).split('').map(Number)];
-                const weights = [1, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1];
-                let sum = 0;
-                for (let i = 0; i < 11; i++) sum += numbers[i] * weights[i];
-                return sum % 10 === 0;
-            };
+const validateTwID = (id) => {
+    if (!/^[A-Z][12]\d{8}$/.test(id)) return false;
+    const letters = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
+    const letterVal = letters.indexOf(id[0]) + 10;
+    const n1 = Math.floor(letterVal / 10);
+    const n2 = letterVal % 10;
+    const numbers = [n1, n2, ...id.slice(1).split('').map(Number)];
+    const weights = [1, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1];
+    let sum = 0;
+    for (let i = 0; i < 11; i++) sum += numbers[i] * weights[i];
+    return sum % 10 === 0;
+};
+
 
             const handleSubmit = async () => {
     const newErrors = {};
@@ -1157,56 +1158,35 @@ const handleApplyHistory = (record) => {
                     }
 
                     const serviceClauseTitle = isBoarding ? '住宿服務同意書' : '美容服務同意書';
-
-// -----------------------------------------------------------
-                    // 👇👇👇 請複製以下區塊，替換掉原本的 emailHtml 定義 👇👇👇
-                    // -----------------------------------------------------------
-
-                    // 1. 設定 Logo 網址 (請確認此連結是公開可存取的，我幫您修正了原本多打的 https://)
+                    
                     const LOGO_URL = "https://fpkzuotxxbsqisgwupix.supabase.co/storage/v1/object/public/assets/logo.png"; 
 
-                    // 2. 準備 Email 內容
                     const emailHtml = `
                         <!DOCTYPE html>
                         <html>
                         <head>
                             <meta charset="utf-8">
                             <style>
-                                /* 基礎設定 */
                                 body { margin: 0; padding: 0; font-family: 'Helvetica', 'Arial', sans-serif; line-height: 1.6; color: #5D4D41; background-color: #f4f4f4; }
                                 .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-                                
-                                /* 標題區 */
                                 .header { background-color: #736357; padding: 30px 20px; text-align: center; }
                                 .header h1 { color: #ffffff; margin: 15px 0 5px 0; font-size: 24px; font-weight: bold; }
                                 .header p { color: #F7E7B5; margin: 0; font-size: 14px; letter-spacing: 1px; }
                                 .logo-img { width: 80px; height: 80px; border-radius: 50%; background: #fff; padding: 5px; object-fit: contain; }
-
-                                /* 內容區 */
                                 .content { padding: 30px 20px; }
                                 .welcome-text { margin-bottom: 25px; font-size: 15px; color: #333; }
-                                
-                                /* 區塊樣式 */
                                 .section { margin-bottom: 25px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
                                 .section-header { background-color: #fbf9f6; padding: 10px 15px; border-bottom: 2px solid #F7E7B5; }
                                 .section-title { color: #736357; font-size: 16px; font-weight: bold; margin: 0; }
-                                
-                                /* 表格樣式 */
                                 .info-table { width: 100%; border-collapse: collapse; font-size: 14px; }
                                 .info-table tr:last-child td { border-bottom: none; }
                                 .info-table td { padding: 10px 15px; vertical-align: top; border-bottom: 1px solid #f0f0f0; }
                                 .label { width: 35%; color: #888; font-weight: bold; background-color: #fff; white-space: nowrap; }
                                 .value { width: 65%; color: #333; font-weight: 500; word-break: break-all; }
-                                
-                                /* 特殊標記 */
                                 .highlight { color: #d9534f; font-weight: bold; }
                                 .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #eee; margin-right: 4px; margin-bottom: 4px; border: 1px solid #e0e0e0; }
-                                
-                                /* 頁尾 */
                                 .footer { background-color: #333; color: #999; padding: 20px; text-align: center; font-size: 12px; }
                                 .footer p { margin: 5px 0; }
-                                
-                                /* 簽名框 */
                                 .signature-box { margin-top: 30px; border: 2px dashed #ddd; padding: 20px; border-radius: 12px; text-align: center; background-color: #fafafa; }
                             </style>
                         </head>
@@ -1247,6 +1227,7 @@ const handleApplyHistory = (record) => {
                                             <tr><td class="label">體重</td><td class="value">${formData.weight} kg</td></tr>
                                             <tr><td class="label">晶片狀態</td><td class="value">${formData.chip_status} ${formData.chip_id ? '<br><span style="font-size:12px;color:#666;">(號碼: ' + formData.chip_id + ')</span>' : ''}</td></tr>
                                             <tr><td class="label">指定醫院</td><td class="value">${formData.preferred_clinic}</td></tr>
+                                            <tr><td class="label" style="background-color:#f7f7f7;">特約醫院</td><td class="value" style="background-color:#f7f7f7;"><strong>耐旺福動物醫院</strong><br><span style="font-size:12px;color:#555;">(台中市北屯區松竹路二段383之5號)</span></td></tr>
                                         </table>
                                     </div>
                                     
@@ -1321,10 +1302,7 @@ const handleApplyHistory = (record) => {
                         </body>
                         </html>
                     `;
-
-                    // -----------------------------------------------------------
-                    // 👆👆👆 複製到這裡結束 👆👆👆
-                    // -----------------------------------------------------------                    
+                   
                     const { data: funcData, error: funcError } = await supabase.functions.invoke('send-contract', {
                         body: {
                             email: formData.email,
@@ -1343,6 +1321,7 @@ const handleApplyHistory = (record) => {
                     setIsSubmitting(false);
                 }
             };
+
 
             const handleSuccessClose = () => {
                 setShowSuccess(false);
@@ -1928,16 +1907,28 @@ const handleApplyHistory = (record) => {
                                             {formData.chip_status === '有晶片' && <input placeholder="輸入 10 或 15 碼晶片號碼" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] mt-3 animate-in fade-in" />}
                                         </div>
 
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">指定就醫診療機構(若未填寫，則送往特約醫院) *</label>
-                                            <InputWithError 
-                                                name="preferred_clinic" 
-                                                value={formData.preferred_clinic} 
-                                                onChange={e=>handleChange('preferred_clinic', e.target.value)} 
-                                                placeholder="(若無請填無)"
-                                                error={errors.preferred_clinic}
-                                            />
-                                        </div>
+<div className="space-y-1.5">
+    <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">指定就醫診療機構(若未填寫，則送往特約醫院) *</label>
+    <InputWithError 
+        name="preferred_clinic" 
+        value={formData.preferred_clinic} 
+        onChange={e=>handleChange('preferred_clinic', e.target.value)} 
+        placeholder="(若無請填無)"
+        error={errors.preferred_clinic}
+    />
+    {/* 新增的美化提示框 */}
+    <div className="mt-2 p-3 rounded-xl bg-slate-50 dark:bg-gray-700/50 border border-slate-200 dark:border-gray-600 flex items-center gap-3">
+        <div className="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+            <Icon name="hospital" size={18} />
+        </div>
+        <div>
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">特約醫院：</div>
+            <div className="font-semibold text-[#736357] dark:text-[#F7E7B5] text-sm">
+                耐旺福動物醫院 (台中市北屯區松竹路二段383之5號)
+            </div>
+        </div>
+    </div>
+</div>
 
                                         <div className="space-y-4" id="medical_status">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">過往病史 (可複選) *</label>
@@ -2412,8 +2403,7 @@ const handleApplyHistory = (record) => {
                 <p><span className="font-bold">攻擊行為：</span>若過程中情緒過於緊張或有攻擊行為，將立即終止服務，不予收費。</p>
                 <p><span className="font-bold">逾時收費：</span>美容完成後應於一小時內接回，逾時依安親費收費 (未滿一小時以一小時計)：</p>
                 <ul className="list-disc list-inside pl-4 text-xs opacity-80">
-                    <li>中小型犬(10kg以下)：100元／時</li>
-                    <li>中大型犬(10-25kg)：100元／時</li>
+                    <li>狗狗：100元／時</li>
                     <li>貓咪：100元／時</li>
                 </ul>
                 <p><span className="font-bold">營業時間結束後：</span>若未接回且無法聯繫，將提供必要照護，飼主領回時須負擔安置費用。</p>
