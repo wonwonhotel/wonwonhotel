@@ -1001,11 +1001,11 @@ const handleApplyHistory = (record) => {
             };
 
             const handleSubmit = async () => {
-                const newErrors = {};
-                const requiredText = ['email', 'owner_name', 'phone', 'owner_id', 'address', 'emergency_name', 'emergency_phone', 'pet_name', 'breed', 'weight', 'age', 'preferred_clinic'];
-                requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
+    const newErrors = {};
+    const requiredText = ['email', 'owner_name', 'phone', 'owner_id', 'address', 'emergency_name', 'emergency_phone', 'pet_name', 'breed', 'weight', 'preferred_clinic'];
+    requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
 
-                if (formData.is_under_one) {
+    if (formData.is_under_one) {
                     if (!formData.age_months) newErrors.age = '請選擇月齡';
                 } else {
                     if (!formData.age) newErrors.age = '請輸入年齡';
@@ -1785,7 +1785,7 @@ const handleApplyHistory = (record) => {
     <label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label>
     
     {/* 年齡類型切換按鈕 */}
-    <div className={`flex gap-2 ${errors.age ? 'group-error' : ''}`}> {/* <-- 優化點: 讓按鈕群組也能顯示錯誤外框 */}
+    <div className={`flex gap-2 ${errors.age ? 'group-error' : ''}`}>
         <button 
             type="button" 
             onClick={() => {
@@ -1820,7 +1820,10 @@ const handleApplyHistory = (record) => {
             <select 
                 name="age_months"
                 value={formData.age_months}
-                onChange={e => handleChange('age_months', e.target.value)}
+                onChange={e => {
+                    handleChange('age_months', e.target.value);
+                    if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+                }}
                 className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error shake-error' : ''}`}
             >
                 <option value="">請選擇月齡</option>
@@ -1837,16 +1840,19 @@ const handleApplyHistory = (record) => {
                 min="1"
                 step="1"
                 value={formData.age}
-                onChange={e => handleChange('age', e.target.value)}
+                onChange={e => {
+                    handleChange('age', e.target.value);
+                    if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+                }}
                 placeholder="請輸入年齡（整數）"
                 className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error shake-error' : ''}`} 
             />
         </div>
     )}
     
-    {/* 優化點: 將錯誤訊息移到外面，這樣不管選哪個都會顯示，且程式碼不重複 */}
     <FieldError message={errors.age} /> 
 </div>
+
 
 
                                         <div className="space-y-2" id="sex">
