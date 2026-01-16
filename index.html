@@ -846,11 +846,21 @@
                 };
             }, []);
 
-            // 選擇服務流程（透過 Hash 觸發）
-            const selectServiceFlow = (type) => {
-                const targetHash = type === 'both' ? '#boarding' : '#grooming';
-                window.location.hash = targetHash;
-            };
+// 選擇服務流程（透過 Hash 觸發）
+const selectServiceFlow = (type) => {
+    const targetHash = type === 'both' ? '#boarding' : '#grooming';
+    
+    // 如果當前 hash 已經是目標 hash，先清空再設定以觸發事件
+    if (window.location.hash === targetHash) {
+        window.location.hash = '';
+        setTimeout(() => {
+            window.location.hash = targetHash;
+        }, 0);
+    } else {
+        window.location.hash = targetHash;
+    }
+};
+
 
             // Calculate stay duration
             const stayDuration = useMemo(() => {
