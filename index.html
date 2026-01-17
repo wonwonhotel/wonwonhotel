@@ -2,7 +2,9 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+
     <title>汪汪犬旅 | 數位契約填寫系統</title>
     
     <link rel="manifest" href="manifest.json">
@@ -61,16 +63,22 @@
             --info-blue: #3b82f6;
         }
 
-        body { 
-            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
-            background-color: var(--brand-light);
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
-            color: var(--brand-brown); 
-            -webkit-font-smoothing: antialiased; 
-            -webkit-tap-highlight-color: transparent; 
-            overscroll-behavior-y: none;
-            transition: background-color 0.3s, color 0.3s;
-        }
+html, body { 
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
+    background-color: var(--brand-light);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    color: var(--brand-brown); 
+    -webkit-font-smoothing: antialiased; 
+    -webkit-tap-highlight-color: transparent; 
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    transition: background-color 0.3s, color 0.3s;
+}
+
 
         /* Dark mode styles */
         body.dark {
@@ -177,13 +185,16 @@
             height: 100%;
         }
 
-        body.signing-mode {
-            overflow: hidden !important;
-            position: fixed !important;
-            width: 100% !important;
-            height: 100% !important;
-            touch-action: none !important;
-        }
+body.signing-mode {
+    position: fixed !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    top: 0 !important;
+    left: 0 !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+}
+
 
         .fullscreen-signature {
             position: fixed;
@@ -2442,7 +2453,7 @@ const validateTwID = (id) => {
         <div className="space-y-2">
             <h5 className="font-black text-base text-[#736357] dark:text-[#F7E7B5] bg-[#F7E7B5]/20 px-2 py-1 rounded-lg inline-block">四、其他條款</h5>
             <div className="pl-2 space-y-3">
-                <p><span className="font-bold">1. 輕微剃傷：</span>因不可抗力或毛孩不配合導致小於1公分淺表傷口，工作室將通知並消毒。飼主需於24小時內確認，逾期視同接受。若為操作疏失最高賠償 5000 元。</p>
+                <p><span className="font-bold">1. 輕微剃傷：</span>因不可抗力或毛孩不配合導致小於1公分淺表傷口，工作室將通知並消毒。飼主需於24小時內確認，逾期視同接受。若為操作疏失最高賠償 2000 元。</p>
                 <p><span className="font-bold">2. 緊急醫療：</span>突發緊急狀況(休克/急病)且無法聯繫飼主時，將立即送醫。費用由甲方承擔。若因隱瞞病況發生意外，店家不負賠償責任。</p>
                 <p><span className="font-bold">3. 非醫療機構：</span>本工作室不提供醫療診斷或投藥服務。</p>
             </div>
