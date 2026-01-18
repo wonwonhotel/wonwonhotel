@@ -1223,10 +1223,7 @@ if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                     if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) newErrors.deworm_brand = ERROR_MESSAGES.deworm_brand;
                     if (formData.crate_status.length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
                     
-                    // (已修改) 移除過敏與備註的必填檢查
-                    // if (!formData.allergy) newErrors.allergy = ERROR_MESSAGES.allergy;
                     if (!formData.personality) newErrors.personality = ERROR_MESSAGES.personality;
-                    // if (!formData.special_notes) newErrors.special_notes = ERROR_MESSAGES.special_notes;
                     
                     if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = ERROR_MESSAGES.boarding_notice_agree;
                 } else {
@@ -1312,7 +1309,7 @@ if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                         });
                     if (insertError) throw insertError;
 
-                    // Email Logic
+// Email Logic
                     let riskClauseHtml = '';
                     if (isHighRisk) {
                         const riskTypeStr = riskType === 'senior' ? '高齡(8歲以上)' : '幼齡(5個月以下)';
@@ -1332,8 +1329,37 @@ if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                     }
 
                     const serviceClauseTitle = isBoarding ? '住宿服務同意書' : '美容服務同意書';
-                    
                     const LOGO_URL = "https://fpkzuotxxbsqisgwupix.supabase.co/storage/v1/object/public/assets/logo.png"; 
+
+                    // --- 新增：PDF 條款連結邏輯 ---
+                    const pdfLinks = [];
+                    // 1. 美容條款 (所有人必讀)
+                    pdfLinks.push({ title: '犬、貓美容契約條款', url: 'https://fpkzuotxxbsqisgwupix.supabase.co/storage/v1/object/public/assets/grooming.pdf' });
+                    
+                    // 2. 住宿條款 (住宿客必讀)
+                    if (isBoarding) {
+                        pdfLinks.push({ title: '犬、貓寄養契約條款', url: 'https://fpkzuotxxbsqisgwupix.supabase.co/storage/v1/object/public/assets/boarding.pdf' });
+                    }
+                    
+                    // 3. 高風險美容 (高風險必讀)
+                    if (isHighRisk) {
+                        pdfLinks.push({ title: '高風險寵物美容服務風險告知', url: 'https://fpkzuotxxbsqisgwupix.supabase.co/storage/v1/object/public/assets/HighRiskgrooming.pdf' });
+                    }
+
+                    // 4. 高風險住宿 (住宿 + 高風險必讀)
+                    if (isBoarding && isHighRisk) {
+                        pdfLinks.push({ title: '高風險寵物住宿服務風險告知', url: 'https://fpkzuotxxbsqisgwupix.supabase.co/storage/v1/object/public/assets/HighRiskboarding.pdf' });
+                    }
+
+                    // 產生 HTML 列表 (插入 Email 用)
+                    const pdfListHtml = `
+                        <div style="margin-top: 25px; padding-top: 15px; border-top: 1px dashed #ccc; text-align: left;">
+                            <p style="font-size: 13px; font-weight: bold; color: #5D4D41; margin-bottom: 8px;">📄 完整契約條款下載 (PDF)</p>
+                            <ul style="font-size: 12px; color: #736357; padding-left: 20px; margin: 0; line-height: 1.8;">
+                                ${pdfLinks.map(link => `<li><a href="${link.url}" target="_blank" style="color: #736357; text-decoration: underline;">${link.title}</a></li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
 
                     const emailHtml = `
                         <!DOCTYPE html>
@@ -1463,6 +1489,8 @@ if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                                                 <span style="font-size:10px;">Signed at: ${new Date().toLocaleString('zh-TW')}</span>
                                             </div>
                                         </div>
+                                        
+                                        ${pdfListHtml}
                                     </div>
 
                                 </div>
@@ -2280,7 +2308,6 @@ const initCanvas = () => {
                                                     <h4 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">狗狗的日常情形及注意事項</h4>
                                                 </div>
 <div className="space-y-1.5">
-                                                    {/* (已修改) 移除星號 */}
                                                     <label className="text-xs font-bold text-slate-400 ml-1">有對什麼過敏嗎 (例如:雞肉或牛肉)</label>
                                                     <textarea name="allergy" value={formData.allergy} onChange={e=>handleChange('allergy', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[100px] ${errors.allergy ? 'input-error' : ''}`} placeholder="請詳細填寫過敏原..."/>
                                                     <FieldError message={errors.allergy} />
@@ -2291,7 +2318,6 @@ const initCanvas = () => {
                                                     <FieldError message={errors.personality} />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    {/* (已修改) 移除星號 */}
                                                     <label className="text-xs font-bold text-slate-400 ml-1">有需要特別注意的嗎? 任何事情都可以說越詳細越好</label>
                                                     <textarea name="special_notes" value={formData.special_notes} onChange={e=>handleChange('special_notes', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[120px] ${errors.special_notes ? 'input-error' : ''}`} placeholder="餵食習慣、特殊癖好、身體狀況備註等... (若無請填無)"/>
                                                     <FieldError message={errors.special_notes} />
