@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>汪汪犬旅 | 後台管理系統</title>
-    <link rel="manifest" href="manifest.json">
+<title>汪汪犬旅 | 後台管理系統</title>
+    <link rel="manifest" href="manifest-admin.json">
     <meta name="theme-color" content="#736357">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -208,9 +208,42 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-        // --- Supabase 設定 ---
+        // --- Error Boundary Component (防止白畫面) ---
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+            componentDidCatch(error, errorInfo) {
+                console.error("React Error:", error, errorInfo);
+            }
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-[#f3f4f6] text-center">
+                            <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md">
+                                <h2 className="text-2xl font-bold text-red-500 mb-4">系統發生錯誤</h2>
+                                <p className="text-slate-500 mb-6">顯示畫面時發生預期外的錯誤，請嘗試重新整理。</p>
+                                <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[#736357] text-white rounded-xl font-bold shadow-lg">
+                                    重新整理頁面
+                                </button>
+                                <details className="mt-4 text-left text-xs text-slate-400 bg-slate-100 p-2 rounded">
+                                    {this.state.error && this.state.error.toString()}
+                                </details>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+        
+                // --- Supabase 設定 ---
         const SUPABASE_URL = 'https://fpkzuotxxbsqisgwupix.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_VsAJfSi7Fb3zu_A5Ksm2wA_mAUkDLBs'; 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -637,8 +670,9 @@
             const chart1Instance = useRef(null);
             const chart2Instance = useRef(null);
 
-            useEffect(() => {
-                if (!bookings.length) return;
+useEffect(() => {
+                // 安全檢查：確保 Canvas 存在且有資料才繪製
+                if (!bookings || bookings.length === 0 || !chartRef1.current || !chartRef2.current) return;
 
                 // Monthly trend chart
                 const monthlyData = {};
@@ -706,10 +740,9 @@
                 };
             }, [bookings]);
 
-            const totalRevenue = bookings.reduce((sum, b) => sum + (parseInt(b.service_price) || 0), 0);
-
-            return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+return (
+                // 改為兩欄，移除總營收圖表
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
                         <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">月度訂單趨勢</h4>
                         <div className="h-40">
@@ -720,15 +753,6 @@
                         <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">服務類型分佈</h4>
                         <div className="h-40">
                             <canvas ref={chartRef2}></canvas>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
-                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">營收統計</h4>
-                        <div className="h-40 flex flex-col items-center justify-center">
-                            <div className="text-4xl font-black text-brand-brown">
-                                ${totalRevenue.toLocaleString()}
-                            </div>
-                            <div className="text-sm text-slate-400 mt-2">累計總營收</div>
                         </div>
                     </div>
                 </div>
@@ -804,9 +828,9 @@
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-lg font-black text-brand-brown">${customer.totalSpent.toLocaleString()}</div>
-                                        <div className="text-xs text-slate-400">{customer.bookings.length} 筆訂單</div>
+<div className="text-right">
+                                        {/* 移除消費總額 */}
+                                        <div className="text-xs text-slate-400 font-bold bg-slate-100 dark:bg-gray-700 px-2 py-1 rounded">{customer.bookings.length} 筆訂單</div>
                                     </div>
                                 </div>
                                 <div className="mt-3 flex gap-2">
@@ -855,7 +879,7 @@
             </div>
         );
 
-        // --- Export Functions ---
+// --- Export Functions ---
         const exportToExcel = (bookings, filename = 'bookings') => {
             const data = bookings.map(b => ({
                 '訂單編號': b.id,
@@ -864,7 +888,7 @@
                 '電話': b.phone,
                 '寵物名字': b.pet_name,
                 '服務項目': b.service_type,
-                '金額': b.service_price,
+                // 移除金額欄位
                 '狀態': STATUS_OPTIONS.find(s => s.value === b.status)?.label || b.status,
                 '入住日期': b.checkin_date || '',
                 '退房日期': b.checkout_date || ''
@@ -1376,8 +1400,8 @@
                                 { title: '今日新增', count: stats.today, icon: 'plus-circle', bgColor: 'bg-blue-50 dark:bg-blue-900', textColor: 'text-blue-500' },
                                 { title: '待確認', count: stats.pending, icon: 'alert-circle', bgColor: 'bg-yellow-50 dark:bg-yellow-900', textColor: 'text-yellow-500' },
                                 { title: '住宿預約', count: stats.boarding, icon: 'home', bgColor: 'bg-orange-50 dark:bg-orange-900', textColor: 'text-orange-500' },
-                                { title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' },
-                                { title: '總營收', count: `$${stats.revenue.toLocaleString()}`, icon: 'dollar-sign', bgColor: 'bg-green-50 dark:bg-green-900', textColor: 'text-green-500' }
+{ title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' }
+                                // 移除總營收卡片
                             ].map((item, idx) => (
                                 <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col justify-between h-28">
                                     <div className="flex justify-between items-start">
@@ -1454,12 +1478,10 @@
                                                     </select>
                                                 </>
                                             )}
-                                            <button onClick={() => exportToExcel(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900 text-green-600 text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1">
-                                                <Icon name="file-spreadsheet" size={14} /> Excel
+<button onClick={() => exportToExcel(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900 text-green-600 text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1">
+                                                <Icon name="file-spreadsheet" size={14} /> 匯出 Excel
                                             </button>
-                                            <button onClick={() => exportToPDF(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-1">
-                                                <Icon name="file-text" size={14} /> PDF
-                                            </button>
+                                            {/* 移除 PDF 按鈕 */}
                                         </div>
                                     </div>
                                 </div>
@@ -1478,7 +1500,7 @@
                                             {filteredBookings.map(b => (
                                                 <div key={b.id} className="bg-slate-50 dark:bg-gray-700 p-4 rounded-xl flex items-center gap-3">
                                                     <input type="checkbox" checked={selectedBookings.has(b.id)} onChange={() => toggleSelectBooking(b.id)} className="w-5 h-5 accent-brand-brown" />
-                                                    <div className="flex-1" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+<div className="flex-1" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-bold text-brand-brown dark:text-brand-yellow">{b.pet_name}</span>
                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
@@ -1488,7 +1510,7 @@
                                                         <div className="text-xs text-slate-500 dark:text-gray-400">{b.owner_name} • {getServiceLabel(b.service_type)}</div>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-bold text-sm">${b.service_price}</div>
+                                                        {/* 移除金額顯示 */}
                                                         <div className="text-[10px] text-slate-400">{formatDate(b.created_at)}</div>
                                                     </div>
                                                 </div>
@@ -1505,9 +1527,9 @@
                                                         </th>
                                                         <th className="px-4 py-3">建立時間</th>
                                                         <th className="px-4 py-3">飼主 / 電話</th>
-                                                        <th className="px-4 py-3">寵物</th>
+<th className="px-4 py-3">寵物</th>
                                                         <th className="px-4 py-3">服務項目</th>
-                                                        <th className="px-4 py-3">金額</th>
+                                                        {/* 移除金額標題 */}
                                                         <th className="px-4 py-3">狀態</th>
                                                         <th className="px-4 py-3"></th>
                                                     </tr>
@@ -1529,10 +1551,10 @@
                                                             <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                                 <span className="bg-brand-brown/10 text-brand-brown px-2 py-1 rounded text-xs font-bold">{b.pet_name}</span>
                                                             </td>
-                                                            <td className="px-4 py-3 text-sm font-bold text-slate-600 dark:text-gray-300" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+<td className="px-4 py-3 text-sm font-bold text-slate-600 dark:text-gray-300" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                                 {getServiceLabel(b.service_type)}
                                                             </td>
-                                                            <td className="px-4 py-3 font-bold text-slate-700 dark:text-white" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>${b.service_price}</td>
+                                                            {/* 移除金額顯示 */}
                                                             <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${b.status === 'confirmed' ? 'bg-green-50 text-green-600' : b.status === 'completed' ? 'bg-blue-50 text-blue-600' : b.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}`}>
                                                                     {STATUS_OPTIONS.find(s => s.value === b.status)?.icon} {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
@@ -1762,11 +1784,12 @@
             );
         };
 
-        // PWA Service Worker Registration
+// PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('sw.js');
+                    // 使用 admin 專用的 service worker
+                    const registration = await navigator.serviceWorker.register('sw-admin.js');
                     console.log('SW registered:', registration);
                     
                     // 檢查更新
@@ -1785,7 +1808,7 @@
             });
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>

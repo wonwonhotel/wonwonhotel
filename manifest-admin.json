@@ -1,0 +1,27 @@
+{
+  "name": "汪汪犬旅 | 後台管理",
+  "short_name": "汪汪管理",
+  "description": "汪汪犬旅後台管理系統",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#736357",
+  "background_color": "#fbf9f6",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "zh-TW"
+}
