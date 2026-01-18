@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
 <meta name="format-detection" content="telephone=no">
 
@@ -1223,7 +1226,10 @@ if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                     if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) newErrors.deworm_brand = ERROR_MESSAGES.deworm_brand;
                     if (formData.crate_status.length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
                     
+                    // (已修改) 移除過敏與備註的必填檢查
+                    // if (!formData.allergy) newErrors.allergy = ERROR_MESSAGES.allergy;
                     if (!formData.personality) newErrors.personality = ERROR_MESSAGES.personality;
+                    // if (!formData.special_notes) newErrors.special_notes = ERROR_MESSAGES.special_notes;
                     
                     if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = ERROR_MESSAGES.boarding_notice_agree;
                 } else {
@@ -2308,6 +2314,7 @@ const initCanvas = () => {
                                                     <h4 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">狗狗的日常情形及注意事項</h4>
                                                 </div>
 <div className="space-y-1.5">
+                                                    {/* (已修改) 移除星號 */}
                                                     <label className="text-xs font-bold text-slate-400 ml-1">有對什麼過敏嗎 (例如:雞肉或牛肉)</label>
                                                     <textarea name="allergy" value={formData.allergy} onChange={e=>handleChange('allergy', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[100px] ${errors.allergy ? 'input-error' : ''}`} placeholder="請詳細填寫過敏原..."/>
                                                     <FieldError message={errors.allergy} />
@@ -2318,6 +2325,7 @@ const initCanvas = () => {
                                                     <FieldError message={errors.personality} />
                                                 </div>
                                                 <div className="space-y-1.5">
+                                                    {/* (已修改) 移除星號 */}
                                                     <label className="text-xs font-bold text-slate-400 ml-1">有需要特別注意的嗎? 任何事情都可以說越詳細越好</label>
                                                     <textarea name="special_notes" value={formData.special_notes} onChange={e=>handleChange('special_notes', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[120px] ${errors.special_notes ? 'input-error' : ''}`} placeholder="餵食習慣、特殊癖好、身體狀況備註等... (若無請填無)"/>
                                                     <FieldError message={errors.special_notes} />
