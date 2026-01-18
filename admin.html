@@ -472,37 +472,47 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
             </div>
         );
 
-        // --- Change Password Modal ---
-        const ChangePasswordModal = ({ isOpen, onClose, showToast }) => {
+// --- Change Password Modal ---
+        const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) => {
             const [oldPassword, setOldPassword] = useState('');
             const [newPassword, setNewPassword] = useState('');
             const [confirmPassword, setConfirmPassword] = useState('');
+            const [targetEmail, setTargetEmail] = useState('');
             const [isLoading, setIsLoading] = useState(false);
 
+            // 當開啟時，預設目標為當前登入者
             useEffect(() => {
-                if (!isOpen) {
+                if (isOpen && currentUserEmail) {
+                    setTargetEmail(currentUserEmail);
                     setOldPassword(''); setNewPassword(''); setConfirmPassword('');
                 }
-            }, [isOpen]);
+            }, [isOpen, currentUserEmail]);
 
             const handleUpdatePassword = async () => {
-                if (!oldPassword) { showToast('請輸入目前的舊密碼', 'error'); return; }
+                if (!oldPassword) { showToast('請輸入該帳號的舊密碼', 'error'); return; }
                 if (newPassword.length < 6) { showToast('新密碼長度至少需 6 個字元', 'error'); return; }
                 if (newPassword !== confirmPassword) { showToast('兩次輸入的新密碼不相符', 'error'); return; }
                 
                 setIsLoading(true);
                 try {
-                    const { error: signInError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: oldPassword });
-                    if (signInError) throw new Error("舊密碼輸入錯誤");
+                    // 1. 驗證舊密碼 (並切換 Session 到目標帳號)
+                    const { error: signInError } = await supabase.auth.signInWithPassword({ email: targetEmail, password: oldPassword });
+                    if (signInError) throw new Error("舊密碼輸入錯誤，無法驗證身分");
 
+                    // 2. 更新密碼
                     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
                     if (updateError) throw updateError;
                     
-                    showToast('密碼修改成功！', 'success');
-                    setTimeout(onClose, 1500);
+                    showToast(`密碼修改成功！即將重新整理...`, 'success');
+                    
+                    // 3. 因為身分可能已經切換，為了安全與資料一致性，強制登出並重整
+                    setTimeout(async () => {
+                        await supabase.auth.signOut();
+                        window.location.reload();
+                    }, 1500);
+
                 } catch (error) {
                     showToast(error.message || '修改失敗', 'error');
-                } finally {
                     setIsLoading(false);
                 }
             };
@@ -513,10 +523,20 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm fade-in">
                     <div className="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4">
                         <div className="text-center">
-                            <h3 className="text-lg font-black text-slate-700 dark:text-white">變更管理密碼</h3>
+                            <h3 className="text-lg font-black text-slate-700 dark:text-white mb-1">變更密碼</h3>
+                            <p className="text-xs text-slate-400">目前修改對象：{targetEmail === ADMIN_EMAIL ? '管理員' : '員工'}</p>
                         </div>
+
+                        {/* 如果是超級管理員，顯示切換按鈕 */}
+                        {currentUserEmail === ADMIN_EMAIL && (
+                            <div className="flex bg-slate-100 dark:bg-gray-700 p-1 rounded-xl">
+                                <button onClick={() => setTargetEmail(ADMIN_EMAIL)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${targetEmail === ADMIN_EMAIL ? 'bg-white shadow text-brand-brown dark:bg-gray-600 dark:text-white' : 'text-slate-400'}`}>修改自己</button>
+                                <button onClick={() => setTargetEmail(STAFF_EMAIL)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${targetEmail === STAFF_EMAIL ? 'bg-white shadow text-blue-500 dark:bg-gray-600 dark:text-blue-400' : 'text-slate-400'}`}>修改員工</button>
+                            </div>
+                        )}
+
                         <div className="space-y-4">
-                            <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="w-full edit-input py-3" placeholder="輸入舊密碼" />
+                            <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="w-full edit-input py-3" placeholder={`輸入${targetEmail === currentUserEmail ? '您的' : '對方的'}舊密碼`} />
                             <hr className="border-dashed border-slate-200 dark:border-gray-600" />
                             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full edit-input py-3" placeholder="新密碼 (至少6位)" />
                             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full edit-input py-3" placeholder="確認新密碼" />
@@ -1807,7 +1827,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                         </div>
                     )}
 
-                    <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} showToast={showToast} />
+<ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} showToast={showToast} currentUserEmail={session?.user?.email} />
                     <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={executeAction} title={confirmAction === 'delete' ? '刪除確認' : '儲存變更確認'} loading={actionLoading} />
                 </div>
             );
