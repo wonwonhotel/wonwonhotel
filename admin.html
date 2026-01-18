@@ -16,13 +16,9 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Chart.js for dashboard -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SheetJS for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- jsPDF for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- reCAPTCHA -->
     <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
 
     <script>
@@ -156,9 +152,10 @@
             #print-area { 
                 position: absolute; left: 0; top: 0; width: 100%; 
                 padding: 20px; background: white; color: black; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
             }
             .no-print { display: none !important; }
-            -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }
         
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
@@ -243,30 +240,28 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
             }
         }
         
-                // --- Supabase 設定 ---
+        // --- Supabase 設定 ---
         const SUPABASE_URL = 'https://fpkzuotxxbsqisgwupix.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_VsAJfSi7Fb3zu_A5Ksm2wA_mAUkDLBs'; 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 管理者 Email（支援多管理員）
-        const ADMIN_EMAILS = ["wonwonhotel@gmail.com"];
-        const ADMIN_EMAIL = ADMIN_EMAILS[0]; // 主要管理員
+        // 管理者 Email 設定
+        const ADMIN_EMAIL = "wonwonhotel@gmail.com";
+        const STAFF_EMAIL = "staff@wonwonhotel.com"; // 請記得在 Supabase Auth 註冊此帳號
 
         // 多管理員權限設定
         const ADMIN_ROLES = {
-            'wonwonhotel@gmail.com': {
+            [ADMIN_EMAIL]: {
                 role: 'super_admin',
                 name: '超級管理員',
                 permissions: ['view', 'edit', 'delete', 'export', 'settings', 'logs', 'manage_admins']
+            },
+            [STAFF_EMAIL]: {
+                role: 'staff',
+                name: '一般員工',
+                permissions: ['view'] // 員工權限：只能看
             }
-            // 可新增更多管理員，例如：
-            // 'staff@wonwonhotel.com': {
-            //     role: 'staff',
-            //     name: '一般員工',
-            //     permissions: ['view', 'edit']
-            // }
         };
-
         // 權限定義
         const PERMISSIONS = {
             view: '檢視訂單',
@@ -549,9 +544,9 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                         <div className="text-center">
                             <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3"><Icon name="lock" size={24} /></div>
                             <h3 className="text-lg font-black text-slate-700 dark:text-white">{title}</h3>
-                            <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">此為敏感操作，請輸入管理密碼以確認。</p>
+                            <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">此為敏感操作，請輸入密碼以確認。</p>
                         </div>
-                        <input type="password" placeholder="請輸入密碼" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full text-center py-3 border-2 border-slate-200 dark:border-gray-600 rounded-xl focus:border-brand-brown outline-none font-bold bg-white dark:bg-gray-700 dark:text-white" autoFocus />
+                        <input type="password" placeholder="請輸入您的密碼" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full text-center py-3 border-2 border-slate-200 dark:border-gray-600 rounded-xl focus:border-brand-brown outline-none font-bold bg-white dark:bg-gray-700 dark:text-white" autoFocus />
                         <div className="flex gap-3 pt-2">
                             <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-200 dark:hover:bg-gray-600 transition-all">取消</button>
                             <button onClick={() => onConfirm(confirmPassword)} disabled={loading || !confirmPassword} className="flex-1 py-3 rounded-xl bg-brand-brown text-white font-bold hover:bg-brand-dark-brown disabled:opacity-50 transition-all flex items-center justify-center gap-2">
@@ -670,8 +665,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
             const chart1Instance = useRef(null);
             const chart2Instance = useRef(null);
 
-useEffect(() => {
-                // 安全檢查：確保 Canvas 存在且有資料才繪製
+            useEffect(() => {
                 if (!bookings || bookings.length === 0 || !chartRef1.current || !chartRef2.current) return;
 
                 // Monthly trend chart
@@ -740,8 +734,7 @@ useEffect(() => {
                 };
             }, [bookings]);
 
-return (
-                // 改為兩欄，移除總營收圖表
+            return (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
                         <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">月度訂單趨勢</h4>
@@ -763,7 +756,6 @@ return (
         const CustomerCRM = ({ bookings, onSelectBooking }) => {
             const [searchTerm, setSearchTerm] = useState('');
             
-            // Group bookings by phone number
             const customers = useMemo(() => {
                 const grouped = {};
                 bookings.forEach(b => {
@@ -828,8 +820,7 @@ return (
                                             ))}
                                         </div>
                                     </div>
-<div className="text-right">
-                                        {/* 移除消費總額 */}
+                                    <div className="text-right">
                                         <div className="text-xs text-slate-400 font-bold bg-slate-100 dark:bg-gray-700 px-2 py-1 rounded">{customer.bookings.length} 筆訂單</div>
                                     </div>
                                 </div>
@@ -879,7 +870,7 @@ return (
             </div>
         );
 
-// --- Export Functions ---
+        // --- Export Functions ---
         const exportToExcel = (bookings, filename = 'bookings') => {
             const data = bookings.map(b => ({
                 '訂單編號': b.id,
@@ -888,7 +879,6 @@ return (
                 '電話': b.phone,
                 '寵物名字': b.pet_name,
                 '服務項目': b.service_type,
-                // 移除金額欄位
                 '狀態': STATUS_OPTIONS.find(s => s.value === b.status)?.label || b.status,
                 '入住日期': b.checkin_date || '',
                 '退房日期': b.checkout_date || ''
@@ -900,34 +890,7 @@ return (
             XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
         };
 
-        const exportToPDF = (bookings) => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text('汪汪犬旅 - 訂單報表', 20, 20);
-            
-            doc.setFontSize(10);
-            doc.text(`匯出時間: ${formatDateTime(new Date())}`, 20, 30);
-            doc.text(`總筆數: ${bookings.length}`, 20, 36);
-            
-            let y = 50;
-            doc.setFontSize(8);
-            
-            bookings.slice(0, 30).forEach((b, idx) => {
-                if (y > 280) {
-                    doc.addPage();
-                    y = 20;
-                }
-                doc.text(`#${b.id} | ${b.owner_name} | ${b.pet_name} | ${b.service_type} | $${b.service_price}`, 20, y);
-                y += 6;
-            });
-            
-            doc.save(`bookings_${new Date().toISOString().split('T')[0]}.pdf`);
-        };
-
-        // --- Detail Item Component (moved outside App) ---
+        // --- Detail Item Component ---
         const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false, isEditing, editForm, handleEditChange }) => {
             if (isEditing && fieldName) {
                 const editVal = Array.isArray(editForm[fieldName]) ? editForm[fieldName].join(',') : (editForm[fieldName] || '');
@@ -1019,8 +982,14 @@ return (
             const [session, setSession] = useState(null);
             const [loading, setLoading] = useState(true);
             const [dataLoading, setDataLoading] = useState(false);
+            
+            // 登入狀態
+            const [loginEmail, setLoginEmail] = useState('');
             const [password, setPassword] = useState('');
             const [loginError, setLoginError] = useState('');
+
+            // 取得權限
+            const { canEdit, canDelete, roleName, canManageAdmins, canViewLogs, canExport } = usePermissions(session?.user?.email);
             
             const [bookings, setBookings] = useState([]);
             const [selectedBooking, setSelectedBooking] = useState(null);
@@ -1034,12 +1003,23 @@ return (
             const [dateTo, setDateTo] = useState('');
             
             // View mode
-            const [viewMode, setViewMode] = useState('list'); // list, calendar, crm
-            const [activeTab, setActiveTab] = useState('orders'); // orders, dashboard, logs
+            const [viewMode, setViewMode] = useState('list');
+            const [activeTab, setActiveTab] = useState('orders');
             
-            // Edit mode
+// Edit mode
             const [isEditing, setIsEditing] = useState(false);
             const [editForm, setEditForm] = useState({});
+            
+            // 獨立的備註功能 (讓員工也能寫)
+            const [adminNote, setAdminNote] = useState('');
+            const [noteLoading, setNoteLoading] = useState(false);
+
+            // 當打開訂單時，自動把備註載入到 adminNote
+            useEffect(() => {
+                if (selectedBooking) {
+                    setAdminNote(selectedBooking.raw_data?.admin_notes || '');
+                }
+            }, [selectedBooking]);
             
             // Modals
             const [showConfirm, setShowConfirm] = useState(false);
@@ -1047,22 +1027,14 @@ return (
             const [actionLoading, setActionLoading] = useState(false);
             const [showPasswordModal, setShowPasswordModal] = useState(false);
             
-            // Toast
             const [toast, setToast] = useState(null);
-            
-            // Activity logs
             const [activityLogs, setActivityLogs] = useState([]);
-            
-            // Dark mode
             const [isDark, setIsDark] = useDarkMode();
             
-            // Rate limiter
             const { checkRateLimit, recordAttempt } = useRateLimiter();
-
-            // Show toast helper
             const showToast = (message, type = 'info') => setToast({ message, type });
 
-            // Session timeout handler
+            // Session timeout
             const handleSessionTimeout = useCallback(async () => {
                 showToast('Session 已過期，請重新登入', 'warning');
                 await supabase.auth.signOut();
@@ -1071,20 +1043,17 @@ return (
 
             useSessionTimeout(session ? handleSessionTimeout : () => {});
 
-            // Add activity log
             const addLog = (action, details) => {
                 const newLog = { action, details, timestamp: new Date().toISOString() };
                 setActivityLogs(prev => [newLog, ...prev].slice(0, 100));
                 localStorage.setItem('activity_logs', JSON.stringify([newLog, ...activityLogs].slice(0, 100)));
             };
 
-            // Load activity logs from localStorage
             useEffect(() => {
                 const saved = localStorage.getItem('activity_logs');
                 if (saved) setActivityLogs(JSON.parse(saved));
             }, []);
 
-            // Auth effect
             useEffect(() => {
                 supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
@@ -1098,10 +1067,8 @@ return (
                 return () => subscription.unsubscribe();
             }, []);
 
-            // Realtime subscription
             useEffect(() => {
                 if (!session) return;
-
                 const channel = supabase
                     .channel('bookings-changes')
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookings' }, (payload) => {
@@ -1116,13 +1083,11 @@ return (
                         setBookings(prev => prev.filter(b => b.id !== payload.old.id));
                     })
                     .subscribe();
-
                 return () => { supabase.removeChannel(channel); };
             }, [session]);
 
             const handleLogin = async (e) => {
                 e.preventDefault();
-                
                 const rateCheck = checkRateLimit('login');
                 if (!rateCheck.allowed) {
                     setLoginError(`登入嘗試次數過多，請 15 分鐘後再試`);
@@ -1133,17 +1098,17 @@ return (
                 setLoginError('');
                 recordAttempt('login');
                 
-                const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: password });
-                if (error) { 
+                const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: password });
+                if (error) {
                     setLoginError(`密碼錯誤 (剩餘 ${rateCheck.remaining - 1} 次嘗試)`); 
                     setLoading(false); 
                 } else {
-                    addLog('登入', '管理員登入成功');
+                    addLog('登入', `${loginEmail === ADMIN_EMAIL ? '管理員' : '員工'}登入成功`);
                 }
             };
 
             const handleLogout = async () => {
-                addLog('登出', '管理員登出');
+                addLog('登出', '使用者登出');
                 await supabase.auth.signOut();
                 window.location.href = 'index.html';
             };
@@ -1155,38 +1120,31 @@ return (
                 setDataLoading(false);
             };
 
-            // Stats calculation
             const stats = useMemo(() => {
                 const today = new Date().toISOString().split('T')[0];
                 return {
                     today: bookings.filter(b => b.created_at?.startsWith(today)).length,
                     pending: bookings.filter(b => b.status === 'pending').length,
                     boarding: bookings.filter(b => b.service_type?.includes('住宿')).length,
-                    total: bookings.length,
-                    revenue: bookings.reduce((sum, b) => sum + (parseInt(b.service_price) || 0), 0)
+                    total: bookings.length
                 };
             }, [bookings]);
 
-            // Filtered bookings
             const filteredBookings = useMemo(() => {
                 return bookings.filter(b => {
-                    // Search filter
                     if (searchFilter && !(
                         b.owner_name?.includes(searchFilter) || 
                         b.pet_name?.includes(searchFilter) || 
                         b.phone?.includes(searchFilter)
                     )) return false;
                     
-                    // Status filter
                     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
                     
-                    // Service filter
                     if (serviceFilter !== 'all') {
                         if (serviceFilter === 'boarding' && !b.service_type?.includes('住宿')) return false;
                         if (serviceFilter === 'grooming' && b.service_type?.includes('住宿')) return false;
                     }
                     
-                    // Date filter
                     if (dateFrom && b.created_at < dateFrom) return false;
                     if (dateTo && b.created_at > dateTo + 'T23:59:59') return false;
                     
@@ -1195,37 +1153,25 @@ return (
             }, [bookings, searchFilter, statusFilter, serviceFilter, dateFrom, dateTo]);
 
             const updateStatus = async (id, newStatus) => {
-                // 取得當前訂單資料
                 const currentBooking = bookings.find(b => b.id === id);
                 const oldStatus = currentBooking?.status || 'pending';
-                
-                // 如果狀態沒有變化，不執行更新
                 if (oldStatus === newStatus) return;
                 
-                // 建立新的歷史記錄
                 const newHistoryEntry = {
                     from: oldStatus,
                     to: newStatus,
                     changed_at: new Date().toISOString(),
-                    changed_by: session?.user?.email || 'admin'
+                    changed_by: session?.user?.email || 'unknown'
                 };
                 
-                // 取得現有歷史記錄
-                const existingHistory = currentBooking?.raw_data?.status_history || [];
-                const updatedHistory = [...existingHistory, newHistoryEntry];
-                
-                // 更新 raw_data 中的 status_history
                 const updatedRawData = {
                     ...currentBooking?.raw_data,
-                    status_history: updatedHistory
+                    status_history: [...(currentBooking?.raw_data?.status_history || []), newHistoryEntry]
                 };
                 
                 const { data, error } = await supabase
                     .from('bookings')
-                    .update({ 
-                        status: newStatus,
-                        raw_data: updatedRawData
-                    })
+                    .update({ status: newStatus, raw_data: updatedRawData })
                     .eq('id', id)
                     .select();
                 
@@ -1235,19 +1181,15 @@ return (
                     if (selectedBooking?.id === id) setSelectedBooking(updatedBooking);
                     addLog('狀態更新', `#${id} ${oldStatus} → ${STATUS_OPTIONS.find(s => s.value === newStatus)?.label}`);
                     showToast('狀態已更新', 'success');
-                } else if (error) {
+                } else {
                     showToast('狀態更新失敗', 'error');
-                    console.error('Update status error:', error);
                 }
             };
 
-            // Batch operations
             const handleBatchStatusUpdate = async (newStatus) => {
                 if (selectedBookings.size === 0) return;
-                
                 const ids = Array.from(selectedBookings);
                 const { error } = await supabase.from('bookings').update({ status: newStatus }).in('id', ids);
-                
                 if (!error) {
                     setBookings(prev => prev.map(b => ids.includes(b.id) ? { ...b, status: newStatus } : b));
                     setSelectedBookings(new Set());
@@ -1273,16 +1215,38 @@ return (
                 }
             };
 
-            const triggerAction = (action) => { setConfirmAction(action); setShowConfirm(true); };
+            const triggerAction = (action) => { 
+                if (action === 'save' && !canEdit()) {
+                    showToast("權限不足：無法編輯", "error");
+                    return;
+                }
+                if (action === 'delete' && !canDelete()) {
+                    showToast("權限不足：無法刪除", "error");
+                    return;
+                }
+                setConfirmAction(action); 
+                setShowConfirm(true); 
+            };
 
             const executeAction = async (confirmPassword) => {
                 setActionLoading(true);
-                const { error: authError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: confirmPassword });
-                if (authError) { showToast("密碼錯誤", 'error'); setActionLoading(false); return; }
+                // 驗證當前登入者的密碼
+                const { error: authError } = await supabase.auth.signInWithPassword({ email: loginEmail, password: confirmPassword });
+                
+                if (authError) { 
+                    showToast("密碼錯誤", 'error'); 
+                    setActionLoading(false); 
+                    return; 
+                }
 
-                if (confirmAction === 'save') await handleSaveLogic();
-                else if (confirmAction === 'delete') await handleDeleteLogic();
-
+                if (confirmAction === 'save') {
+                    if (canEdit()) await handleSaveLogic();
+                    else showToast("權限不足，無法儲存", 'error');
+                }
+                else if (confirmAction === 'delete') {
+                    if (canDelete()) await handleDeleteLogic();
+                    else showToast("權限不足，無法刪除", 'error');
+                }
                 setActionLoading(false); setShowConfirm(false);
             };
 
@@ -1297,6 +1261,10 @@ return (
             };
 
             const startEditing = () => {
+                if (!canEdit()) {
+                    showToast("您沒有權限執行此操作", "error");
+                    return;
+                }
                 setEditForm({ ...selectedBooking, ...selectedBooking.raw_data });
                 setIsEditing(true);
             };
@@ -1315,7 +1283,6 @@ return (
                     pickup_time: editForm.pickup_time,
                     service_price: editForm.service_price
                 };
-
                 const newRawData = { ...selectedBooking.raw_data, ...editForm };
                 ['id', 'created_at', 'status', 'raw_data', 'signature_url', 'vaccine_url'].forEach(k => delete newRawData[k]);
 
@@ -1331,12 +1298,31 @@ return (
                     setIsEditing(false);
                     addLog('編輯訂單', `#${updatedBooking.id} ${updatedBooking.pet_name}`);
                     showToast('儲存成功', 'success');
-                } else {
-                    showToast("儲存失敗", 'error');
-                }
+} else { showToast("儲存失敗", 'error'); }
             };
 
-            // Login screen
+            // 獨立儲存備註的函式 (不需編輯權限)
+            const handleQuickSaveNote = async () => {
+                setNoteLoading(true);
+                const newRawData = { ...selectedBooking.raw_data, admin_notes: adminNote };
+                
+                const { data, error } = await supabase.from('bookings')
+                    .update({ raw_data: newRawData })
+                    .eq('id', selectedBooking.id)
+                    .select();
+
+                if (!error && data) {
+                    const updatedBooking = data[0];
+                    setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+                    setSelectedBooking(updatedBooking);
+                    addLog('更新備註', `#${updatedBooking.id} 由 ${loginEmail === ADMIN_EMAIL ? '管理員' : '員工'} 更新備註`);
+                    showToast('備註已更新', 'success');
+                } else {
+                    showToast('備註更新失敗', 'error');
+                }
+                setNoteLoading(false);
+            };
+
             if (!session) {
                 return (
                     <div className="min-h-screen login-bg flex items-center justify-center p-4">
@@ -1345,17 +1331,39 @@ return (
                                 <img src="./logo.png" className="w-full h-full object-cover" alt="Logo" />
                             </div>
                             <h1 className="text-2xl font-black text-brand-brown mb-2">汪汪犬旅 | 管理後台</h1>
-                            <p className="text-slate-400 text-sm mb-8">請輸入管理密碼以存取資料</p>
-                            <form onSubmit={handleLogin} className="space-y-4">
-                                <div className="relative">
-                                    <Icon name="lock" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input type="password" placeholder="輸入密碼" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-brand-brown outline-none transition-all font-bold text-lg text-center tracking-widest placeholder:tracking-normal" autoFocus />
+                            {!loginEmail ? (
+                                <div className="space-y-4">
+                                    <p className="text-slate-400 text-sm mb-8">請選擇登入身分</p>
+                                    <button onClick={() => setLoginEmail(ADMIN_EMAIL)} className="w-full bg-white border-2 border-slate-100 hover:border-brand-brown hover:bg-brand-yellow/10 text-slate-700 py-4 rounded-xl font-bold text-lg shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-3 group">
+                                        <div className="w-10 h-10 rounded-full bg-brand-brown text-white flex items-center justify-center group-hover:scale-110 transition-transform"><Icon name="shield" size={20} /></div>
+                                        <span>管理員登入</span>
+                                    </button>
+                                    <button onClick={() => setLoginEmail(STAFF_EMAIL)} className="w-full bg-white border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-slate-700 py-4 rounded-xl font-bold text-lg shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-3 group">
+                                        <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform"><Icon name="user" size={20} /></div>
+                                        <span>員工登入</span>
+                                    </button>
                                 </div>
-                                {loginError && <p className="text-red-500 text-sm font-bold animate-pulse">{loginError}</p>}
-                                <button disabled={loading} className="w-full bg-brand-brown text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-brand-dark-brown active:scale-95 transition-all flex items-center justify-center gap-2">
-                                    {loading ? <Icon name="loader-2" className="animate-spin" /> : <>登入系統 <Icon name="arrow-right" size={20} /></>}
-                                </button>
-                            </form>
+                            ) : (
+                                <form onSubmit={handleLogin} className="space-y-4 fade-in">
+                                    <div className="text-center mb-6">
+                                        <span className={`inline-block px-4 py-1 rounded-full text-xs font-bold mb-2 ${loginEmail === ADMIN_EMAIL ? 'bg-brand-brown text-white' : 'bg-blue-500 text-white'}`}>
+                                            {loginEmail === ADMIN_EMAIL ? '管理員' : '員工'}
+                                        </span>
+                                        <p className="text-lg font-bold text-slate-700">{loginEmail === ADMIN_EMAIL ? '歡迎回來，店長！' : '上班加油！'}</p>
+                                    </div>
+                                    <div className="relative">
+                                        <Icon name="lock" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input type="password" placeholder="請輸入密碼" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-brand-brown outline-none transition-all font-bold text-lg text-center tracking-widest placeholder:tracking-normal" autoFocus />
+                                    </div>
+                                    {loginError && <p className="text-red-500 text-sm font-bold animate-pulse">{loginError}</p>}
+                                    <button disabled={loading} className="w-full bg-brand-brown text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-brand-dark-brown active:scale-95 transition-all flex items-center justify-center gap-2">
+                                        {loading ? <Icon name="loader-2" className="animate-spin" /> : <>確認登入 <Icon name="arrow-right" size={20} /></>}
+                                    </button>
+                                    <button type="button" onClick={() => { setLoginEmail(''); setPassword(''); setLoginError(''); }} className="w-full py-2 text-slate-400 hover:text-brand-brown text-sm font-bold transition-colors">
+                                        ← 切換使用者
+                                    </button>
+                                </form>
+                            )}
                             <div className="mt-6 border-t border-slate-100 pt-4">
                                 <a href="index.html" className="w-full py-3 rounded-xl font-bold text-slate-400 hover:text-brand-brown transition-all flex items-center justify-center gap-2 text-sm">
                                     <Icon name="arrow-left" size={16} /> 返回填寫首頁
@@ -1366,12 +1374,10 @@ return (
                 );
             }
 
-            // Main dashboard
             return (
                 <div className="min-h-screen flex flex-col no-print">
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
                     
-                    {/* Navigation */}
                     <nav className="bg-white dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full overflow-hidden shadow-md shrink-0 bg-white border border-slate-100"><img src="./logo.png" className="w-full h-full object-cover" /></div>
@@ -1384,9 +1390,11 @@ return (
                             <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="切換深色模式">
                                 <Icon name={isDark ? "sun" : "moon"} size={20} />
                             </button>
-                            <button onClick={() => setShowPasswordModal(true)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="變更密碼">
-                                <Icon name="key" size={20} />
-                            </button>
+                            {canManageAdmins() && (
+                                <button onClick={() => setShowPasswordModal(true)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="變更密碼">
+                                    <Icon name="key" size={20} />
+                                </button>
+                            )}
                             <button onClick={handleLogout} className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900 text-slate-500 hover:text-red-500 transition-colors" title="登出">
                                 <Icon name="log-out" size={20} />
                             </button>
@@ -1394,14 +1402,12 @@ return (
                     </nav>
 
                     <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-                        {/* Stats Cards */}
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                             {[
                                 { title: '今日新增', count: stats.today, icon: 'plus-circle', bgColor: 'bg-blue-50 dark:bg-blue-900', textColor: 'text-blue-500' },
                                 { title: '待確認', count: stats.pending, icon: 'alert-circle', bgColor: 'bg-yellow-50 dark:bg-yellow-900', textColor: 'text-yellow-500' },
                                 { title: '住宿預約', count: stats.boarding, icon: 'home', bgColor: 'bg-orange-50 dark:bg-orange-900', textColor: 'text-orange-500' },
-{ title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' }
-                                // 移除總營收卡片
+                                { title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' }
                             ].map((item, idx) => (
                                 <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col justify-between h-28">
                                     <div className="flex justify-between items-start">
@@ -1413,28 +1419,23 @@ return (
                             ))}
                         </div>
 
-                        {/* Tabs */}
                         <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700 overflow-x-auto">
-                            {[
-                                { id: 'orders', label: '訂單管理', icon: 'clipboard-list' },
-                                { id: 'dashboard', label: '數據儀表板', icon: 'bar-chart-2' },
-                                { id: 'logs', label: '操作日誌', icon: 'activity' }
-                            ].map(tab => (
-                                <button 
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === tab.id ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    <Icon name={tab.icon} size={16} />
-                                    {tab.label}
+                            <button onClick={() => setActiveTab('orders')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'orders' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
+                                <Icon name="clipboard-list" size={16} /> 訂單管理
+                            </button>
+                            <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'dashboard' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
+                                <Icon name="bar-chart-2" size={16} /> 數據儀表板
+                            </button>
+                            {/* 只有管理員看得到操作日誌 Tab */}
+                            {canViewLogs() && (
+                                <button onClick={() => setActiveTab('logs')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'logs' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
+                                    <Icon name="activity" size={16} /> 操作日誌
                                 </button>
-                            ))}
+                            )}
                         </div>
 
-                        {/* Tab Content */}
                         {activeTab === 'orders' && (
                             <div className="space-y-4">
-                                {/* Filters */}
                                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-4">
                                     <div className="flex flex-wrap gap-3">
                                         <div className="relative flex-1 min-w-[200px]">
@@ -1454,7 +1455,6 @@ return (
                                         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" placeholder="結束日期" />
                                     </div>
                                     
-                                    {/* View mode & batch actions */}
                                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100 dark:border-gray-700">
                                         <div className="flex gap-2">
                                             {['list', 'calendar', 'crm'].map(mode => (
@@ -1478,15 +1478,16 @@ return (
                                                     </select>
                                                 </>
                                             )}
-<button onClick={() => exportToExcel(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900 text-green-600 text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1">
-                                                <Icon name="file-spreadsheet" size={14} /> 匯出 Excel
-                                            </button>
-                                            {/* 移除 PDF 按鈕 */}
+                                            {/* 只有管理員可以匯出報表 */}
+                                            {canExport() && (
+                                                <button onClick={() => exportToExcel(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900 text-green-600 text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1">
+                                                    <Icon name="file-spreadsheet" size={14} /> 匯出 Excel
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Content based on view mode */}
                                 {dataLoading ? (
                                     <SkeletonTable />
                                 ) : viewMode === 'calendar' ? (
@@ -1495,12 +1496,11 @@ return (
                                     <CustomerCRM bookings={bookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
                                 ) : (
                                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
-                                        {/* Mobile view */}
                                         <div className="md:hidden p-4 space-y-3">
                                             {filteredBookings.map(b => (
                                                 <div key={b.id} className="bg-slate-50 dark:bg-gray-700 p-4 rounded-xl flex items-center gap-3">
                                                     <input type="checkbox" checked={selectedBookings.has(b.id)} onChange={() => toggleSelectBooking(b.id)} className="w-5 h-5 accent-brand-brown" />
-<div className="flex-1" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                    <div className="flex-1" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-bold text-brand-brown dark:text-brand-yellow">{b.pet_name}</span>
                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
@@ -1510,14 +1510,12 @@ return (
                                                         <div className="text-xs text-slate-500 dark:text-gray-400">{b.owner_name} • {getServiceLabel(b.service_type)}</div>
                                                     </div>
                                                     <div className="text-right">
-                                                        {/* 移除金額顯示 */}
                                                         <div className="text-[10px] text-slate-400">{formatDate(b.created_at)}</div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
 
-                                        {/* Desktop table */}
                                         <div className="hidden md:block overflow-x-auto">
                                             <table className="w-full text-left">
                                                 <thead className="bg-slate-50 dark:bg-gray-900 text-slate-500 font-bold text-xs uppercase tracking-wider">
@@ -1527,9 +1525,8 @@ return (
                                                         </th>
                                                         <th className="px-4 py-3">建立時間</th>
                                                         <th className="px-4 py-3">飼主 / 電話</th>
-<th className="px-4 py-3">寵物</th>
+                                                        <th className="px-4 py-3">寵物</th>
                                                         <th className="px-4 py-3">服務項目</th>
-                                                        {/* 移除金額標題 */}
                                                         <th className="px-4 py-3">狀態</th>
                                                         <th className="px-4 py-3"></th>
                                                     </tr>
@@ -1551,10 +1548,9 @@ return (
                                                             <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                                 <span className="bg-brand-brown/10 text-brand-brown px-2 py-1 rounded text-xs font-bold">{b.pet_name}</span>
                                                             </td>
-<td className="px-4 py-3 text-sm font-bold text-slate-600 dark:text-gray-300" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                                                            <td className="px-4 py-3 text-sm font-bold text-slate-600 dark:text-gray-300" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                                 {getServiceLabel(b.service_type)}
                                                             </td>
-                                                            {/* 移除金額顯示 */}
                                                             <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
                                                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${b.status === 'confirmed' ? 'bg-green-50 text-green-600' : b.status === 'completed' ? 'bg-blue-50 text-blue-600' : b.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}`}>
                                                                     {STATUS_OPTIONS.find(s => s.value === b.status)?.icon} {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
@@ -1589,11 +1585,9 @@ return (
                         )}
                     </main>
 
-                    {/* Detail Modal */}
                     {selectedBooking && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm fade-in" onClick={(e) => { if(e.target === e.currentTarget && !isEditing) setSelectedBooking(null); }}>
                             <div className="bg-white dark:bg-gray-800 w-full h-full md:h-[90vh] md:max-w-5xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                                {/* Header */}
                                 <div className="px-6 py-4 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center bg-slate-50 dark:bg-gray-900 shrink-0">
                                     <div>
                                         <h2 className="text-xl font-black text-brand-brown dark:text-brand-yellow">訂單 #{selectedBooking.id}</h2>
@@ -1607,20 +1601,22 @@ return (
                                             </>
                                         ) : (
                                             <>
-                                                <button onClick={startEditing} className="bg-blue-50 dark:bg-blue-900 text-blue-600 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-blue-100 transition-all text-sm"><Icon name="pencil" size={14}/> 編輯</button>
+                                                {/* 只有擁有編輯權限才顯示編輯按鈕 */}
+                                                {canEdit() && (
+                                                    <button onClick={startEditing} className="bg-blue-50 dark:bg-blue-900 text-blue-600 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-blue-100 transition-all text-sm"><Icon name="pencil" size={14}/> 編輯</button>
+                                                )}
                                                 <button onClick={() => window.print()} className="bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-slate-200 transition-all text-sm"><Icon name="printer" size={14}/></button>
                                                 <button onClick={() => setSelectedBooking(null)} className="w-10 h-10 bg-slate-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"><Icon name="x" size={18}/></button>
                                             </>
                                         )}
                                     </div>
                                 </div>
-
-                                {/* Content */}
+                                
+                                {/* 內容區域省略，與原檔一致，僅確保權限控制正確 */}
                                 <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-gray-900">
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        {/* Main content */}
                                         <div className="lg:col-span-2 space-y-4">
-                                            {/* Owner info */}
+                                            {/* 飼主資料 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="user" size={16}/> 飼主資料</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -1634,7 +1630,7 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Pet info */}
+                                            {/* 寵物資料 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="heart" size={16}/> 寵物資料</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1649,7 +1645,7 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Health info */}
+                                            {/* 健康與行為 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-brand-yellow">
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="activity" size={16}/> 健康與行為</h3>
                                                 <div className="grid grid-cols-2 gap-3">
@@ -1664,7 +1660,7 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Notes */}
+                                            {/* 備註 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="clipboard" size={16}/> 備註</h3>
                                                 <div className="space-y-3">
@@ -1674,7 +1670,7 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Signature & Vaccine */}
+                                            {/* 簽名與疫苗照片 */}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                     <h4 className="text-xs font-bold text-slate-400 mb-2">客戶簽名</h4>
@@ -1687,9 +1683,8 @@ return (
                                             </div>
                                         </div>
 
-                                        {/* Sidebar */}
                                         <div className="space-y-4">
-                                            {/* Status */}
+                                            {/* 訂單狀態 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 block">訂單狀態</label>
                                                 <div className="grid grid-cols-2 gap-2">
@@ -1701,7 +1696,7 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Service info */}
+                                            {/* 服務資訊 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
                                                 <div className="space-y-3">
@@ -1713,26 +1708,34 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Admin Notes - 店家內部備註 */}
+{/* Admin Notes - 店家內部備註 (開放員工編輯) */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-purple-400">
-                                                <label className="text-xs font-bold text-slate-400 mb-3 flex items-center gap-2">
-                                                    <Icon name="sticky-note" size={14} /> 店家內部備註
-                                                </label>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <label className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                                                        <Icon name="sticky-note" size={14} /> 店家內部備註 (員工可寫)
+                                                    </label>
+                                                    {/* 如果內容有變更，顯示儲存按鈕 */}
+                                                    {adminNote !== (selectedBooking.raw_data?.admin_notes || '') && (
+                                                        <button 
+                                                            onClick={handleQuickSaveNote} 
+                                                            disabled={noteLoading}
+                                                            className="text-xs bg-purple-500 text-white px-3 py-1 rounded-full font-bold hover:bg-purple-600 transition-all flex items-center gap-1 fade-in"
+                                                        >
+                                                            {noteLoading ? <Icon name="loader-2" size={12} className="animate-spin"/> : <Icon name="save" size={12}/>}
+                                                            儲存備註
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 <textarea 
-                                                    className="w-full edit-input h-24 text-sm" 
-                                                    placeholder="輸入內部備註（僅店家可見）..."
-                                                    value={editForm.admin_notes || selectedBooking.raw_data?.admin_notes || ''}
-                                                    onChange={e => handleEditChange('admin_notes', e.target.value)}
-                                                    disabled={!isEditing}
+                                                    className="w-full edit-input h-24 text-sm focus:ring-2 focus:ring-purple-200" 
+                                                    placeholder="輸入交接事項或備註..."
+                                                    value={adminNote}
+                                                    onChange={e => setAdminNote(e.target.value)}
                                                 />
-                                                {!isEditing && selectedBooking.raw_data?.admin_notes && (
-                                                    <div className="mt-2 text-xs text-slate-500 dark:text-gray-400">
-                                                        {selectedBooking.raw_data.admin_notes}
-                                                    </div>
-                                                )}
+                                                <p className="text-[10px] text-slate-300 mt-1 text-right">修改後請按上方按鈕儲存</p>
                                             </div>
 
-                                            {/* Order History Timeline - 訂單歷史記錄 */}
+                                            {/* 狀態變更記錄 */}
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 flex items-center gap-2">
                                                     <Icon name="history" size={14} /> 狀態變更記錄
@@ -1764,8 +1767,8 @@ return (
                                                 </div>
                                             </div>
 
-                                            {/* Delete button */}
-                                            {!isEditing && (
+                                            {/* Delete button - 只有擁有刪除權限才顯示 */}
+                                            {!isEditing && canDelete() && (
                                                 <button onClick={() => triggerAction('delete')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900 transition-all border border-transparent hover:border-red-100">
                                                     <Icon name="trash-2" size={16}/> 刪除此訂單
                                                 </button>
@@ -1784,20 +1787,15 @@ return (
             );
         };
 
-// PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    // 使用 admin 專用的 service worker
                     const registration = await navigator.serviceWorker.register('sw-admin.js');
                     console.log('SW registered:', registration);
-                    
-                    // 檢查更新
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // 有新版本可用
                                 console.log('New SW version available');
                             }
                         });
@@ -1808,7 +1806,7 @@ return (
             });
         }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
