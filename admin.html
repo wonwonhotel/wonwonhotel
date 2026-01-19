@@ -1696,14 +1696,17 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-brand-yellow">
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="activity" size={16}/> 健康與行為</h3>
                                                 <div className="grid grid-cols-2 gap-3">
+<DetailItem label="美容性情評估" value={selectedBooking.raw_data?.grooming_temperament} fieldName="grooming_temperament" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="親狗程度" value={selectedBooking.raw_data?.dog_traits} fieldName="dog_traits" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="過往病史" value={selectedBooking.raw_data?.medical_status} fieldName="medical_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="病史說明" value={selectedBooking.raw_data?.medical_history} fieldName="medical_history" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="容易吠叫" value={selectedBooking.raw_data?.is_barking} fieldName="is_barking" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="病史詳細說明" value={selectedBooking.raw_data?.medical_history?.join('、') + (selectedBooking.raw_data?.medical_history_other ? ` (${selectedBooking.raw_data?.medical_history_other})` : '')} fieldName="medical_history" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="住宿經驗" value={selectedBooking.raw_data?.stay_exp} fieldName="stay_exp" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="籠內訓練狀況" value={selectedBooking.raw_data?.crate_status} fieldName="crate_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="容易吠叫" value={selectedBooking.raw_data?.is_barking + (selectedBooking.raw_data?.barking_detail ? ` (${selectedBooking.raw_data?.barking_detail})` : '')} fieldName="is_barking" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="護食狀況" value={selectedBooking.raw_data?.food_aggr} fieldName="food_aggr" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="定點如廁" value={selectedBooking.raw_data?.pad_toilet} fieldName="pad_toilet" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="定期疫苗" value={selectedBooking.raw_data?.vaccine} fieldName="vaccine" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="定期驅蟲" value={selectedBooking.raw_data?.deworm} fieldName="deworm" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="定期驅蟲" value={selectedBooking.raw_data?.deworm + (selectedBooking.raw_data?.deworm_brand ? ` (${selectedBooking.raw_data?.deworm_brand})` : '')} fieldName="deworm" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                 </div>
                                             </div>
 
@@ -1747,7 +1750,8 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
                                                 <div className="space-y-3">
-                                                    <DetailItem label="服務項目" value={selectedBooking.service_type} fieldName="service_type" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="服務項目" value={selectedBooking.service_type} fieldName="service_type" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />

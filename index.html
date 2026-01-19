@@ -738,7 +738,7 @@ const Icon = ({ name, size = 20, className = "" }) => {
             dog_traits: '請至少選擇一項社交狀況',
             medical_status: '請選擇是否有過往病史',
             medical_history: '請選擇病史項目',
-            preferred_clinic: '請填寫指定就醫診療機構 (若無請填無)',
+            preferred_clinic: '請填寫指定就醫診療機構 (若未填寫，則送往特約醫院)',
             checkin_date: '請選擇入住日期',
             checkout_date: '請選擇退房日期',
             is_barking: '請選擇是否容易吠叫',
@@ -2130,7 +2130,7 @@ const initCanvas = () => {
         name="preferred_clinic"
         value={formData.preferred_clinic} 
         onChange={e=>handleChange('preferred_clinic', e.target.value)} 
-        placeholder="(若無請填無)"
+        placeholder="(若未填寫，則送往特約醫院)"
         error={errors.preferred_clinic}
     />
     {/* 新增的美化提示框 */}
