@@ -1773,19 +1773,14 @@ const initCanvas = () => {
 
                     <nav className="fixed top-0 w-full z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-[#736357]/5 dark:border-gray-700 shadow-sm">
                         <div className="px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
-                            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('entry')}>
+<div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.location.hash = ''}>
                                 <img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain group-hover:rotate-12 transition-transform" />
                                 <div className="font-black text-xl text-[#736357] dark:text-[#F7E7B5] tracking-tight">汪汪犬旅</div>
                             </div>
 <button 
     onClick={() => {
-        // 如果有歷史紀錄(代表是點進來的)，就用上一頁功能
-        if (window.history.state?.page === 'form') {
-            window.history.back();
-        } else {
-            // 如果是直接重新整理在這一頁，則直接切換 State
-            setView('entry');
-        }
+        // 修改：直接清空 Hash，這樣網址會變回乾淨的，且會自動觸發你寫好的 hashchange 監聽器來切換頁面
+        window.location.hash = '';
     }} 
     className="text-xs font-bold text-[#736357]/60 dark:text-gray-400 hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:bg-[#736357]/5 dark:hover:bg-gray-700 px-4 py-2 border border-[#736357]/10 dark:border-gray-600 rounded-full transition-all flex items-center gap-2"
 >
