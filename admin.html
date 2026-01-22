@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>汪汪犬旅 | 後台管理系統</title>
-    <link rel="manifest" href="manifest-admin.json">
+    <link rel="manifest" href="manifest-admin.json?v=2">
     <meta name="theme-color" content="#736357">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1140,12 +1140,16 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                 setDataLoading(false);
             };
 
-            const stats = useMemo(() => {
+const stats = useMemo(() => {
                 const today = new Date().toISOString().split('T')[0];
                 return {
                     today: bookings.filter(b => b.created_at?.startsWith(today)).length,
                     pending: bookings.filter(b => b.status === 'pending').length,
                     boarding: bookings.filter(b => b.service_type?.includes('住宿')).length,
+                    // 新增：洗澡美容 (包含 基礎洗澡、精緻美容、局部修剪、其他項目、包月洗澡)
+                    grooming: bookings.filter(b => ['基礎洗澡', '精緻美容', '局部修剪', '其他項目', '包月洗澡'].includes(b.service_type)).length,
+                    // 新增：寵物安親
+                    daycare: bookings.filter(b => b.service_type === '寵物安親').length,
                     total: bookings.length
                 };
             }, [bookings]);
@@ -1422,11 +1426,15 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                     </nav>
 
                     <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+<div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
                             {[
                                 { title: '今日新增', count: stats.today, icon: 'plus-circle', bgColor: 'bg-blue-50 dark:bg-blue-900', textColor: 'text-blue-500' },
                                 { title: '待確認', count: stats.pending, icon: 'alert-circle', bgColor: 'bg-yellow-50 dark:bg-yellow-900', textColor: 'text-yellow-500' },
                                 { title: '住宿預約', count: stats.boarding, icon: 'home', bgColor: 'bg-orange-50 dark:bg-orange-900', textColor: 'text-orange-500' },
+                                // 新增：洗澡美容
+                                { title: '洗澡美容', count: stats.grooming, icon: 'scissors', bgColor: 'bg-pink-50 dark:bg-pink-900', textColor: 'text-pink-500' },
+                                // 新增：寵物安親
+                                { title: '寵物安親', count: stats.daycare, icon: 'sun', bgColor: 'bg-teal-50 dark:bg-teal-900', textColor: 'text-teal-500' },
                                 { title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' }
                             ].map((item, idx) => (
                                 <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col justify-between h-28">
@@ -1841,7 +1849,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-const registration = await navigator.serviceWorker.register('sw-admin.js?v=2');
+                    const registration = await navigator.serviceWorker.register('sw-admin.js');
                     console.log('SW registered:', registration);
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
