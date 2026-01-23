@@ -1,3 +1,4 @@
+
 // 汪汪犬旅 Service Worker
 const CACHE_NAME = 'wanwan-hotel-v3';
 const urlsToCache = [
