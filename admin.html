@@ -2075,5 +2075,28 @@ const stats = useMemo(() => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    // 註冊 Service Worker (請確認檔名與 index.html 使用的相同)
+                    const registration = await navigator.serviceWorker.register('./sw-admin.js');
+                    console.log('Admin Service Worker 註冊成功');
+
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('管理後台偵測到新版本，正在自動更新...');
+                                window.location.reload();
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('Admin Service Worker 註冊失敗:', error);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
