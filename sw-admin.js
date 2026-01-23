@@ -10,6 +10,8 @@ const urlsToCache = [
 
 // 安裝 Service Worker
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // 強制跳過等待，立即啟用新版
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
