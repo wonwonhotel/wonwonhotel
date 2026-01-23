@@ -1,5 +1,5 @@
 // 汪汪犬旅後台 Service Worker
-const CACHE_NAME = 'wanwan-admin-v2';
+const CACHE_NAME = 'wanwan-admin-v3';
 const urlsToCache = [
   './',
   './admin.html',
@@ -219,3 +219,4 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
