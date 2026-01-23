@@ -890,7 +890,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
             </div>
         );
 // --- Email Log Viewer Component (手機優化版 + 搜尋) ---
-        const EmailLogViewer = () => {
+const EmailLogViewer = ({ showToast }) => {
             const [logs, setLogs] = useState([]);
             const [loading, setLoading] = useState(false);
             const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -922,16 +922,28 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                 (log.pet_owner_name && log.pet_owner_name.includes(searchTerm))
             );
 
-            const handleResend = async (e, log) => {
-                e.stopPropagation(); // 防止觸發摺疊
+const handleResend = async (e, log) => {
+                e.stopPropagation(); // 防止點擊按鈕時觸發卡片摺疊
+                
                 if (!confirm(`確定要重新寄送給 ${log.recipient_email} 嗎？`)) return;
                 
-                // 這裡呼叫你的後端 Edge Function
-                // const { error } = await supabase.functions.invoke('resend-contract', { body: { log_id: log.id } });
-                
-                alert(`重寄請求已發送！(需串接後端)`);
-            };
+                showToast("正在準備重新寄送...", "info");
 
+                try {
+                    // 呼叫你部署好的 resend-email Edge Function
+                    const { data, error } = await supabase.functions.invoke('resend-email', { 
+                        body: { log_id: log.id } 
+                    });
+
+                    if (error) throw error;
+
+                    showToast("✅ 郵件已重新發送！", "success");
+                    setRefreshTrigger(prev => prev + 1); // 重新整理清單看新狀態
+                } catch (error) {
+                    console.error("重寄失敗:", error);
+                    showToast("❌ 重寄失敗：" + (error.message || "請檢查網路"), "error");
+                }
+            };
             const getStatusBadge = (status) => {
                 const statusMap = {
                     'request': { label: '已請求', bg: 'bg-gray-100', text: 'text-gray-600' },
@@ -1802,9 +1814,9 @@ const stats = useMemo(() => {
                             </div>
                         )}
                         {/* 新增這一段：渲染郵件元件 */}
-                        {activeTab === 'email_logs' && (
-                            <EmailLogViewer />
-                        )}
+{activeTab === 'email_logs' && (
+    <EmailLogViewer showToast={showToast} />
+)}
                         {activeTab === 'logs' && (
                             <ActivityLog logs={activityLogs} />
                         )}
