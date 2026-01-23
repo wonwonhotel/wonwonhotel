@@ -1,6 +1,6 @@
 
 // 汪汪犬旅 Service Worker
-const CACHE_NAME = 'wanwan-hotel-v3';
+const CACHE_NAME = 'wanwan-hotel-v4';
 const urlsToCache = [
   './',
   './index.html',
@@ -220,3 +220,4 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
