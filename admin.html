@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>汪汪犬旅 | 後台管理系統</title>
-    <link rel="manifest" href="manifest-admin.json?v=2">
+    <link rel="manifest" href="manifest-admin.json">
     <meta name="theme-color" content="#736357">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -889,7 +889,195 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                 </div>
             </div>
         );
+// --- Email Log Viewer Component (手機優化版 + 搜尋) ---
+        const EmailLogViewer = () => {
+            const [logs, setLogs] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [refreshTrigger, setRefreshTrigger] = useState(0);
+            const [searchTerm, setSearchTerm] = useState(''); // 新增搜尋狀態
+            const [expandedLogId, setExpandedLogId] = useState(null); // 新增手機版展開狀態
 
+            useEffect(() => {
+                const fetchEmailLogs = async () => {
+                    setLoading(true);
+                    const { data, error } = await supabase
+                        .from('email_logs')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .limit(50);
+
+                    if (error) {
+                        console.error('Error fetching logs:', error);
+                    } else {
+                        setLogs(data || []);
+                    }
+                    setLoading(false);
+                };
+                fetchEmailLogs();
+            }, [refreshTrigger]);
+
+            // 過濾邏輯
+            const filteredLogs = logs.filter(log => 
+                (log.recipient_email && log.recipient_email.includes(searchTerm)) || 
+                (log.pet_owner_name && log.pet_owner_name.includes(searchTerm))
+            );
+
+            const handleResend = async (e, log) => {
+                e.stopPropagation(); // 防止觸發摺疊
+                if (!confirm(`確定要重新寄送給 ${log.recipient_email} 嗎？`)) return;
+                
+                // 這裡呼叫你的後端 Edge Function
+                // const { error } = await supabase.functions.invoke('resend-contract', { body: { log_id: log.id } });
+                
+                alert(`重寄請求已發送！(需串接後端)`);
+            };
+
+            const getStatusBadge = (status) => {
+                const statusMap = {
+                    'request': { label: '已請求', bg: 'bg-gray-100', text: 'text-gray-600' },
+                    'sent': { label: '已發送', bg: 'bg-blue-50', text: 'text-blue-600' },
+                    'delivered': { label: '已送達', bg: 'bg-green-100', text: 'text-green-700' },
+                    'opened': { label: '已開啟', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+                    'clicked': { label: '已點擊', bg: 'bg-purple-100', text: 'text-purple-700' },
+                    'soft_bounce': { label: '暫時失敗', bg: 'bg-orange-100', text: 'text-orange-700' },
+                    'hard_bounce': { label: '無效信箱', bg: 'bg-red-100', text: 'text-red-700' },
+                    'error': { label: '錯誤', bg: 'bg-red-100', text: 'text-red-700' }
+                };
+                const config = statusMap[status] || { label: status, bg: 'bg-gray-100', text: 'text-gray-600' };
+                return <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${config.bg} ${config.text}`}>{config.label}</span>;
+            };
+
+            return (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
+                    {/* Header & Search */}
+                    <div className="p-4 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 shrink-0 space-y-3">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <Icon name="mail" size={20} className="text-brand-brown" />
+                                <h3 className="font-bold text-slate-700 dark:text-white">系統郵件紀錄</h3>
+                            </div>
+                            <button onClick={() => setRefreshTrigger(prev => prev + 1)} className="p-2 hover:bg-slate-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                                <Icon name="rotate-cw" size={16} className={loading ? "animate-spin" : ""} />
+                            </button>
+                        </div>
+                        {/* 搜尋框 */}
+                        <div className="relative">
+                            <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="搜尋 Email 或 飼主姓名..." 
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:border-brand-brown"
+                            />
+                        </div>
+                    </div>
+                    
+                    {/* Content Area */}
+                    <div className="overflow-y-auto flex-1 p-0 md:p-0 bg-white dark:bg-gray-800">
+                        {loading && logs.length === 0 ? (
+                            <div className="p-8 text-center text-slate-400">載入中...</div>
+                        ) : filteredLogs.length === 0 ? (
+                            <div className="p-12 text-center flex flex-col items-center gap-2">
+                                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-300"><Icon name="inbox" size={24}/></div>
+                                <span className="text-slate-400 text-sm">沒有找到相關紀錄</span>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Mobile View (Card List) */}
+                                <div className="md:hidden divide-y divide-slate-100 dark:divide-gray-700">
+                                    {filteredLogs.map((log) => (
+                                        <div key={log.id} className="bg-white dark:bg-gray-800" onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}>
+                                            <div className="p-4 flex items-start gap-3 active:bg-slate-50 transition-colors cursor-pointer">
+                                                <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${log.status === 'opened' ? 'bg-green-500' : log.status === 'delivered' ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <span className="font-bold text-slate-700 dark:text-white truncate text-sm">{log.pet_owner_name || '未紀錄飼主'}</span>
+                                                        <span className="text-[10px] text-slate-400 shrink-0">{new Date(log.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 dark:text-gray-400 truncate font-mono mb-1.5">{log.recipient_email}</div>
+                                                    <div className="flex justify-between items-center">
+                                                        {getStatusBadge(log.status)}
+                                                        <Icon name={expandedLogId === log.id ? "chevron-up" : "chevron-down"} size={14} className="text-slate-300"/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Mobile Expanded Details */}
+                                            {expandedLogId === log.id && (
+                                                <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="bg-slate-50 dark:bg-gray-700/50 rounded-xl p-3 text-xs space-y-2 border border-slate-100 dark:border-gray-700">
+                                                        <div className="flex justify-between border-b border-slate-200 dark:border-gray-600 pb-2">
+                                                            <span className="text-slate-400">時間</span>
+                                                            <span className="font-medium dark:text-gray-300">{new Date(log.created_at).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-slate-400 block">主旨</span>
+                                                            <span className="font-medium dark:text-gray-300 block break-words">{log.subject || '無主旨'}</span>
+                                                        </div>
+                                                        <div className="pt-2 flex justify-end">
+                                                            <button 
+                                                                onClick={(e) => handleResend(e, log)}
+                                                                className="flex items-center gap-1 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 px-3 py-1.5 rounded-lg text-brand-brown dark:text-gray-200 font-bold shadow-sm active:scale-95 transition-transform"
+                                                            >
+                                                                <Icon name="refresh-cw" size={12}/> 重寄信件
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Desktop View (Table) - 保持原樣但使用 filteredLogs */}
+                                <div className="hidden md:block">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-50 dark:bg-gray-900 text-slate-500 font-bold text-xs uppercase tracking-wider sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-6 py-3">時間</th>
+                                                <th className="px-6 py-3">收件人 / 飼主</th>
+                                                <th className="px-6 py-3">主旨</th>
+                                                <th className="px-6 py-3">狀態</th>
+                                                <th className="px-6 py-3 text-right">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
+                                            {filteredLogs.map((log) => (
+                                                <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
+                                                    <td className="px-6 py-4 text-sm text-slate-500">
+                                                        <div>{new Date(log.created_at).toLocaleDateString()}</div>
+                                                        <div className="text-xs">{new Date(log.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-bold text-slate-700 dark:text-gray-200">{log.pet_owner_name || '未紀錄'}</div>
+                                                        <div className="text-xs text-slate-400">{log.recipient_email}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-300">
+                                                        {log.subject || '無主旨'}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {getStatusBadge(log.status)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button 
+                                                            onClick={(e) => handleResend(e, log)}
+                                                            className="text-xs font-bold text-brand-brown hover:bg-brand-brown/10 px-3 py-1.5 rounded border border-brand-brown/30 transition-all"
+                                                        >
+                                                            重寄
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
         // --- Export Functions ---
         const exportToExcel = (bookings, filename = 'bookings') => {
             const data = bookings.map(b => ({
@@ -1454,6 +1642,10 @@ const stats = useMemo(() => {
                             <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'dashboard' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
                                 <Icon name="bar-chart-2" size={16} /> 數據儀表板
                             </button>
+                            {/* 新增這一段：郵件紀錄 Tab */}
+                            <button onClick={() => setActiveTab('email_logs')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'email_logs' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
+                                <Icon name="mail" size={16} /> 郵件紀錄
+                            </button>                            
                             {/* 只有管理員看得到操作日誌 Tab */}
                             {canViewLogs() && (
                                 <button onClick={() => setActiveTab('logs')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'logs' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -1609,7 +1801,10 @@ const stats = useMemo(() => {
                                 <DashboardCharts bookings={bookings} />
                             </div>
                         )}
-
+                        {/* 新增這一段：渲染郵件元件 */}
+                        {activeTab === 'email_logs' && (
+                            <EmailLogViewer />
+                        )}
                         {activeTab === 'logs' && (
                             <ActivityLog logs={activityLogs} />
                         )}

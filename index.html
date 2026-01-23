@@ -52,7 +52,8 @@
     <script src="https://cdn.jsdelivr.net/npm/react-datepicker@4.25.0/dist/react-datepicker.min.js" defer></script>
 
     <style>
-        
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
         :root { 
             --brand-yellow: #F7E7B5; 
             --brand-brown: #736357; 
@@ -68,7 +69,7 @@ html, body {
     padding: 0;
     width: 100%;
     height: 100%;
-    font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
+    font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
     background-color: var(--brand-light);
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
     color: var(--brand-brown); 
@@ -1699,7 +1700,12 @@ const initCanvas = () => {
                         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#F7E7B5]/30 rounded-full blur-[100px] mix-blend-multiply animate-pulse pointer-events-none"></div>
                         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#736357]/10 rounded-full blur-[100px] mix-blend-multiply pointer-events-none"></div>
                         
-                        <div className="w-48 h-48 md:w-64 md:h-64 mx-auto mb-10 relative transform hover:scale-105 transition-transform duration-500">
+{/* 修改：點擊兩下 Logo 進入後台 */}
+                        <div 
+                            onDoubleClick={() => window.location.href = 'admin.html'}
+                            className="w-80 h-80 md:w-64 md:h-64 mx-auto mb-10 relative transform hover:scale-105 transition-transform duration-500 cursor-pointer"
+                            title="點擊兩下進入管理後台"
+                        >
                             <img src="./logo.png" alt="汪汪犬旅 Logo" className="w-full h-full object-contain drop-shadow-2xl" />
                         </div>
                         
@@ -1729,10 +1735,32 @@ const initCanvas = () => {
                             </button>
                         </div>
 
-                        <footer className="py-8 text-center relative z-20">
-                            <a href="admin.html" className="inline-flex items-center justify-center p-4 text-slate-300 hover:text-[#736357] dark:hover:text-[#F7E7B5]" title="Staff Only">
-                                <Icon name="lock" size={28} />
-                            </a>
+{/* 修改：底部社群連結 (仿 Soosi 風格) */}
+                        <footer className="mt-12 pb-12 text-center space-y-6 relative z-20">
+                            <div className="flex items-center justify-center gap-8 text-[#736357]/70 dark:text-[#F7E7B5]/70">
+                                <a href="https://www.facebook.com/share/1Az9cymQ9P/?mibextid=wwXIfr" target="_blank" className="hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:scale-110 transition-all flex flex-col items-center gap-1">
+                                    <Icon name="facebook" size={24}/>
+                                    <span className="text-[10px] font-bold">Facebook</span>
+                                </a>
+                                <a href="https://www.instagram.com/wonhotel?igsh=dXBvd3Z6OWxuejdw&utm_source=qr" target="_blank" className="hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:scale-110 transition-all flex flex-col items-center gap-1">
+                                    <Icon name="instagram" size={24}/>
+                                    <span className="text-[10px] font-bold">Instagram</span>
+                                </a>
+                                <a href="https://line.me/R/ti/p/@cik3330f" target="_blank" className="hover:text-[#736357] dark:hover:text-[#F7E7B5] hover:scale-110 transition-all flex flex-col items-center gap-1">
+                                    <img src="line.png" className="w-6 h-6 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all object-contain"/>
+                                    <span className="text-[10px] font-bold">LINE</span>
+                                </a>
+                            </div>
+                            <div>
+                                <a href="https://maps.app.goo.gl/wVPH6qjUPjKBme4K8" target="_blank" 
+                                   className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 border border-white/60 hover:bg-white/80 transition-all text-[#736357] text-xs font-bold shadow-sm backdrop-blur-sm">
+                                    <Icon name="map-pin" size={14} className="text-red-500" />
+                                    台中市北屯區松竹路二段361號2樓
+                                </a>
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-medium tracking-wider">
+                                © 2026 Wonwon Hotel. All Rights Reserved.
+                            </p>
                         </footer>
 
                     </div>
