@@ -1929,6 +1929,11 @@ const stats = useMemo(() => {
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="clipboard" size={16}/> 備註</h3>
                                                 <div className="space-y-3">
+                                                    <DetailItem label="是否異食癖" value={selectedBooking.raw_data?.pica_status + (selectedBooking.raw_data?.pica_note ? ` (${selectedBooking.raw_data?.pica_note})` : '')} fieldName="pica_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="異食癖說明" value={selectedBooking.raw_data?.pica_note} fieldName="pica_note" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="飲食習慣" value={selectedBooking.raw_data?.diet_habits?.join('、') + (selectedBooking.raw_data?.diet_other ? ` (其他：${selectedBooking.raw_data?.diet_other})` : '')} fieldName="diet_habits" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="飲食其他" value={selectedBooking.raw_data?.diet_other} fieldName="diet_other" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="餵食頻率與份量" value={selectedBooking.raw_data?.feeding_note} fieldName="feeding_note" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="過敏資訊" value={selectedBooking.raw_data?.allergy} fieldName="allergy" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="個性描述" value={selectedBooking.raw_data?.personality} fieldName="personality" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="特別注意" value={selectedBooking.raw_data?.special_notes} fieldName="special_notes" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
@@ -1965,6 +1970,8 @@ const stats = useMemo(() => {
                                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
                                                 <div className="space-y-3">
+                                                    <DetailItem label="美容預約日期" value={selectedBooking.raw_data?.grooming_date} fieldName="grooming_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="SPA 加購項目" value={selectedBooking.raw_data?.spa_addons} fieldName="spa_addons" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
 <DetailItem label="服務項目" value={selectedBooking.service_type} fieldName="service_type" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
