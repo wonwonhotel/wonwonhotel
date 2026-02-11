@@ -59,13 +59,21 @@
             --line-green: #06C755; 
             --error-red: #ef4444;
             --info-blue: #3b82f6;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        .safe-top {
+            padding-top: var(--safe-top);
+        }
+
+        .safe-bottom {
+            padding-bottom: var(--safe-bottom);
         }
 
 html, body { 
     margin: 0;
     padding: 0;
-    padding-top: env(safe-area-inset-top); /* 🐶 修正：避開 iPhone 瀏海 */
-    padding-bottom: env(safe-area-inset-bottom);
     width: 100%;
     height: 100%;
     font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
@@ -241,9 +249,9 @@ body.signing-mode {
             transform: scale(0.96);
         }
 
-@keyframes slide-down {
+        @keyframes slide-down {
             from { transform: translate(-50%, -100%); opacity: 0; }
-            to { transform: translate(-50%, calc(24px + env(safe-area-inset-top))); opacity: 1; } /* 🐶 修正：通知視窗避開瀏海 */
+            to { transform: translate(-50%, 24px); opacity: 1; }
         }
         .toast-enter { animation: slide-down 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
@@ -560,7 +568,10 @@ const Icon = ({ name, size = 20, className = "" }) => {
             const bgColor = type === 'error' ? 'bg-[#ef4444] shadow-red-200' : 'bg-[#06C755] shadow-green-200';
             const iconName = type === 'error' ? 'alert-circle' : 'check-circle';
             return (
-                <div className={`fixed top-0 left-1/2 z-[200] flex items-center gap-3 px-6 py-4 rounded-full shadow-xl text-white font-bold text-sm tracking-wide toast-enter ${bgColor} backdrop-blur-md`}>
+                <div
+                    style={{ top: 'calc(var(--safe-top) + 12px)' }}
+                    className={`fixed left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-6 py-4 rounded-full shadow-xl text-white font-bold text-sm tracking-wide toast-enter ${bgColor} backdrop-blur-md`}
+                >
                     <Icon name={iconName} size={20} className="text-white" />
                     <span>{message}</span>
                 </div>
@@ -2186,7 +2197,7 @@ if (funcError) console.error("寄信失敗:", funcError);
             if (isPageLoading) {
                 return (
                     <div className="min-h-screen pb-32">
-                        <nav className="fixed top-0 w-full z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-[#736357]/5 shadow-sm">
+                        <nav className="fixed top-0 w-full z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-[#736357]/5 shadow-sm safe-top">
                             <div className="px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
                                 <div className="flex items-center gap-3">
                                     <div className="skeleton w-8 h-8 rounded-full"></div>
@@ -2214,7 +2225,7 @@ if (funcError) console.error("寄信失敗:", funcError);
 {showSuccess && <SuccessReceipt data={formData} signature={realtimeSig} contractHtml={contractHtml} onClose={handleSuccessClose} />}
 {showHistoryModal && <HistoryModal records={historyRecords} onClose={() => setShowHistoryModal(false)} onSelect={handleApplyHistory} onOwnerOnly={handleApplyOwnerOnly} />}
 
-                    <nav className="fixed top-0 w-full z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-[#736357]/5 dark:border-gray-700 shadow-sm">
+                    <nav className="fixed top-0 w-full z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-[#736357]/5 dark:border-gray-700 shadow-sm safe-top">
                         <div className="px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
 <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.location.hash = ''}>
                                 <img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain group-hover:rotate-12 transition-transform" />
