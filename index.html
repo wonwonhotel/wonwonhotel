@@ -1162,7 +1162,7 @@ const handleSwitchPet = (newIdx) => {
 
   // 取新目標
   const target = updatedList[newIdx];
-
+  setErrors(target._errors || {});
   setFormData(prev => {
     const next = { ...prev };
     PET_SPECIFIC_FIELDS.forEach(f => {
@@ -1229,7 +1229,6 @@ const handleDeletePet = (idx) => {
                         .rpc('search_guest_history', { phone_input: phone });
                     if (error) throw error;
 
-// ... (前面是用戶輸入電話的檢查)
 
 if (!data || data.length === 0) {
     showToast("🔍 查無此電話的過往紀錄", "error");
@@ -1423,7 +1422,7 @@ const toggleArrayField = (field, value) => {
                 });
             };
 
-            const validateEmail = (email) => /\S+@\S+\.com/.test(email);
+const validateEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
             const validatePhone = (phone) => /^09\d{8}$/.test(phone);
 const validateTwID = (id) => {
     if (!/^[A-Z][12]\d{8}$/.test(id)) return false;
@@ -1450,75 +1449,86 @@ const handleSubmit = async () => {
 
     // ✅ 多寵必填檢查（所有毛孩）
     let firstInvalidIdx = null;
-    const multiPetErrors = {};
+    const multiPetErrors = petListToSubmit.map(() => ({}));
     const setFirst = (idx) => { if (firstInvalidIdx === null) firstInvalidIdx = idx; };
+    const setPetError = (idx, field, msg) => {
+        if (!multiPetErrors[idx]) multiPetErrors[idx] = {};
+        multiPetErrors[idx][field] = msg;
+    };
 
     petListToSubmit.forEach((pet, idx) => {
         const name = pet.pet_name || `寵物${idx+1}`;
 
-        if (!pet.pet_name || pet.pet_name.trim() === '') { multiPetErrors.pet_name = `請填寫 ${name} 名字`; setFirst(idx); }
-        if (!pet.breed || pet.breed.trim() === '') { multiPetErrors.breed = `請填寫 ${name} 品種`; setFirst(idx); }
-        if (!pet.weight || parseFloat(pet.weight) <= 0) { multiPetErrors.weight = `請填寫 ${name} 體重`; setFirst(idx); }
+        if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${name} 名字`); setFirst(idx); }
+        if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${name} 品種`); setFirst(idx); }
+        if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${name} 體重`); setFirst(idx); }
 
         if (pet.is_under_one) {
-            if (!pet.age_months) { multiPetErrors.age = `請填寫 ${name} 月齡`; setFirst(idx); }
+            if (!pet.age_months) { setPetError(idx, 'age', `請填寫 ${name} 月齡`); setFirst(idx); }
         } else {
-            if (!pet.age) { multiPetErrors.age = `請填寫 ${name} 年齡`; setFirst(idx); }
+            if (!pet.age) { setPetError(idx, 'age', `請填寫 ${name} 年齡`); setFirst(idx); }
         }
 
-        if (!pet.pet_type) { multiPetErrors.pet_type = `請選擇 ${name} 類型`; setFirst(idx); }
-        if (!pet.sex) { multiPetErrors.sex = `請選擇 ${name} 性別`; setFirst(idx); }
-        if (!pet.fix) { multiPetErrors.fix = `請選擇 ${name} 結紮`; setFirst(idx); }
-        if (!pet.chip_status) { multiPetErrors.chip_status = `請選擇 ${name} 晶片狀態`; setFirst(idx); }
-        if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { multiPetErrors.chip_id = `請填寫 ${name} 晶片號碼`; setFirst(idx); }
+        if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${name} 類型`); setFirst(idx); }
+        if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${name} 性別`); setFirst(idx); }
+        if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${name} 結紮`); setFirst(idx); }
+        if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${name} 晶片狀態`); setFirst(idx); }
+        if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { setPetError(idx, 'chip_id', `請填寫 ${name} 晶片號碼`); setFirst(idx); }
 
-        if (!pet.dog_traits || pet.dog_traits.length === 0) { multiPetErrors.dog_traits = `請勾選 ${name} 社交狀況`; setFirst(idx); }
-        if (!pet.grooming_temperament) { multiPetErrors.grooming_temperament = `請選擇 ${name} 美容性情`; setFirst(idx); }
+        if (!pet.dog_traits || pet.dog_traits.length === 0) { setPetError(idx, 'dog_traits', `請勾選 ${name} 社交狀況`); setFirst(idx); }
+        if (!pet.grooming_temperament) { setPetError(idx, 'grooming_temperament', `請選擇 ${name} 美容性情`); setFirst(idx); }
 
-        if (!pet.medical_status) { multiPetErrors.medical_status = `請選擇 ${name} 病史狀況`; setFirst(idx); }
+        if (!pet.medical_status) { setPetError(idx, 'medical_status', `請選擇 ${name} 病史狀況`); setFirst(idx); }
         if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
-            multiPetErrors.medical_history = `請選擇 ${name} 病史項目`; 
+            setPetError(idx, 'medical_history', `請選擇 ${name} 病史項目`); 
             setFirst(idx); 
         }
         if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
-            multiPetErrors.medical_history_other = `請填寫 ${name} 其他病史內容`;
+            setPetError(idx, 'medical_history_other', `請填寫 ${name} 其他病史內容`);
             setFirst(idx);
         }
 
         if (isBoarding) {
-            if (!pet.is_barking) { multiPetErrors.is_barking = `請選擇 ${name} 是否會吠叫`; setFirst(idx); }
-            if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { multiPetErrors.barking_detail = `請填寫 ${name} 吠叫說明`; setFirst(idx); }
-            if (!pet.stay_exp) { multiPetErrors.stay_exp = `請選擇 ${name} 住宿經驗`; setFirst(idx); }
-            if (!pet.food_aggr) { multiPetErrors.food_aggr = `請選擇 ${name} 是否護食`; setFirst(idx); }
-            if (!pet.pad_toilet) { multiPetErrors.pad_toilet = `請選擇 ${name} 尿布墊習慣`; setFirst(idx); }
+            if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${name} 是否會吠叫`); setFirst(idx); }
+            if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { setPetError(idx, 'barking_detail', `請填寫 ${name} 吠叫說明`); setFirst(idx); }
+            if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${name} 住宿經驗`); setFirst(idx); }
+            if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${name} 是否護食`); setFirst(idx); }
+            if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${name} 尿布墊習慣`); setFirst(idx); }
 
-            if (!pet.vaccine) { multiPetErrors.vaccine = `請選擇 ${name} 疫苗狀況`; setFirst(idx); }
-            if (pet.vaccine === '有' && !pet.vaccine_file) { multiPetErrors.vaccine_file = `請上傳 ${name} 疫苗手冊`; setFirst(idx); }
+            if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${name} 疫苗狀況`); setFirst(idx); }
+            if (pet.vaccine === '有' && !pet.vaccine_file) { setPetError(idx, 'vaccine_file', `請上傳 ${name} 疫苗手冊`); setFirst(idx); }
 
-            if (!pet.deworm) { multiPetErrors.deworm = `請選擇 ${name} 驅蟲狀況`; setFirst(idx); }
-            if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { multiPetErrors.deworm_brand = `請填寫 ${name} 驅蟲藥品牌`; setFirst(idx); }
+            if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${name} 驅蟲狀況`); setFirst(idx); }
+            if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { setPetError(idx, 'deworm_brand', `請填寫 ${name} 驅蟲藥品牌`); setFirst(idx); }
 
-            if (!pet.crate_status || pet.crate_status.length === 0) { multiPetErrors.crate_status = `請選擇 ${name} 籠內訓練`; setFirst(idx); }
+            if (!pet.crate_status || pet.crate_status.length === 0) { setPetError(idx, 'crate_status', `請選擇 ${name} 籠內訓練`); setFirst(idx); }
 
-            if (!pet.pica_status) { multiPetErrors.pica_status = `請選擇 ${name} 是否異食癖`; setFirst(idx); }
-            if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { multiPetErrors.pica_note = `請填寫 ${name} 異食癖內容`; setFirst(idx); }
+            if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${name} 是否異食癖`); setFirst(idx); }
+            if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { setPetError(idx, 'pica_note', `請填寫 ${name} 異食癖內容`); setFirst(idx); }
 
-            if (!pet.diet_habits || pet.diet_habits.length === 0) { multiPetErrors.diet_habits = `請選擇 ${name} 飲食習慣`; setFirst(idx); }
+            if (!pet.diet_habits || pet.diet_habits.length === 0) { setPetError(idx, 'diet_habits', `請選擇 ${name} 飲食習慣`); setFirst(idx); }
             if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
-                multiPetErrors.diet_other = `請填寫 ${name} 其他飲食內容`; 
+                setPetError(idx, 'diet_other', `請填寫 ${name} 其他飲食內容`); 
                 setFirst(idx); 
             }
 
-            if (!pet.feeding_note || pet.feeding_note.trim() === '') { multiPetErrors.feeding_note = `請填寫 ${name} 餵食說明`; setFirst(idx); }
-            if (!pet.personality || pet.personality.trim() === '') { multiPetErrors.personality = `請填寫 ${name} 個性描述`; setFirst(idx); }
+            if (!pet.feeding_note || pet.feeding_note.trim() === '') { setPetError(idx, 'feeding_note', `請填寫 ${name} 餵食說明`); setFirst(idx); }
+            if (!pet.personality || pet.personality.trim() === '') { setPetError(idx, 'personality', `請填寫 ${name} 個性描述`); setFirst(idx); }
         }
     });
 
     if (firstInvalidIdx !== null) {
+        setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
         handleSwitchPet(firstInvalidIdx);
-        setErrors(multiPetErrors);
+        setErrors(multiPetErrors[firstInvalidIdx] || {});
         showToast("⚠️ 其他毛孩資料尚未填完整");
         return;
+    } else {
+        setPetList(prev => prev.map(p => {
+            const np = { ...p };
+            delete np._errors;
+            return np;
+        }));
     }
 
     const newErrors = {};
@@ -1679,7 +1689,13 @@ const { error: insertError } = await supabase
         phone: formData.phone,
         pet_name: petListWithUploads.map(p=>p.pet_name || '').join('、'),
 service_type: isBoarding ? '住宿＋美容' : petListWithUploads.map(p=>p.service_type || '').join('、'),
-        pet_age: actualAge,
+        pet_age: petListWithUploads
+          .map(p => {
+              if (p.is_under_one && p.age_months) return (parseFloat(p.age_months) / 12).toFixed(2);
+              return p.age ? String(p.age) : '';
+          })
+          .filter(v => v !== '')
+          .join('、') || null,
         checkin_date: isBoarding ? formData.checkin_date : null,
         checkout_date: isBoarding ? formData.checkout_date : null,
         pickup_time: formData.pickup_time,
@@ -1963,7 +1979,7 @@ if (funcError) console.error("寄信失敗:", funcError);
             useEffect(() => {
                 let timer;
                 let orientationLocked = false;
-                
+
                 const lockOrientation = async () => {
                     try {
                         initialOrientationRef.current = window.screen?.orientation?.type || 'portrait-primary';
@@ -1986,94 +2002,81 @@ if (funcError) console.error("寄信失敗:", funcError);
                     }
                 };
 
-                const preventTouchMove = (e) => {
-                    if (showFullSig) {
-                        e.preventDefault();
+                const initCanvas = () => {
+                    const canvas = fullSigCanvasRef.current;
+                    if (!canvas) return;
+
+                    if (typeof window.SignaturePad === 'undefined') {
+                        console.error('SignaturePad library not loaded');
+                        return;
                     }
-                };
 
-                const preventGesture = (e) => {
-                    if (showFullSig) {
-                        e.preventDefault();
+                    const container = canvas.parentElement;
+                    const rect = container.getBoundingClientRect();
+                    const displayWidth = rect.width;
+                    const displayHeight = rect.height;
+
+                    canvasSizeRef.current = { width: displayWidth, height: displayHeight };
+
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = displayWidth * ratio;
+                    canvas.height = displayHeight * ratio;
+
+                    canvas.style.width = displayWidth + 'px';
+                    canvas.style.height = displayHeight + 'px';
+
+                    const ctx = canvas.getContext("2d");
+                    ctx.scale(ratio, ratio);
+
+                    ctx.fillStyle = "rgb(255, 255, 255)";
+                    ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+                    if (padInstance.current) {
+                        padInstance.current.off();
                     }
+
+                    padInstance.current = new window.SignaturePad(canvas, { 
+                        penColor: "rgb(115, 99, 87)",
+                        backgroundColor: "rgb(255, 255, 255)", 
+                        minWidth: 1.5,
+                        maxWidth: 4.0,
+                        throttle: 16, 
+                        minDistance: 3, 
+                        velocityFilterWeight: 0.7,
+                    });
                 };
-
-const initCanvas = () => {
-    const canvas = fullSigCanvasRef.current;
-    if (!canvas) return;
-    
-    // 檢查 SignaturePad 是否已載入
-    if (typeof window.SignaturePad === 'undefined') {
-        console.error('SignaturePad library not loaded');
-        return;
-    }
-    
-    const container = canvas.parentElement;
-    const rect = container.getBoundingClientRect();
-    const displayWidth = rect.width;
-    const displayHeight = rect.height;
-    
-    canvasSizeRef.current = { width: displayWidth, height: displayHeight };
-    
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = displayWidth * ratio;
-    canvas.height = displayHeight * ratio;
-    
-    canvas.style.width = displayWidth + 'px';
-    canvas.style.height = displayHeight + 'px';
-    
-    const ctx = canvas.getContext("2d");
-    ctx.scale(ratio, ratio);
-    
-    ctx.fillStyle = "rgb(255, 255, 255)";
-    ctx.fillRect(0, 0, displayWidth, displayHeight);
-    
-    if (padInstance.current) {
-        padInstance.current.off();
-    }
-    
-    padInstance.current = new window.SignaturePad(canvas, { 
-        penColor: "rgb(115, 99, 87)",
-        backgroundColor: "rgb(255, 255, 255)", 
-        minWidth: 1.5,
-        maxWidth: 4.0,
-        throttle: 16, 
-        minDistance: 3, 
-        velocityFilterWeight: 0.7,
-    });
-};
-
 
                 if (showFullSig && fullSigCanvasRef.current) {
                     scrollPositionRef.current = window.scrollY;
-                    
-                    document.body.classList.add('signing-mode');
+
+                    document.body.style.position = 'fixed';
                     document.body.style.top = `-${scrollPositionRef.current}px`;
-                    
+                    document.body.style.left = '0';
+                    document.body.style.right = '0';
+                    document.body.style.width = '100%';
+                    document.body.style.overflow = 'hidden';
+                    document.documentElement.style.overflow = 'hidden';
+
                     lockOrientation();
-                    
-                    document.addEventListener('touchmove', preventTouchMove, { passive: false });
-                    document.addEventListener('gesturestart', preventGesture, { passive: false });
-                    document.addEventListener('gesturechange', preventGesture, { passive: false });
-                    document.addEventListener('gestureend', preventGesture, { passive: false });
-                    
+
                     timer = setTimeout(initCanvas, 150);
                 }
-                
-                return () => { 
+
+                return () => {
                     if (timer) clearTimeout(timer);
-                    if (padInstance.current) padInstance.current.off(); 
-                    
+                    if (padInstance.current) padInstance.current.off();
+
                     unlockOrientation();
-                    
-                    document.body.classList.remove('signing-mode');
+
+                    document.body.style.position = '';
                     document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.overflow = '';
+                    document.documentElement.style.overflow = '';
+
                     window.scrollTo(0, scrollPositionRef.current);
-                    
-                    document.removeEventListener('touchmove', preventTouchMove);
-                    document.removeEventListener('gesturestart', preventGesture);
-                    document.removeEventListener('gesturechange', preventGesture);
-                    document.removeEventListener('gestureend', preventGesture);
                 };
             }, [showFullSig]);
 
@@ -3668,23 +3671,23 @@ const initCanvas = () => {
                     const registration = await navigator.serviceWorker.register('./sw.js');
                     console.log('Service Worker 註冊成功');
 
-                    // ✅ 立即檢查更新
-                    registration.update();
-
-                    // ✅ 如果新的 SW 安裝完成，要求它立即接管
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('偵測到新版本，準備更新頁面...');
-                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                console.log('偵測到新版本');
+                                const shouldUpdate = confirm('偵測到新版本，是否立即更新？');
+                                if (shouldUpdate) {
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                }
                             }
                         });
                     });
 
-                    // ✅ 當新的 SW 接管後，自動重整
+                    let refreshing = false;
                     navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        console.log('新版本已接管，重新整理頁面');
+                        if (refreshing) return;
+                        refreshing = true;
                         window.location.reload();
                     });
 

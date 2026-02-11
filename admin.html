@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="logo.png">
-    
+    <link rel="icon" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -199,6 +199,58 @@
             border-bottom: 3px solid var(--brand-brown);
             color: var(--brand-brown);
         }
+        /* ✅ 汪汪犬旅 - 詳情頁設計 */
+.detail-shell {
+    background: #fbf9f6;
+    border-radius: 2.5rem;
+    border: 2px solid #F7E7B5;
+    box-shadow: 0 20px 40px rgba(115,99,87,0.15);
+}
+
+.detail-header {
+    background: #736357;
+    color: white;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-badge {
+    background: #F7E7B5;
+    color: #736357;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.detail-card {
+    background: #fff;
+    border: 2px solid #F7E7B5;
+    border-radius: 1.5rem;
+    padding: 16px;
+    box-shadow: 0 6px 16px rgba(115,99,87,0.08);
+}
+
+.detail-card-title {
+    font-weight: 900;
+    color: #736357;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.detail-note {
+    border-left: 5px solid #c084fc;
+    background: #faf5ff;
+}
+
+.detail-history {
+    border-left: 5px solid #f59e0b;
+    background: #fff7ed;
+}
     </style>
 </head>
 <body>
@@ -368,11 +420,24 @@ const getPetNames = (booking) => {
     return names.length ? names.join('、') : '未填';
 };
 // ✅ 每隻寵物疫苗照片(支援多欄位)
-const getPetVaccineUrl = (pet) => {
+const getPetVaccineUrl = (pet, booking, idx = 0) => {
     if (!pet) return '';
-    if (Array.isArray(pet.vaccine_urls) && pet.vaccine_urls.length) return pet.vaccine_urls[0];
-    if (Array.isArray(pet.vaccine_photos) && pet.vaccine_photos.length) return pet.vaccine_photos[0];
-    return pet.vaccine_url || pet.vaccine_photo || pet.vaccine_image || pet.vaccineFile || pet.vaccine_file || '';
+
+    // 1) 先找每隻毛孩自己的
+    if (pet.vaccine_url) return pet.vaccine_url;
+    if (pet.vaccine_file) return pet.vaccine_file;
+    if (pet.vaccine_photo) return pet.vaccine_photo;
+
+    // 2) 舊資料：整筆 booking 的 vaccine_url 可能是 "url1、url2"
+    if (booking?.vaccine_url) {
+        const arr = booking.vaccine_url.split('、').filter(Boolean);
+        if (arr[idx]) return arr[idx];
+        if (arr.length > 0) return arr[0];
+    }
+
+    // 3) 再找 raw_data 中的疫苗
+    const raw = booking?.raw_data || {};
+    return raw.vaccine_file || raw.vaccine_url || '';
 };
 // ✅ raw_data 可能是字串時要轉物件
 const normalizeBooking = (b) => {
@@ -1871,13 +1936,20 @@ const stats = useMemo(() => {
 
                     {selectedBooking && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm fade-in" onClick={(e) => { if(e.target === e.currentTarget && !isEditing) setSelectedBooking(null); }}>
-                            <div className="bg-white dark:bg-gray-800 w-full h-full md:h-[90vh] md:max-w-5xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                                <div className="px-6 py-4 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center bg-slate-50 dark:bg-gray-900 shrink-0">
-                                    <div>
-                                        <h2 className="text-xl font-black text-brand-brown dark:text-brand-yellow">訂單 #{selectedBooking.id}</h2>
-                                        <p className="text-slate-400 text-xs">{isEditing ? '編輯模式' : formatDateTime(selectedBooking.created_at)}</p>
-                                    </div>
-                                    <div className="flex gap-2">
+                            <div className="detail-shell w-full h-full md:h-[90vh] md:max-w-5xl shadow-2xl flex flex-col overflow-hidden">
+<div className="detail-header shrink-0">
+    <div>
+        <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black">訂單 #{selectedBooking.id}</h2>
+            <span className="detail-badge">
+                {STATUS_OPTIONS.find(s => s.value === selectedBooking.status)?.label}
+            </span>
+        </div>
+        <p className="text-xs text-[#F7E7B5]/90">
+            {isEditing ? '編輯模式' : formatDateTime(selectedBooking.created_at)}
+        </p>
+    </div>
+    <div className="flex gap-2">
                                         {isEditing ? (
                                             <>
                                                 <button onClick={() => triggerAction('save')} className="bg-green-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-green-600 transition-all text-sm"><Icon name="save" size={16}/> 儲存</button>
@@ -1890,14 +1962,19 @@ const stats = useMemo(() => {
                                                     <button onClick={startEditing} className="bg-blue-50 dark:bg-blue-900 text-blue-600 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-blue-100 transition-all text-sm"><Icon name="pencil" size={14}/> 編輯</button>
                                                 )}
                                                 <button onClick={() => window.print()} className="bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-slate-200 transition-all text-sm"><Icon name="printer" size={14}/></button>
-                                                <button onClick={() => setSelectedBooking(null)} className="w-10 h-10 bg-slate-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"><Icon name="x" size={18}/></button>
+<button 
+  onClick={() => setSelectedBooking(null)} 
+  className="w-10 h-10 rounded-full bg-white/15 border border-white/20 text-white hover:bg-white/25 transition-all flex items-center justify-center"
+>
+  <Icon name="x" size={18} />
+</button>
                                             </>
                                         )}
                                     </div>
                                 </div>
                                 
                                 {/* 內容區域省略，與原檔一致，僅確保權限控制正確 */}
-<div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-gray-900">
+<div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#fbf9f6]">
                                     {/* 手機版優先顯示備註 (Mobile Only) */}
                                     <div className="lg:hidden mb-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-purple-400">
                                         <div className="flex justify-between items-center mb-3">
@@ -1926,7 +2003,8 @@ const stats = useMemo(() => {
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                         <div className="lg:col-span-2 space-y-4">
                                             {/* 飼主資料 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+<div className="detail-card">
+
                                                 <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="user" size={16}/> 飼主資料</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                                     <DetailItem label="姓名" value={selectedBooking.owner_name} fieldName="owner_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
@@ -1940,7 +2018,7 @@ const stats = useMemo(() => {
                                             </div>
 
 {/* 寵物資料（多寵顯示） */}
-<div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+<div className="detail-card">
     <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="heart" size={16}/> 寵物資料</h3>
     <div className="space-y-5">
         {getPetListFromBooking(selectedBooking).map((pet, idx) => (
@@ -2029,9 +2107,9 @@ const stats = useMemo(() => {
                 {/* 疫苗照片 */}
                 <div className="mt-4">
                     <div className="text-xs font-bold text-slate-400 mb-2">疫苗照片</div>
-                    {getPetVaccineUrl(pet) ? (
-                        <a href={getPetVaccineUrl(pet)} target="_blank">
-                            <img src={getPetVaccineUrl(pet)} className="w-full h-28 object-cover rounded-lg hover:opacity-80 transition-opacity" />
+{getPetVaccineUrl(pet, selectedBooking, idx) ? (
+    <a href={getPetVaccineUrl(pet, selectedBooking, idx)} target="_blank">
+        <img src={getPetVaccineUrl(pet, selectedBooking, idx)} className="w-full h-28 object-cover rounded-lg hover:opacity-80 transition-opacity" />
                         </a>
                     ) : (
                         <div className="w-full h-28 bg-slate-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-300 text-xs">
@@ -2046,8 +2124,8 @@ const stats = useMemo(() => {
                                         </div>
 
                                         <div className="space-y-4">
-                                            {/* 訂單狀態 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+                                             {/* 訂單狀態 */}
+<div className="detail-card">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 block">訂單狀態</label>
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {STATUS_OPTIONS.map(status => (
@@ -2059,11 +2137,12 @@ const stats = useMemo(() => {
                                             </div>
 
                                             {/* 服務資訊 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+<div className="detail-card">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
                                                 <div className="space-y-3">
                                                     <DetailItem label="美容預約日期" value={selectedBooking.raw_data?.grooming_date} fieldName="grooming_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
 <DetailItem label="SPA 加購項目" value={selectedBooking.raw_data?.spa_addons} fieldName="spa_addons" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+<DetailItem label="其他服務內容" value={selectedBooking.raw_data?.service_type_other} fullWidth />
 <DetailItem label="服務項目" value={selectedBooking.service_type} fieldName="service_type" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                     <DetailItem label="金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
@@ -2072,9 +2151,19 @@ const stats = useMemo(() => {
                                                     <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
                                                 </div>
                                             </div>
-
+{selectedBooking.signature_url && (
+  <div className="detail-card">
+      <label className="text-xs font-bold text-slate-400 mb-3 block">飼主簽名檔</label>
+      <div className="bg-[#fbf9f6] rounded-xl p-4 border border-[#F7E7B5] flex flex-col items-center gap-2">
+          <img src={selectedBooking.signature_url} className="max-h-24 object-contain mix-blend-multiply" />
+          <div className="text-[10px] text-slate-400 font-bold">
+              簽署時間：{formatDateTime(selectedBooking.created_at)}
+          </div>
+      </div>
+  </div>
+)}
 {/* Admin Notes - 店家內部備註 (開放員工編輯) - Desktop Only */}
-                                            <div className="hidden lg:block bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-purple-400">
+<div className="hidden lg:block detail-card detail-note">
                                                 <div className="flex justify-between items-center mb-3">
                                                     <label className="text-xs font-bold text-slate-400 flex items-center gap-2">
                                                         <Icon name="sticky-note" size={14} /> 店家內部備註 (員工可寫)
@@ -2101,7 +2190,7 @@ const stats = useMemo(() => {
                                             </div>
 
                                             {/* 狀態變更記錄 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+<div className="detail-card detail-history">
                                                 <label className="text-xs font-bold text-slate-400 mb-3 flex items-center gap-2">
                                                     <Icon name="history" size={14} /> 狀態變更記錄
                                                 </label>
