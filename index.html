@@ -466,7 +466,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
             return (
                 <div className="fixed inset-0 z-[150] bg-white dark:bg-gray-900 flex flex-col animate-in slide-in-from-bottom-full duration-300">
                     {/* Header */}
-                    <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex justify-between items-center shrink-0">
+                    <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex justify-between items-center shrink-0 safe-top">
                         <h3 className="text-lg font-black text-[#736357] dark:text-[#F7E7B5]">{title}</h3>
                         <button type="button" onClick={onClose} className="p-2 bg-slate-100 dark:bg-gray-800 rounded-full hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors">
                             <Icon name="x" size={20} className="text-slate-500 dark:text-gray-400" />
@@ -484,7 +484,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                     </div>
 
                     {/* Footer Action */}
-                    <div className="p-5 border-t border-slate-100 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+                    <div className="p-5 border-t border-slate-100 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] safe-bottom">
                         {!canAgree && (
                             <div className="text-center text-xs font-bold text-red-400 mb-3 animate-pulse">
                                 👇 請滑動至最底部以同意條款
@@ -3615,7 +3615,7 @@ if (funcError) console.error("寄信失敗:", funcError);
                     {/* 全螢幕簽名板 */}
                     {showFullSig && (
                         <div className="fullscreen-signature bg-white dark:bg-gray-900 flex flex-col">
-                            <div className="flex items-center justify-between p-4 bg-[#736357] text-white">
+                            <div className="flex items-center justify-between p-4 bg-[#736357] text-white safe-top">
                                 <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
                                     <Icon name="pen-tool" size={20}/> 請在下方簽名(建議您保持手機直立簽名即可，不需旋轉手機)
                                 </h3>
@@ -3666,7 +3666,7 @@ if (funcError) console.error("寄信失敗:", funcError);
 
                             </div>
                             
-                            <div className="flex-1 p-4 bg-slate-100 dark:bg-gray-800">
+                            <div className="flex-1 p-4 bg-slate-100 dark:bg-gray-800 safe-bottom">
                                 <div className="canvas-container w-full h-full bg-white dark:bg-gray-700 rounded-2xl shadow-inner border-2 border-[#736357]/20 dark:border-gray-600">
                                     <canvas ref={fullSigCanvasRef} className="w-full h-full"></canvas>
                                 </div>
