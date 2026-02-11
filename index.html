@@ -64,6 +64,8 @@
 html, body { 
     margin: 0;
     padding: 0;
+    padding-top: env(safe-area-inset-top); /* 🐶 修正：避開 iPhone 瀏海 */
+    padding-bottom: env(safe-area-inset-bottom);
     width: 100%;
     height: 100%;
     font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
@@ -239,9 +241,9 @@ body.signing-mode {
             transform: scale(0.96);
         }
 
-        @keyframes slide-down {
+@keyframes slide-down {
             from { transform: translate(-50%, -100%); opacity: 0; }
-            to { transform: translate(-50%, 24px); opacity: 1; }
+            to { transform: translate(-50%, calc(24px + env(safe-area-inset-top))); opacity: 1; } /* 🐶 修正：通知視窗避開瀏海 */
         }
         .toast-enter { animation: slide-down 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
