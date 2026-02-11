@@ -335,7 +335,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
         };
 
         // 服務項目選項
-        const SERVICE_OPTIONS = ['住宿＋洗澡', '包月洗澡', '基礎洗澡', '精緻美容', '局部修剪', '寵物安親', '其他項目'];
+        const SERVICE_OPTIONS = ['住宿', '包月洗澡', '基礎洗澡', '精緻美容', '局部修剪', '寵物安親', '其他項目'];
         const STATUS_OPTIONS = [
             { value: 'pending', label: '待處理', color: 'yellow', icon: '🟡' },
             { value: 'confirmed', label: '已確認', color: 'green', icon: '🟢' },
@@ -356,7 +356,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
         const getServiceLabel = (serviceType) => {
             if (!serviceType) return '';
-            if (serviceType.includes('住宿')) return '🏠 住宿＋洗澡';
+            if (serviceType.includes('住宿')) return '🏠 住宿';
             return `✂️ ${serviceType}`;
         };
 
@@ -1307,7 +1307,6 @@ const handleResend = async (e, log) => {
                         <div className="border-2 border-black p-3 rounded mt-2">
                             <h3 className="font-bold text-sm mb-2">服務內容確認</h3>
                             <p><strong>項目:</strong> {getServiceLabel(data.service_type)}</p>
-                            <p><strong>金額:</strong> NT$ {data.service_price}</p>
                             {isBoarding && (
                                 <>
                                     <p><strong>入住:</strong> {data.checkin_date}</p>
@@ -2053,7 +2052,7 @@ const stats = useMemo(() => {
                             label="服務項目" 
                             value={
                                 (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
-                                ? '住宿＋美容' 
+                                ? '住宿' 
                                 : (pet.service_type || '')
                             } 
                         />
@@ -2136,21 +2135,50 @@ const stats = useMemo(() => {
                                                 </div>
                                             </div>
 
-                                            {/* 服務資訊 */}
+{/* 服務資訊 */}
 <div className="detail-card">
-                                                <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
-                                                <div className="space-y-3">
-                                                    <DetailItem label="美容預約日期" value={selectedBooking.raw_data?.grooming_date} fieldName="grooming_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-<DetailItem label="SPA 加購項目" value={selectedBooking.raw_data?.spa_addons} fieldName="spa_addons" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-<DetailItem label="其他服務內容" value={selectedBooking.raw_data?.service_type_other} fullWidth />
-<DetailItem label="服務項目" value={selectedBooking.service_type} fieldName="service_type" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="金額" value={selectedBooking.service_price} fieldName="service_price" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                </div>
-                                            </div>
+    <label className="text-xs font-bold text-slate-400 mb-3 block">服務資訊</label>
+
+    {/* ✅ 每隻毛孩的服務項目 */}
+    <div className="space-y-4">
+        {getPetListFromBooking(selectedBooking).map((pet, idx) => (
+            <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-gray-700 border border-slate-100 dark:border-gray-600">
+                <div className="font-black text-brand-brown dark:text-brand-yellow text-sm mb-2">
+                    第{idx+1}隻｜{pet.pet_name || `寵物${idx+1}`}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <DetailItem 
+                        label="服務項目" 
+                        value={
+                            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+                            ? '住宿' 
+                            : (pet.service_type || '')
+                        } 
+                    />
+                    <DetailItem 
+                        label="預約日期" 
+                        value={
+                            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+                            ? selectedBooking.checkin_date 
+                            : (pet.grooming_date || '')
+                        } 
+                    />
+                    <DetailItem label="SPA 加購項目" value={pet.spa_addons} fullWidth />
+                    <DetailItem label="其他服務內容" value={pet.service_type_other} fullWidth />
+                </div>
+            </div>
+        ))}
+    </div>
+
+    {/* ✅ 共用欄位 */}
+    <div className="mt-4 space-y-3">
+        <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+        <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+        <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+        <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+    </div>
+</div>
 {selectedBooking.signature_url && (
   <div className="detail-card">
       <label className="text-xs font-bold text-slate-400 mb-3 block">飼主簽名檔</label>
