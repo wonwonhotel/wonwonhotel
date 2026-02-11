@@ -1682,6 +1682,14 @@ if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MES
 
                     const vaccineUrlAll = petListWithUploads.map(p => p.vaccine_url || '').filter(Boolean).join('、') || null;
 
+const singlePetAge = (() => {
+    if (petListWithUploads.length !== 1) return null;
+    const p = petListWithUploads[0];
+    if (p.is_under_one && p.age_months) return Number((parseFloat(p.age_months) / 12).toFixed(2));
+    if (p.age) return Number(p.age);
+    return null;
+})();
+
 const { error: insertError } = await supabase
     .from('bookings')
     .insert({
@@ -1689,13 +1697,7 @@ const { error: insertError } = await supabase
         phone: formData.phone,
         pet_name: petListWithUploads.map(p=>p.pet_name || '').join('、'),
 service_type: isBoarding ? '住宿＋美容' : petListWithUploads.map(p=>p.service_type || '').join('、'),
-        pet_age: petListWithUploads
-          .map(p => {
-              if (p.is_under_one && p.age_months) return (parseFloat(p.age_months) / 12).toFixed(2);
-              return p.age ? String(p.age) : '';
-          })
-          .filter(v => v !== '')
-          .join('、') || null,
+        pet_age: singlePetAge,
         checkin_date: isBoarding ? formData.checkin_date : null,
         checkout_date: isBoarding ? formData.checkout_date : null,
         pickup_time: formData.pickup_time,
