@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>汪汪犬旅 | 後台管理系統</title>
-    <link rel="manifest" href="manifest-admin.json">
+    <link rel="manifest" href="manifest-admin.json?v=1">
     <meta name="theme-color" content="#736357">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -317,7 +317,69 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
             if (!dateStr) return '';
             return new Date(dateStr).toLocaleString('zh-TW');
         };
+// ✅ 多寵資料讀取工具
+const getPetListFromBooking = (booking) => {
+    const raw = booking.raw_data || {};
+    if (Array.isArray(raw.petList) && raw.petList.length > 0) return raw.petList;
 
+    if (raw.pet_name || booking.pet_name) {
+        return [{
+            pet_name: raw.pet_name || booking.pet_name || '',
+            pet_type: raw.pet_type || '',
+            breed: raw.breed || '',
+            sex: raw.sex || '',
+            fix: raw.fix || '',
+            age: raw.age || '',
+            age_months: raw.age_months || '',
+            is_under_one: raw.is_under_one || false,
+            weight: raw.weight || '',
+            chip_status: raw.chip_status || '',
+            chip_id: raw.chip_id || '',
+            grooming_temperament: raw.grooming_temperament || '',
+            dog_traits: raw.dog_traits || [],
+            medical_status: raw.medical_status || '',
+            medical_history: raw.medical_history || [],
+            medical_history_other: raw.medical_history_other || '',
+            stay_exp: raw.stay_exp || '',
+            crate_status: raw.crate_status || [],
+            is_barking: raw.is_barking || '',
+            barking_detail: raw.barking_detail || '',
+            food_aggr: raw.food_aggr || '',
+            pad_toilet: raw.pad_toilet || '',
+            vaccine: raw.vaccine || '',
+            deworm: raw.deworm || '',
+            deworm_brand: raw.deworm_brand || '',
+            pica_status: raw.pica_status || '',
+            pica_note: raw.pica_note || '',
+            diet_habits: raw.diet_habits || [],
+            diet_other: raw.diet_other || '',
+            feeding_note: raw.feeding_note || '',
+            allergy: raw.allergy || '',
+            personality: raw.personality || '',
+            special_notes: raw.special_notes || ''
+        }];
+    }
+    return [];
+};
+
+const getPetNames = (booking) => {
+    const list = getPetListFromBooking(booking);
+    const names = list.map(p => p.pet_name).filter(Boolean);
+    return names.length ? names.join('、') : '未填';
+};
+// ✅ 每隻寵物疫苗照片(支援多欄位)
+const getPetVaccineUrl = (pet) => {
+    if (!pet) return '';
+    if (Array.isArray(pet.vaccine_urls) && pet.vaccine_urls.length) return pet.vaccine_urls[0];
+    if (Array.isArray(pet.vaccine_photos) && pet.vaccine_photos.length) return pet.vaccine_photos[0];
+    return pet.vaccine_url || pet.vaccine_photo || pet.vaccine_image || pet.vaccineFile || pet.vaccine_file || '';
+};
+// ✅ raw_data 可能是字串時要轉物件
+const normalizeBooking = (b) => {
+    let raw = b.raw_data;
+    try { if (typeof raw === 'string') raw = JSON.parse(raw); } catch (e) {}
+    return { ...b, raw_data: raw || {} };
+};
         // --- Rate Limiting Hook ---
         const useRateLimiter = () => {
             const checkRateLimit = (key) => {
@@ -659,7 +721,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                                                                 : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                                                         }`}
                                                     >
-                                                        {b.pet_name}
+                                                        {getPetNames(b)}
                                                     </div>
                                                 ))}
                                                 {dayBookings.length > 3 && (
@@ -793,7 +855,11 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
                     }
                     grouped[phone].bookings.push(b);
                     grouped[phone].totalSpent += parseInt(b.service_price) || 0;
-                    if (b.pet_name) grouped[phone].pets.add(b.pet_name);
+
+                    const petList = getPetListFromBooking(b);
+                    petList.forEach(p => {
+                        if (p.pet_name) grouped[phone].pets.add(p.pet_name);
+                    });
                 });
                 return Object.values(grouped).map(c => ({
                     ...c,
@@ -1097,7 +1163,7 @@ const handleResend = async (e, log) => {
                 '建立時間': formatDateTime(b.created_at),
                 '飼主姓名': b.owner_name,
                 '電話': b.phone,
-                '寵物名字': b.pet_name,
+                '寵物名字': getPetNames(b),
                 '服務項目': b.service_type,
                 '狀態': STATUS_OPTIONS.find(s => s.value === b.status)?.label || b.status,
                 '入住日期': b.checkin_date || '',
@@ -1141,6 +1207,8 @@ const handleResend = async (e, log) => {
             if (!data) return null;
             const r = data.raw_data || {};
             const isBoarding = !!data.checkin_date || (data.service_type && data.service_type.includes('住宿'));
+            const petList = getPetListFromBooking(data);
+            const firstPet = petList[0] || {};
             
             return (
                 <div id="print-area" className="hidden">
@@ -1164,11 +1232,11 @@ const handleResend = async (e, log) => {
                             </div>
                             <div className="space-y-1 border p-2 rounded">
                                 <h3 className="font-bold border-b pb-1 mb-1">乙方 (寵物資料)</h3>
-                                <p><strong>名字:</strong> {data.pet_name}</p>
-                                <p><strong>品種:</strong> {r.breed}</p>
-                                <p><strong>性別/結紮:</strong> {r.sex} / {r.fix}</p>
-                                <p><strong>年齡/體重:</strong> {r.age} / {r.weight} kg</p>
-                                <p><strong>晶片:</strong> {r.chip_status} {r.chip_id ? `(${r.chip_id})` : ''}</p>
+                                <p><strong>名字:</strong> {getPetNames(data)}</p>
+                                <p><strong>品種:</strong> {firstPet.breed || r.breed || ''}</p>
+                                <p><strong>性別/結紮:</strong> {firstPet.sex || r.sex || ''} / {firstPet.fix || r.fix || ''}</p>
+                                <p><strong>年齡/體重:</strong> {firstPet.age || r.age || ''} / {firstPet.weight || r.weight || ''} kg</p>
+                                <p><strong>晶片:</strong> {firstPet.chip_status || r.chip_status || ''} {firstPet.chip_id ? `(${firstPet.chip_id})` : ''}</p>
                             </div>
                         </div>
                         <div className="border-2 border-black p-3 rounded mt-2">
@@ -1292,12 +1360,13 @@ const handleResend = async (e, log) => {
                 const channel = supabase
                     .channel('bookings-changes')
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookings' }, (payload) => {
-                        setBookings(prev => [payload.new, ...prev]);
-                        showToast(`🎉 新訂單！${payload.new.pet_name} - ${payload.new.owner_name}`, 'success');
-                        addLog('新訂單', `#${payload.new.id} ${payload.new.pet_name}`);
+                        const normalized = normalizeBooking(payload.new);
+                        setBookings(prev => [normalized, ...prev]);
+                        showToast(`🎉 新訂單！${getPetNames(normalized)} - ${normalized.owner_name}`, 'success');
+                        addLog('新訂單', `#${normalized.id} ${getPetNames(normalized)}`);
                     })
                     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bookings' }, (payload) => {
-                        setBookings(prev => prev.map(b => b.id === payload.new.id ? payload.new : b));
+                        setBookings(prev => prev.map(b => b.id === payload.new.id ? normalizeBooking(payload.new) : b));
                     })
                     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bookings' }, (payload) => {
                         setBookings(prev => prev.filter(b => b.id !== payload.old.id));
@@ -1333,12 +1402,15 @@ const handleResend = async (e, log) => {
                 window.location.href = 'index.html';
             };
 
-            const fetchBookings = async () => {
-                setDataLoading(true);
-                const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
-                if (!error) setBookings(data);
-                setDataLoading(false);
-            };
+const fetchBookings = async () => {
+    setDataLoading(true);
+    const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
+    if (!error) {
+        const normalized = (data || []).map(normalizeBooking);
+        setBookings(normalized);
+    }
+    setDataLoading(false);
+};
 
 const stats = useMemo(() => {
                 const today = new Date().toISOString().split('T')[0];
@@ -1356,10 +1428,11 @@ const stats = useMemo(() => {
 
             const filteredBookings = useMemo(() => {
                 return bookings.filter(b => {
+                    const petNames = getPetNames(b);
                     if (searchFilter && !(
                         b.owner_name?.includes(searchFilter) || 
-                        b.pet_name?.includes(searchFilter) || 
-                        b.phone?.includes(searchFilter)
+                        b.phone?.includes(searchFilter) ||
+                        petNames.includes(searchFilter)
                     )) return false;
                     
                     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
@@ -1726,85 +1799,59 @@ const stats = useMemo(() => {
                                     <CalendarView bookings={filteredBookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
                                 ) : viewMode === 'crm' ? (
                                     <CustomerCRM bookings={bookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
-                                ) : (
-                                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
-                                        <div className="md:hidden p-4 space-y-3">
-                                            {filteredBookings.map(b => (
-                                                <div key={b.id} className="bg-slate-50 dark:bg-gray-700 p-4 rounded-xl flex items-center gap-3">
-                                                    <input type="checkbox" checked={selectedBookings.has(b.id)} onChange={() => toggleSelectBooking(b.id)} className="w-5 h-5 accent-brand-brown" />
-                                                    <div className="flex-1" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-                                                        <div className="flex items-center gap-2">
-<span className="font-bold text-brand-brown dark:text-brand-yellow">{b.pet_name}</span>
-{b.raw_data?.admin_notes && <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded ml-2 shadow-sm">備註</span>}
-                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                                {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-xs text-slate-500 dark:text-gray-400">{b.owner_name} • {getServiceLabel(b.service_type)}</div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-[10px] text-slate-400">{formatDate(b.created_at)}</div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+) : (
+    <div className="space-y-3">
+        {filteredBookings.map(b => (
+            <div key={b.id} className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                 onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+                
+                <div className="flex items-start gap-3">
+                    <input 
+                        type="checkbox"
+                        checked={selectedBookings.has(b.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => toggleSelectBooking(b.id)}
+                        className="w-5 h-5 accent-brand-brown mt-1"
+                    />
+                    
+                    <div className="flex-1">
+                        <div className="font-black text-brand-brown dark:text-brand-yellow text-lg">
+                            {getPetNames(b)}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-gray-400">
+                            {b.owner_name} · {b.phone}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-1">
+                            {getServiceLabel(b.service_type)}
+                        </div>
+                    </div>
+                    
+                    <div className="text-right">
+                        <div className="text-[10px] text-slate-400">{formatDate(b.created_at)}</div>
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            b.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+                            b.status === 'confirmed' ? 'bg-green-100 text-green-600' :
+                            b.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                            'bg-blue-100 text-blue-600'
+                        }`}>
+                            {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
+                        </span>
+                    </div>
+                </div>
 
-                                        <div className="hidden md:block overflow-x-auto">
-                                            <table className="w-full text-left">
-                                                <thead className="bg-slate-50 dark:bg-gray-900 text-slate-500 font-bold text-xs uppercase tracking-wider">
-                                                    <tr>
-                                                        <th className="px-4 py-3">
-                                                            <input type="checkbox" checked={selectedBookings.size === filteredBookings.length && filteredBookings.length > 0} onChange={selectAllBookings} className="w-4 h-4 accent-brand-brown" />
-                                                        </th>
-                                                        <th className="px-4 py-3">建立時間</th>
-                                                        <th className="px-4 py-3">飼主 / 電話</th>
-                                                        <th className="px-4 py-3">寵物</th>
-                                                        <th className="px-4 py-3">服務項目</th>
-                                                        <th className="px-4 py-3">狀態</th>
-                                                        <th className="px-4 py-3"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
-                                                    {filteredBookings.map(b => (
-                                                        <tr key={b.id} className="hover:bg-brand-yellow/5 transition-colors cursor-pointer group">
-                                                            <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                                                                <input type="checkbox" checked={selectedBookings.has(b.id)} onChange={() => toggleSelectBooking(b.id)} className="w-4 h-4 accent-brand-brown" />
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-                                                                <div className="font-medium text-slate-600 dark:text-gray-300">{formatDate(b.created_at)}</div>
-                                                                <div className="text-xs text-slate-400">{new Date(b.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                                                            </td>
-                                                            <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-                                                                <div className="font-bold text-brand-brown dark:text-brand-yellow">{b.owner_name}</div>
-                                                                <div className="text-xs text-slate-400">{b.phone}</div>
-                                                            </td>
-                                                            <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-<span className="bg-brand-brown/10 text-brand-brown px-2 py-1 rounded text-xs font-bold">{b.pet_name}</span>
-{b.raw_data?.admin_notes && <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded ml-2 shadow-sm">備註</span>}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm font-bold text-slate-600 dark:text-gray-300" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-                                                                {getServiceLabel(b.service_type)}
-                                                            </td>
-                                                            <td className="px-4 py-3" onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
-                                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${b.status === 'confirmed' ? 'bg-green-50 text-green-600' : b.status === 'completed' ? 'bg-blue-50 text-blue-600' : b.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}`}>
-                                                                    {STATUS_OPTIONS.find(s => s.value === b.status)?.icon} {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <button onClick={() => { setSelectedBooking(b); setIsEditing(false); }} className="text-slate-300 group-hover:text-brand-brown transition-colors">
-                                                                    <Icon name="chevron-right" size={18}/>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {filteredBookings.length === 0 && (
-                                                        <tr><td colSpan="8" className="px-6 py-20 text-center text-slate-400">沒有找到相關訂單</td></tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
+                {b.raw_data?.admin_notes && (
+                    <div className="mt-2 text-[10px] text-purple-500 font-bold">
+                        📝 備註：{b.raw_data.admin_notes}
+                    </div>
+                )}
+            </div>
+        ))}
+
+        {filteredBookings.length === 0 && (
+            <div className="py-20 text-center text-slate-300 font-black">沒有找到相關訂單</div>
+        )}
+    </div>
+)}
                             </div>
                         )}
 
@@ -1892,65 +1939,110 @@ const stats = useMemo(() => {
                                                 </div>
                                             </div>
 
-                                            {/* 寵物資料 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
-                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="heart" size={16}/> 寵物資料</h3>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                    <DetailItem label="名字" value={selectedBooking.pet_name} fieldName="pet_name" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="品種" value={selectedBooking.raw_data?.breed} fieldName="breed" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="性別" value={selectedBooking.raw_data?.sex} fieldName="sex" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="結紮" value={selectedBooking.raw_data?.fix} fieldName="fix" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="年齡" value={selectedBooking.raw_data?.age} fieldName="age" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="體重" value={selectedBooking.raw_data?.weight} fieldName="weight" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="晶片" value={selectedBooking.raw_data?.chip_status} fieldName="chip_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="晶片號碼" value={selectedBooking.raw_data?.chip_id} fieldName="chip_id" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                </div>
-                                            </div>
+{/* 寵物資料（多寵顯示） */}
+<div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
+    <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="heart" size={16}/> 寵物資料</h3>
+    <div className="space-y-5">
+        {getPetListFromBooking(selectedBooking).map((pet, idx) => (
+            <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-gray-700 border border-slate-100 dark:border-gray-600">
+                {/* 標題 */}
+                <div className="flex items-center justify-between bg-white/60 dark:bg-gray-800/40 px-3 py-2 rounded-lg border border-brand-yellow/30 mb-3">
+                    <div className="font-black text-brand-brown dark:text-brand-yellow">
+                        第{idx+1}隻｜{pet.pet_name || `寵物${idx+1}`}
+                    </div>
+                    <div className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-gray-700 px-2 py-1 rounded-full">
+                        PET {idx+1}
+                    </div>
+                </div>
 
-                                            {/* 健康與行為 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 border-l-4 border-l-brand-yellow">
-                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="activity" size={16}/> 健康與行為</h3>
-                                                <div className="grid grid-cols-2 gap-3">
-<DetailItem label="美容性情評估" value={selectedBooking.raw_data?.grooming_temperament} fieldName="grooming_temperament" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="親狗程度" value={selectedBooking.raw_data?.dog_traits} fieldName="dog_traits" fullWidth isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="過往病史" value={selectedBooking.raw_data?.medical_status} fieldName="medical_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="病史詳細說明" value={selectedBooking.raw_data?.medical_history?.join('、') + (selectedBooking.raw_data?.medical_history_other ? ` (${selectedBooking.raw_data?.medical_history_other})` : '')} fieldName="medical_history" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="住宿經驗" value={selectedBooking.raw_data?.stay_exp} fieldName="stay_exp" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="籠內訓練狀況" value={selectedBooking.raw_data?.crate_status} fieldName="crate_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="容易吠叫" value={selectedBooking.raw_data?.is_barking + (selectedBooking.raw_data?.barking_detail ? ` (${selectedBooking.raw_data?.barking_detail})` : '')} fieldName="is_barking" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="護食狀況" value={selectedBooking.raw_data?.food_aggr} fieldName="food_aggr" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="定點如廁" value={selectedBooking.raw_data?.pad_toilet} fieldName="pad_toilet" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="定期疫苗" value={selectedBooking.raw_data?.vaccine} fieldName="vaccine" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="定期驅蟲" value={selectedBooking.raw_data?.deworm + (selectedBooking.raw_data?.deworm_brand ? ` (${selectedBooking.raw_data?.deworm_brand})` : '')} fieldName="deworm" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                </div>
-                                            </div>
+                {/* 基本資料 */}
+                <div className="text-xs font-bold text-slate-400 mb-2">基本資料</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <DetailItem label="品種" value={pet.breed} />
+                    <DetailItem label="性別" value={pet.sex} />
+                    <DetailItem label="結紮" value={pet.fix} />
+                    <DetailItem label="年齡" value={pet.is_under_one ? (pet.age_months ? `${pet.age_months} 個月` : '') : pet.age} />
+                    <DetailItem label="體重" value={pet.weight} />
+                    <DetailItem label="晶片" value={pet.chip_status} />
+                    <DetailItem label="晶片號碼" value={pet.chip_id} />
+                </div>
 
-                                            {/* 備註 */}
-                                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
-                                                <h3 className="font-bold text-brand-brown dark:text-brand-yellow flex items-center gap-2 mb-4"><Icon name="clipboard" size={16}/> 備註</h3>
-                                                <div className="space-y-3">
-                                                    <DetailItem label="是否異食癖" value={selectedBooking.raw_data?.pica_status + (selectedBooking.raw_data?.pica_note ? ` (${selectedBooking.raw_data?.pica_note})` : '')} fieldName="pica_status" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-<DetailItem label="異食癖說明" value={selectedBooking.raw_data?.pica_note} fieldName="pica_note" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-<DetailItem label="飲食習慣" value={selectedBooking.raw_data?.diet_habits?.join('、') + (selectedBooking.raw_data?.diet_other ? ` (其他：${selectedBooking.raw_data?.diet_other})` : '')} fieldName="diet_habits" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-<DetailItem label="飲食其他" value={selectedBooking.raw_data?.diet_other} fieldName="diet_other" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-<DetailItem label="餵食頻率與份量" value={selectedBooking.raw_data?.feeding_note} fieldName="feeding_note" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="過敏資訊" value={selectedBooking.raw_data?.allergy} fieldName="allergy" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="個性描述" value={selectedBooking.raw_data?.personality} fieldName="personality" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                    <DetailItem label="特別注意" value={selectedBooking.raw_data?.special_notes} fieldName="special_notes" fullWidth isMultiline isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-                                                </div>
-                                            </div>
+                {/* ✅ 本次服務（每隻毛孩專屬） */}
+                <div className="mt-4">
+                    <div className="text-xs font-bold text-slate-400 mb-2">本次服務</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <DetailItem 
+                            label="服務項目" 
+                            value={
+                                (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+                                ? '住宿＋美容' 
+                                : (pet.service_type || '')
+                            } 
+                        />
+                        <DetailItem 
+                            label="預約日期" 
+                            value={
+                                (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+                                ? selectedBooking.checkin_date 
+                                : (pet.grooming_date || '')
+                            } 
+                        />
+                        <DetailItem 
+                            label="SPA 加購" 
+                            value={(pet.spa_addons || []).join('、')} 
+                            fullWidth 
+                        />
+                    </div>
+                </div>
 
-                                            {/* 簽名與疫苗照片 */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
-                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">客戶簽名</h4>
-                                                    {selectedBooking.signature_url ? <img src={selectedBooking.signature_url} className="w-full h-24 object-contain bg-slate-50 dark:bg-gray-700 rounded-lg" /> : <div className="w-full h-24 bg-slate-50 dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-300 text-xs">無簽名</div>}
-                                                </div>
-                                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
-                                                    <h4 className="text-xs font-bold text-slate-400 mb-2">疫苗證明</h4>
-                                                    {selectedBooking.vaccine_url ? <a href={selectedBooking.vaccine_url} target="_blank"><img src={selectedBooking.vaccine_url} className="w-full h-24 object-cover rounded-lg hover:opacity-80 transition-opacity" /></a> : <div className="w-full h-24 bg-slate-50 dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-300 text-xs">無照片</div>}
-                                                </div>
-                                            </div>
+                {/* 健康與行為 */}
+                <div className="mt-4">
+                    <div className="text-xs font-bold text-slate-400 mb-2">健康與行為</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <DetailItem label="美容性情評估" value={pet.grooming_temperament} fullWidth />
+                        <DetailItem label="親狗程度" value={pet.dog_traits} fullWidth />
+                        <DetailItem label="過往病史" value={pet.medical_status} />
+                        <DetailItem label="病史詳細說明" value={(pet.medical_history || []).join('、') + (pet.medical_history_other ? ` (${pet.medical_history_other})` : '')} fullWidth />
+                        <DetailItem label="住宿經驗" value={pet.stay_exp} />
+                        <DetailItem label="籠內訓練狀況" value={pet.crate_status} />
+                        <DetailItem label="容易吠叫" value={(pet.is_barking || '') + (pet.barking_detail ? ` (${pet.barking_detail})` : '')} fullWidth />
+                        <DetailItem label="護食狀況" value={pet.food_aggr} />
+                        <DetailItem label="定點如廁" value={pet.pad_toilet} />
+                        <DetailItem label="定期疫苗" value={pet.vaccine} />
+                        <DetailItem label="定期驅蟲" value={pet.deworm + (pet.deworm_brand ? ` (${pet.deworm_brand})` : '')} fullWidth />
+                    </div>
+                </div>
+
+                {/* 備註 / 飲食 */}
+                <div className="mt-4">
+                    <div className="text-xs font-bold text-slate-400 mb-2">備註 / 飲食</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <DetailItem label="是否異食癖" value={(pet.pica_status || '') + (pet.pica_note ? ` (${pet.pica_note})` : '')} fullWidth />
+                        <DetailItem label="飲食習慣" value={(pet.diet_habits || []).join('、') + (pet.diet_other ? ` (其他：${pet.diet_other})` : '')} fullWidth />
+                        <DetailItem label="餵食頻率與份量" value={pet.feeding_note} fullWidth />
+                        <DetailItem label="過敏資訊" value={pet.allergy} fullWidth isMultiline />
+                        <DetailItem label="個性描述" value={pet.personality} fullWidth isMultiline />
+                        <DetailItem label="特別注意" value={pet.special_notes} fullWidth isMultiline />
+                    </div>
+                </div>
+
+                {/* 疫苗照片 */}
+                <div className="mt-4">
+                    <div className="text-xs font-bold text-slate-400 mb-2">疫苗照片</div>
+                    {getPetVaccineUrl(pet) ? (
+                        <a href={getPetVaccineUrl(pet)} target="_blank">
+                            <img src={getPetVaccineUrl(pet)} className="w-full h-28 object-cover rounded-lg hover:opacity-80 transition-opacity" />
+                        </a>
+                    ) : (
+                        <div className="w-full h-28 bg-slate-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-300 text-xs">
+                            無照片
+                        </div>
+                    )}
+                </div>
+            </div>
+        ))}
+    </div>
+</div>
                                         </div>
 
                                         <div className="space-y-4">
