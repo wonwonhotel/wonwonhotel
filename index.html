@@ -7,7 +7,7 @@
 
     <title>汪汪犬旅 | 數位契約填寫系統</title>
     
-    <link rel="manifest" href="manifest.json?v=6">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#736357">
     
     <link rel="icon" type="image/png" href="icon.png">
@@ -806,7 +806,7 @@ const ERROR_MESSAGES = {
             email: '請輸入有效的電子郵件格式 (例如: example@email.com)',
             owner_name: '請輸入飼主姓名',
             phone: '請輸入有效的手機號碼 (例如: 0912345678)',
-            owner_id: '身分證字號格式錯誤，請檢查',
+            owner_id: '身分證/居留證格式錯誤，請檢查',
             address: '請輸入通訊地址',
             emergency_name: '請輸入緊急聯絡人姓名',
             emergency_phone: '請輸入有效的緊急聯絡電話',
@@ -1450,17 +1450,33 @@ const toggleArrayField = (field, value) => {
 
 const validateEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
             const validatePhone = (phone) => /^09\d{8}$/.test(phone);
-const validateTwID = (id) => {
-    if (!/^[A-Z][12]\d{8}$/.test(id)) return false;
+const validateTwIDorARC = (id) => {
+    if (!id) return false;
+    const value = id.toUpperCase().trim();
     const letters = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
-    const letterVal = letters.indexOf(id[0]) + 10;
-    const n1 = Math.floor(letterVal / 10);
-    const n2 = letterVal % 10;
-    const numbers = [n1, n2, ...id.slice(1).split('').map(Number)];
-    const weights = [1, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1];
-    let sum = 0;
-    for (let i = 0; i < 11; i++) sum += numbers[i] * weights[i];
-    return sum % 10 === 0;
+
+    const checkWithChecksum = (str) => {
+        const letterVal = letters.indexOf(str[0]) + 10;
+        if (letterVal < 10) return false;
+        const n1 = Math.floor(letterVal / 10);
+        const n2 = letterVal % 10;
+        const numbers = [n1, n2, ...str.slice(1).split('').map(Number)];
+        const weights = [1, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1];
+        let sum = 0;
+        for (let i = 0; i < 11; i++) sum += numbers[i] * weights[i];
+        return sum % 10 === 0;
+    };
+
+    // ✅ 身分證：1碼字母 + 1/2 + 8碼
+    if (/^[A-Z][12]\d{8}$/.test(value)) return checkWithChecksum(value);
+
+    // ✅ 新式居留證：1碼字母 + 8/9 + 8碼
+    if (/^[A-Z][89]\d{8}$/.test(value)) return checkWithChecksum(value);
+
+    // ✅ 舊式居留證：2碼字母 + 8碼（格式放行）
+    if (/^[A-Z]{2}\d{8}$/.test(value)) return true;
+
+    return false;
 };
 
 
@@ -1565,12 +1581,12 @@ const requiredText = ['email', 'owner_name', 'phone','address', 'emergency_name'
     if (isBoarding) {
         // 住宿模式：必填且須驗證格式
         if (!formData.owner_id) newErrors.owner_id = ERROR_MESSAGES.owner_id;
-        else if (!validateTwID(formData.owner_id)) newErrors.owner_id = ERROR_MESSAGES.owner_id;
+        else if (!validateTwIDorARC(formData.owner_id)) newErrors.owner_id = ERROR_MESSAGES.owner_id;
     } else {
         // 美容模式：非必填，但若有填寫則需驗證格式
-        if (formData.owner_id && !validateTwID(formData.owner_id)) {
-            newErrors.owner_id = ERROR_MESSAGES.owner_id;
-        }
+if (formData.owner_id && !validateTwIDorARC(formData.owner_id)) {
+    newErrors.owner_id = ERROR_MESSAGES.owner_id;
+}
     }
 
     if (formData.is_under_one) {
@@ -3696,7 +3712,7 @@ if (funcError) console.error("寄信失敗:", funcError);
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw.js');
+                    const registration = await navigator.serviceWorker.register('./sw.js?v=1');
                     console.log('Service Worker 註冊成功');
 
                     registration.addEventListener('updatefound', () => {
