@@ -1929,7 +1929,7 @@ const serviceSectionHtml = petListWithUploads.map((pet, idx) => `
                                         <div class="section-header"><h2 class="section-title">👤 飼主與聯絡資訊</h2></div>
                                         <table class="info-table">
                                             <tr><td class="label">飼主姓名</td><td class="value">${formData.owner_name}</td></tr>
-                                            <tr><td class="label">身分證字號</td><td class="value">${formData.owner_id}</td></tr>
+                                            <tr><td class="label">身分證/居留證字號</td><td class="value">${formData.owner_id}</td></tr>
                                             <tr><td class="label">連絡電話</td><td class="value"><a href="tel:${formData.phone}" style="color:#333;text-decoration:none;">${formData.phone}</a></td></tr>
                                             <tr><td class="label">電子郵件</td><td class="value">${formData.email}</td></tr>
                                             <tr><td class="label">通訊地址</td><td class="value">${formData.address}</td></tr>
@@ -2341,7 +2341,7 @@ if (funcError) console.error("寄信失敗:", funcError);
                                     </div>
                                     <div className="space-y-1.5">
 <label className="text-xs font-bold text-slate-400 ml-1 flex items-center gap-1">
-    身分證字號 
+    身分證/居留證字號 
     {isBoarding ? (
         <>
             <span className="text-red-500 font-black text-[10px] bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded-md ml-1">
