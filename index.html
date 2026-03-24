@@ -7,7 +7,7 @@
 
     <title>汪汪犬旅 | 數位契約填寫系統</title>
     
-    <link rel="manifest" href="manifest.json?v=8">
+    <link rel="manifest" href="manifest.json?v=9">
     <meta name="theme-color" content="#736357">
     
     <link rel="icon" type="image/png" href="icon.png">
@@ -1488,7 +1488,37 @@ const handleSubmit = async () => {
     const petListToSubmit = petList.map((p,i)=> 
         i===currentPetIdx ? {...p, ...currentPetData, name: formData.pet_name || p.name} : p
     );
+const focusFirstError = (errs) => {
+    const order = [
+        'email','owner_name','phone','owner_id','address',
+        'emergency_name','emergency_phone',
+        'pet_type','pet_name','breed','weight','age','sex','fix',
+        'dog_traits','grooming_temperament','chip_status','chip_id',
+        'medical_status','medical_history','medical_history_other',
+        'checkin_date','checkout_date','is_barking','barking_detail',
+        'stay_exp','food_aggr','pad_toilet','vaccine','vaccine_file',
+        'deworm','deworm_brand','crate_status','pica_status','pica_note',
+        'diet_habits','diet_other','feeding_note','personality',
+        'grooming_date','service_type','service_type_other',
+        'legal_agree','signature'
+    ];
 
+    const first = order.find(k => errs[k]);
+    if (!first) return;
+
+    let el =
+        document.querySelector(`[name="${first}"]`) ||
+        document.getElementById(first) ||
+        document.querySelector(`#${first} input, #${first} textarea, #${first} button`);
+
+    if (first === 'vaccine_file') el = document.getElementById('vaccine-label');
+    if (first === 'signature') el = document.getElementById('signature');
+
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { el.focus({ preventScroll: true }); } catch (e) {}
+    }
+};
     // ✅ 多寵必填檢查（所有毛孩）
     let firstInvalidIdx = null;
     const multiPetErrors = petListToSubmit.map(() => ({}));
@@ -1559,13 +1589,19 @@ const handleSubmit = async () => {
         }
     });
 
-    if (firstInvalidIdx !== null) {
-        setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
-        handleSwitchPet(firstInvalidIdx);
-        setErrors(multiPetErrors[firstInvalidIdx] || {});
-        showToast("⚠️ 其他毛孩資料尚未填完整");
-        return;
-    } else {
+if (firstInvalidIdx !== null) {
+    setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
+    handleSwitchPet(firstInvalidIdx);
+    setErrors(multiPetErrors[firstInvalidIdx] || {});
+    showToast("⚠️ 其他毛孩資料尚未填完整");
+
+    // ✅ 等 tab 切換完，再跳到錯誤欄位
+    setTimeout(() => {
+        focusFirstError(multiPetErrors[firstInvalidIdx] || {});
+    }, 200);
+
+    return;
+} else {
         setPetList(prev => prev.map(p => {
             const np = { ...p };
             delete np._errors;
@@ -1682,18 +1718,18 @@ if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MES
                 if (!formData.legal_agree) newErrors.legal_agree = ERROR_MESSAGES.legal_agree;
                 if (!realtimeSig) newErrors.signature = ERROR_MESSAGES.signature;
 
-                setErrors(newErrors);
-                const errorKeys = Object.keys(newErrors);
-                if (errorKeys.length > 0) {
-                    const firstError = errorKeys[0];
-                    let el = document.getElementById(firstError) || document.getElementsByName(firstError)[0];
-                    if (firstError === 'vaccine_file') el = document.getElementById('vaccine-label');
-                    if (firstError === 'signature') el = document.getElementById('signature');
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
-                    showToast(`⚠️ 請修正 ${errorKeys.length} 個錯誤欄位`);
-                    return;
-                }
+setErrors(newErrors);
+
+const errorKeys = Object.keys(newErrors);
+if (errorKeys.length > 0) {
+    // ✅ 等 React 畫面更新後再跳
+    setTimeout(() => {
+        focusFirstError(newErrors);
+    }, 200);
+
+    showToast(`⚠️ 請修正 ${errorKeys.length} 個錯誤欄位`);
+    return;
+}
 
                 setIsSubmitting(true);
                try {
@@ -2477,7 +2513,7 @@ if (funcError) console.error("寄信失敗:", funcError);
                                             )}
                                         </>
                                     )}
-                                    <div className="space-y-2" id="pet_type">
+                                    <div className="space-y-2" id="pet_type" tabIndex="-1">
     <label className="text-xs font-bold text-slate-400 ml-1">寵物類型 *</label>
     <div className={`flex gap-2 ${errors.pet_type ? 'group-error' : ''}`}>
         {pillBtn('pet_type', '狗狗', formData.pet_type==='狗狗')}
@@ -2610,7 +2646,7 @@ if (funcError) console.error("寄信失敗:", funcError);
 
                                     <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-4">
                                         <div className="grid md:grid-cols-2 gap-8">
-                                            <div className="space-y-3" id="dog_traits">
+                                            <div className="space-y-3" id="dog_traits" tabIndex="-1">
                                                 <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">社交狀況 (可複選) *</label>
                                                 <div className={`flex flex-col gap-2.5 pt-1 ${errors.dog_traits ? 'group-error' : ''}`}>
 {['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
@@ -2621,7 +2657,7 @@ if (funcError) console.error("寄信失敗:", funcError);
                                             </div>
                                         </div>
 
-                                        <div className="space-y-4" id="grooming_temperament">
+                                        <div className="space-y-4" id="grooming_temperament" tabIndex="-1">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">寵物美容性情與攻擊性評估 *</label>
                                             <div className={`flex flex-col gap-2.5 pt-1 ${errors.grooming_temperament ? 'group-error' : ''}`}>
                                                 {[
@@ -2642,7 +2678,7 @@ if (funcError) console.error("寄信失敗:", funcError);
                                             <FieldError message={errors.grooming_temperament} />
                                         </div>
 
-                                        <div className="space-y-4" id="chip_status">
+                                        <div className="space-y-4" id="chip_status" tabIndex="-1">
                                             <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">晶片 *</label>
                                             <div className={`flex flex-col gap-2.5 pt-1 ${errors.chip_status ? 'group-error' : ''}`}>
                                                 {['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (
@@ -3712,8 +3748,7 @@ if (funcError) console.error("寄信失敗:", funcError);
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw.js');
-                    console.log('Service Worker 註冊成功');
+                    const registration = await navigator.serviceWorker.register('./sw.js?v=9');                    console.log('Service Worker 註冊成功');
 
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;

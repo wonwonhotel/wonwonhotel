@@ -16,10 +16,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
 
     <script>
         // Tailwind config with dark mode
@@ -257,6 +253,21 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // ✅ 延遲載入大套件（登入後或需要時）
+const loadScript = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+});
+
+const ensureChart = () => window.Chart ? Promise.resolve() :
+    loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+
+const ensureXLSX = () => window.XLSX ? Promise.resolve() :
+    loadScript('https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js');
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
         // --- Error Boundary Component (防止白畫面) ---
@@ -837,74 +848,65 @@ const normalizeBooking = (b) => {
             const chart1Instance = useRef(null);
             const chart2Instance = useRef(null);
 
-            useEffect(() => {
-                if (!bookings || bookings.length === 0 || !chartRef1.current || !chartRef2.current) return;
+useEffect(() => {
+    let cancelled = false;
+    (async () => {
+        await ensureChart();
+        if (cancelled) return;
 
-                // Monthly trend chart
-                const monthlyData = {};
-                bookings.forEach(b => {
-                    const month = b.created_at?.substring(0, 7);
-                    if (month) {
-                        monthlyData[month] = (monthlyData[month] || 0) + 1;
-                    }
-                });
+        if (!bookings || bookings.length === 0 || !chartRef1.current || !chartRef2.current) return;
 
-                const sortedMonths = Object.keys(monthlyData).sort().slice(-6);
-                
-                if (chart1Instance.current) chart1Instance.current.destroy();
-                if (chartRef1.current) {
-                    chart1Instance.current = new Chart(chartRef1.current, {
-                        type: 'line',
-                        data: {
-                            labels: sortedMonths.map(m => m.replace('-', '/')),
-                            datasets: [{
-                                label: '訂單數',
-                                data: sortedMonths.map(m => monthlyData[m]),
-                                borderColor: '#736357',
-                                backgroundColor: 'rgba(115, 99, 87, 0.1)',
-                                fill: true,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } }
-                        }
-                    });
-                }
+        const monthlyData = {};
+        bookings.forEach(b => {
+            const month = b.created_at?.substring(0, 7);
+            if (month) monthlyData[month] = (monthlyData[month] || 0) + 1;
+        });
 
-                // Service type distribution
-                const serviceData = {};
-                bookings.forEach(b => {
-                    const type = b.service_type?.includes('住宿') ? '住宿' : (b.service_type || '其他');
-                    serviceData[type] = (serviceData[type] || 0) + 1;
-                });
+        const sortedMonths = Object.keys(monthlyData).sort().slice(-6);
 
-                if (chart2Instance.current) chart2Instance.current.destroy();
-                if (chartRef2.current) {
-                    chart2Instance.current = new Chart(chartRef2.current, {
-                        type: 'doughnut',
-                        data: {
-                            labels: Object.keys(serviceData),
-                            datasets: [{
-                                data: Object.values(serviceData),
-                                backgroundColor: ['#F7E7B5', '#736357', '#06C755', '#3b82f6', '#ef4444', '#8b5cf6']
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } }
-                        }
-                    });
-                }
+        if (chart1Instance.current) chart1Instance.current.destroy();
+        if (chartRef1.current) {
+            chart1Instance.current = new Chart(chartRef1.current, {
+                type: 'line',
+                data: {
+                    labels: sortedMonths.map(m => m.replace('-', '/')),
+                    datasets: [{
+                        label: '訂單數',
+                        data: sortedMonths.map(m => monthlyData[m]),
+                        borderColor: '#736357',
+                        backgroundColor: 'rgba(115, 99, 87, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
 
-                return () => {
-                    if (chart1Instance.current) chart1Instance.current.destroy();
-                    if (chart2Instance.current) chart2Instance.current.destroy();
-                };
-            }, [bookings]);
+        const serviceData = {};
+        bookings.forEach(b => {
+            const type = b.service_type?.includes('住宿') ? '住宿' : (b.service_type || '其他');
+            serviceData[type] = (serviceData[type] || 0) + 1;
+        });
+
+        if (chart2Instance.current) chart2Instance.current.destroy();
+        if (chartRef2.current) {
+            chart2Instance.current = new Chart(chartRef2.current, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(serviceData),
+                    datasets: [{
+                        data: Object.values(serviceData),
+                        backgroundColor: ['#F7E7B5', '#736357', '#06C755', '#3b82f6', '#ef4444', '#8b5cf6']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+    })();
+
+    return () => { cancelled = true; };
+}, [bookings]);
 
             return (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1247,24 +1249,25 @@ const handleResend = async (e, log) => {
             );
         };
         // --- Export Functions ---
-        const exportToExcel = (bookings, filename = 'bookings') => {
-            const data = bookings.map(b => ({
-                '訂單編號': b.id,
-                '建立時間': formatDateTime(b.created_at),
-                '飼主姓名': b.owner_name,
-                '電話': b.phone,
-                '寵物名字': getPetNames(b),
-                '服務項目': b.service_type,
-                '狀態': STATUS_OPTIONS.find(s => s.value === b.status)?.label || b.status,
-                '入住日期': b.checkin_date || '',
-                '退房日期': b.checkout_date || ''
-            }));
-            
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '訂單');
-            XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
-        };
+const exportToExcel = async (bookings, filename = 'bookings') => {
+    await ensureXLSX();
+    const data = bookings.map(b => ({
+        '訂單編號': b.id,
+        '建立時間': formatDateTime(b.created_at),
+        '飼主姓名': b.owner_name,
+        '電話': b.phone,
+        '寵物名字': getPetNames(b),
+        '服務項目': b.service_type,
+        '狀態': STATUS_OPTIONS.find(s => s.value === b.status)?.label || b.status,
+        '入住日期': b.checkin_date || '',
+        '退房日期': b.checkout_date || ''
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '訂單');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+};
 
         // --- Detail Item Component ---
         const DetailItem = ({ label, value, fieldName, fullWidth = false, isMultiline = false, isEditing, editForm, handleEditChange }) => {
@@ -1368,10 +1371,14 @@ const handleResend = async (e, log) => {
             // 取得權限
             const { canEdit, canDelete, roleName, canManageAdmins, canViewLogs, canExport } = usePermissions(session?.user?.email);
             
-            const [bookings, setBookings] = useState([]);
-            const [selectedBooking, setSelectedBooking] = useState(null);
-            const [selectedBookings, setSelectedBookings] = useState(new Set());
-            
+const [bookings, setBookings] = useState([]);
+const [selectedBooking, setSelectedBooking] = useState(null);
+const [selectedBookings, setSelectedBookings] = useState(new Set());
+
+// ✅ 分頁設定
+const PAGE_SIZE = 20;
+const [page, setPage] = useState(0);
+const [hasMore, setHasMore] = useState(true);            
             // Filters
             const [searchFilter, setSearchFilter] = useState('');
             const [statusFilter, setStatusFilter] = useState('all');
@@ -1407,7 +1414,15 @@ const [dateTo, setDateTo] = useState('');
             const [toast, setToast] = useState(null);
             const [activityLogs, setActivityLogs] = useState([]);
             const [isDark, setIsDark] = useDarkMode();
-            
+            // ✅ 先顯示快取資料（讓列表立刻出現）
+useEffect(() => {
+    const cached = localStorage.getItem('bookings_cache');
+    if (cached) {
+        try {
+            setBookings(JSON.parse(cached));
+        } catch(e) {}
+    }
+}, []);
             const { checkRateLimit, recordAttempt } = useRateLimiter();
             const showToast = (message, type = 'info') => setToast({ message, type });
 
@@ -1434,13 +1449,12 @@ const [dateTo, setDateTo] = useState('');
             useEffect(() => {
                 supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
-                    if(session) fetchBookings();
                     setLoading(false);
                 });
-                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-                    setSession(session);
-                    if(session) fetchBookings();
-                });
+const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+    if(session) fetchBookings(0, true);
+});
                 return () => subscription.unsubscribe();
             }, []);
 
@@ -1491,16 +1505,52 @@ const [dateTo, setDateTo] = useState('');
                 window.location.href = 'index.html';
             };
 
-const fetchBookings = async () => {
+const fetchBookings = async (pageToLoad = 0, reset = false) => {
     setDataLoading(true);
-    const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
+
+    const from = pageToLoad * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error } = await supabase
+        .from('bookings')
+        .select('id, created_at, owner_name, phone, pet_name, service_type, status, checkin_date, checkout_date, service_price')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
     if (!error) {
-        const normalized = (data || []).map(normalizeBooking);
-        setBookings(normalized);
+        const newData = data || [];
+        if (reset) {
+            setBookings(newData);
+            localStorage.setItem('bookings_cache', JSON.stringify(newData));
+        } else {
+            setBookings(prev => {
+                const merged = [...prev, ...newData];
+                localStorage.setItem('bookings_cache', JSON.stringify(merged));
+                return merged;
+            });
+        }
+        setHasMore(newData.length === PAGE_SIZE);
+        setPage(pageToLoad);
     }
     setDataLoading(false);
 };
+const fetchBookingDetail = async (id) => {
+    const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .single();
 
+    if (!error && data) {
+        setSelectedBooking(normalizeBooking(data));
+    }
+};
+
+// ✅ 載入更多
+const loadMore = () => {
+    const nextPage = page + 1;
+    fetchBookings(nextPage, false);
+};
 const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     return {
@@ -1775,9 +1825,9 @@ const filteredBookings = useMemo(() => {
                             <span className="font-black text-lg md:text-xl text-brand-brown dark:text-brand-yellow">後台管理</span>
                         </div>
                         <div className="flex items-center gap-2 md:gap-3">
-                            <button onClick={fetchBookings} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="重新整理">
-                                <Icon name="rotate-cw" size={20} className={dataLoading ? "animate-spin" : ""} />
-                            </button>
+<button onClick={() => fetchBookings(0, true)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="重新整理">
+    <Icon name="rotate-cw" size={20} className={dataLoading ? "animate-spin" : ""} />
+</button>
                             <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-500 transition-colors" title="切換深色模式">
                                 <Icon name={isDark ? "sun" : "moon"} size={20} />
                             </button>
@@ -1937,18 +1987,18 @@ const filteredBookings = useMemo(() => {
                                     </div>
                                 </div>
 
-                                {dataLoading ? (
-                                    <SkeletonTable />
-                                ) : viewMode === 'calendar' ? (
-                                    <CalendarView bookings={filteredBookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
+{dataLoading && bookings.length === 0 ? (
+    <SkeletonTable />
+) : viewMode === 'calendar' ? (
+                                    <CalendarView bookings={filteredBookings} onSelectBooking={b => { fetchBookingDetail(b.id); setIsEditing(false); }} />
                                 ) : viewMode === 'crm' ? (
-                                    <CustomerCRM bookings={bookings} onSelectBooking={b => { setSelectedBooking(b); setIsEditing(false); }} />
+                                    <CustomerCRM bookings={bookings} onSelectBooking={b => { fetchBookingDetail(b.id); setIsEditing(false); }} />
 ) : (
     <div className="space-y-3">
 {filteredBookings.map(b => (
     <div key={b.id}
         className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer"
-        onClick={() => { setSelectedBooking(b); setIsEditing(false); }}>
+        onClick={() => { fetchBookingDetail(b.id); setIsEditing(false); }}>
 
         {/* 上排：日期 + 狀態 */}
         <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
@@ -1993,6 +2043,15 @@ const filteredBookings = useMemo(() => {
 
         {filteredBookings.length === 0 && (
             <div className="py-20 text-center text-slate-300 font-black">沒有找到相關訂單</div>
+        )}
+
+        {hasMore && filteredBookings.length > 0 && (
+            <button
+                onClick={loadMore}
+                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-500 font-bold hover:bg-slate-200 transition-all"
+            >
+                載入更多
+            </button>
         )}
     </div>
 )}
@@ -2349,25 +2408,6 @@ const filteredBookings = useMemo(() => {
             );
         };
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
-                try {
-                    const registration = await navigator.serviceWorker.register('sw-admin.js');
-                    console.log('SW registered:', registration);
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('New SW version available');
-                            }
-                        });
-                    });
-                } catch (error) {
-                    console.error('SW registration failed:', error);
-                }
-            });
-        }
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
@@ -2375,7 +2415,7 @@ const filteredBookings = useMemo(() => {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw-admin.js');
+                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=2');
                     console.log('Admin Service Worker 註冊成功');
 
                     // ✅ 立即檢查更新
