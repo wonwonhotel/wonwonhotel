@@ -418,7 +418,15 @@ body.signing-mode {
 <body>
     <div id="root"></div>
     
-<script type="text/babel">
+    <script>
+        Babel.registerPreset("react-classic", {
+            presets: [
+                [Babel.availablePresets["react"], { "runtime": "classic" }]
+            ]
+        });
+    </script>
+
+<script type="text/babel" data-presets="react-classic">
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
         // --- Terms Modal Component (全螢幕條款彈窗) ---
         const TermsModal = ({ isOpen, onClose, title, children, onAgree }) => {
@@ -516,7 +524,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
         const SUPABASE_URL = 'https://fpkzuotxxbsqisgwupix.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_VsAJfSi7Fb3zu_A5Ksm2wA_mAUkDLBs'; 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --- Dark Mode Hook ---
         const useDarkMode = () => {
@@ -3748,7 +3756,7 @@ if (funcError) console.error("寄信失敗:", funcError);
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw.js?v=9');                    console.log('Service Worker 註冊成功');
+                    const registration = await navigator.serviceWorker.register('./sw.js?v=10');                    console.log('Service Worker 註冊成功');
 
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
