@@ -18,6 +18,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
+        Babel.registerPreset("react-classic", {
+            presets: [
+                [Babel.availablePresets["react"], { "runtime": "classic" }]
+            ]
+        });
+    </script>
+
+    <script>
         // Tailwind config with dark mode
         tailwind.config = {
             darkMode: 'class',
@@ -252,7 +260,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-presets="env,react-classic">
         // ✅ 延遲載入大套件（登入後或需要時）
 const loadScript = (src) => new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -2409,13 +2417,17 @@ const filteredBookings = useMemo(() => {
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
     </script>
 <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=2');
+                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=3');
                     console.log('Admin Service Worker 註冊成功');
 
                     // ✅ 立即檢查更新
