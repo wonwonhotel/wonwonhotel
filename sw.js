@@ -1,6 +1,10 @@
 
 // 汪汪犬旅 Service Worker
-const CACHE_NAME = 'wanwan-hotel-v4';
+// ✅ 從 URL 參數讀取版本號，或使用預設值
+const urlParams = new URLSearchParams(self.location.search);
+const VERSION = urlParams.get('v') || '1.0.0';
+const CACHE_NAME = `wanwan-hotel-${VERSION}`;
+
 const urlsToCache = [
   './',
   './index.html',
@@ -12,8 +16,6 @@ const urlsToCache = [
 
 // 安裝 Service Worker
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // 強制跳過等待，立即啟用新版
-
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -24,6 +26,7 @@ self.addEventListener('install', (event) => {
         console.log('Cache failed:', error);
       })
   );
+  // ✅ 立即啟動新版本，但不接管頁面（不呼叫 clients.claim()）
   self.skipWaiting();
 });
 
@@ -41,7 +44,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  self.clients.claim();
+  // ✅ 不呼叫 clients.claim()，讓舊頁面繼續由舊版控制
 });
 
 // 攔截請求
@@ -216,7 +219,10 @@ self.addEventListener('message', (event) => {
     });
   }
   
+  // ✅ 支援跳過等待（讓新 SW 立即生效）
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+    event.waitUntil(
+      self.skipWaiting()
+    );
   }
 });
