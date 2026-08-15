@@ -1050,29 +1050,33 @@ const [currentPetIdx, setCurrentPetIdx] = useState(0);
             }, [formData.age, formData.age_months, formData.is_under_one]);
 
             // ✅ 計算所有毛孩年齡
-            const calcPetAge = (pet) => {
-                if (pet.is_under_one && pet.age_months) {
-                    return parseFloat(pet.age_months) / 12;
-                }
-                return parseFloat(pet.age) || 0;
-            };
+const calcPetAge = useCallback((pet) => {
+    if (pet.is_under_one && pet.age_months) {
+        return parseFloat(pet.age_months) / 12;
+    }
+    return parseFloat(pet.age) || 0;
+}, []);
 
             // ✅ 取得所有毛孩資料（包含目前畫面）
-            const allPetsData = useMemo(() => {
-                const currentPet = { ...formData };
-                return petList.map((p, i) => i === currentPetIdx ? { ...p, ...currentPet } : p);
-            }, [petList, formData, currentPetIdx]);
+// ✅ 使用 JSON.stringify 來比較 formData 的變化
+const allPetsData = useMemo(() => {
+    const currentPet = { ...formData };
+    return petList.map((p, i) => i === currentPetIdx ? { ...p, ...currentPet } : p);
+}, [petList, formData, currentPetIdx]);
 
             // ✅ 找出所有高風險毛孩
-            const highRiskPets = useMemo(() => {
-                return allPetsData
-                    .map(p => {
-                        const age = calcPetAge(p);
-                        const type = age >= 8 ? 'senior' : (age > 0 && age < 0.42 ? 'puppy' : null);
-                        return { ...p, age, type };
-                    })
-                    .filter(p => p.type);
-            }, [allPetsData]);
+const highRiskPets = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < allPetsData.length; i++) {
+        const p = allPetsData[i];
+        const age = (p.is_under_one && p.age_months) ? (parseFloat(p.age_months) / 12) : (parseFloat(p.age) || 0);
+        const type = age >= 8 ? 'senior' : (age > 0 && age < 0.42 ? 'puppy' : null);
+        if (type) {
+            result.push({ ...p, age, type });
+        }
+    }
+    return result;
+}, [allPetsData]);
 
             // ✅ 是否有任何高風險毛孩
             const isHighRisk = useMemo(() => {
@@ -1173,13 +1177,13 @@ const selectServiceFlow = (type) => {
                 return diffDays > 0 ? diffDays : null;
             }, [formData.checkin_date, formData.checkout_date]);
 
-            const handleChange = (field, value) => {
-                let finalVal = value;
-                if (field === 'email') finalVal = value.toLowerCase();
-                if (field === 'owner_id') finalVal = value.toUpperCase();
-                setFormData(prev => ({ ...prev, [field]: finalVal }));
-                if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
-            };
+const handleChange = useCallback((field, value) => {
+    let finalVal = value;
+    if (field === 'email') finalVal = value.toLowerCase();
+    if (field === 'owner_id') finalVal = value.toUpperCase();
+    setFormData(prev => ({ ...prev, [field]: finalVal }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+}, [errors]);
 // ====== 同住毛孩 Tab 專用欄位 ======
 const PET_SPECIFIC_FIELDS = [
   'pet_name','pet_type','breed','weight','sex','fix',
@@ -1478,13 +1482,14 @@ const toggleArrayField = (field, value) => {
 
 const validateEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
             const validatePhone = (phone) => /^09\d{8}$/.test(phone);
+const TW_ID_LETTERS = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
+
 const validateTwIDorARC = (id) => {
     if (!id) return false;
     const value = id.toUpperCase().trim();
-    const letters = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
 
     const checkWithChecksum = (str) => {
-        const letterVal = letters.indexOf(str[0]) + 10;
+        const letterVal = TW_ID_LETTERS.indexOf(str[0]) + 10;
         if (letterVal < 10) return false;
         const n1 = Math.floor(letterVal / 10);
         const n2 = letterVal % 10;
@@ -1556,77 +1561,135 @@ const focusFirstError = (errs) => {
         multiPetErrors[idx][field] = msg;
     };
 
-    petListToSubmit.forEach((pet, idx) => {
-        const name = pet.pet_name || `寵物${idx+1}`;
+        petListToSubmit.forEach((pet, idx) => {
+            const name = pet.pet_name || `寵物${idx+1}`;
+            const isCat = pet.pet_type === '貓咪';
+            const isDog = pet.pet_type === '狗狗';
 
-        if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${name} 名字`); setFirst(idx); }
-        if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${name} 品種`); setFirst(idx); }
-        if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${name} 體重`); setFirst(idx); }
+            // ===== 基本必填（所有寵物） =====
+            if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${name} 名字`); setFirst(idx); }
+            if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${name} 品種`); setFirst(idx); }
+            if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${name} 體重`); setFirst(idx); }
 
-        if (pet.is_under_one) {
-            if (!pet.age_months) { setPetError(idx, 'age', `請填寫 ${name} 月齡`); setFirst(idx); }
-        } else {
-            if (!pet.age) { setPetError(idx, 'age', `請填寫 ${name} 年齡`); setFirst(idx); }
-        }
-
-        if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${name} 類型`); setFirst(idx); }
-        if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${name} 性別`); setFirst(idx); }
-        if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${name} 結紮`); setFirst(idx); }
-        if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${name} 晶片狀態`); setFirst(idx); }
-        if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { setPetError(idx, 'chip_id', `請填寫 ${name} 晶片號碼`); setFirst(idx); }
-
-        if (!pet.dog_traits || pet.dog_traits.length === 0) { setPetError(idx, 'dog_traits', `請勾選 ${name} 社交狀況`); setFirst(idx); }
-        if (!pet.grooming_temperament) { setPetError(idx, 'grooming_temperament', `請選擇 ${name} 美容性情`); setFirst(idx); }
-
-        if (!pet.medical_status) { setPetError(idx, 'medical_status', `請選擇 ${name} 病史狀況`); setFirst(idx); }
-        if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
-            setPetError(idx, 'medical_history', `請選擇 ${name} 病史項目`); 
-            setFirst(idx); 
-        }
-        if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
-            setPetError(idx, 'medical_history_other', `請填寫 ${name} 其他病史內容`);
-            setFirst(idx);
-        }
-
-        if (isBoarding) {
-            if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${name} 是否會吠叫`); setFirst(idx); }
-            if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { setPetError(idx, 'barking_detail', `請填寫 ${name} 吠叫說明`); setFirst(idx); }
-            if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${name} 住宿經驗`); setFirst(idx); }
-            if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${name} 是否護食`); setFirst(idx); }
-            if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${name} 尿布墊習慣`); setFirst(idx); }
-
-            if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${name} 疫苗狀況`); setFirst(idx); }
-            if (pet.vaccine === '有' && !pet.vaccine_file) { setPetError(idx, 'vaccine_file', `請上傳 ${name} 疫苗手冊`); setFirst(idx); }
-
-            if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${name} 驅蟲狀況`); setFirst(idx); }
-            if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { setPetError(idx, 'deworm_brand', `請填寫 ${name} 驅蟲藥品牌`); setFirst(idx); }
-
-            if (!pet.crate_status || pet.crate_status.length === 0) { setPetError(idx, 'crate_status', `請選擇 ${name} 籠內訓練`); setFirst(idx); }
-
-            if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${name} 是否異食癖`); setFirst(idx); }
-            if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { setPetError(idx, 'pica_note', `請填寫 ${name} 異食癖內容`); setFirst(idx); }
-
-            if (!pet.diet_habits || pet.diet_habits.length === 0) { setPetError(idx, 'diet_habits', `請選擇 ${name} 飲食習慣`); setFirst(idx); }
-            if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
-                setPetError(idx, 'diet_other', `請填寫 ${name} 其他飲食內容`); 
-                setFirst(idx); 
+            if (pet.is_under_one) {
+                if (!pet.age_months) { setPetError(idx, 'age', `請填寫 ${name} 月齡`); setFirst(idx); }
+            } else {
+                if (!pet.age) { setPetError(idx, 'age', `請填寫 ${name} 年齡`); setFirst(idx); }
             }
 
-            if (!pet.feeding_note || pet.feeding_note.trim() === '') { setPetError(idx, 'feeding_note', `請填寫 ${name} 餵食說明`); setFirst(idx); }
-            if (!pet.personality || pet.personality.trim() === '') { setPetError(idx, 'personality', `請填寫 ${name} 個性描述`); setFirst(idx); }
-        }
-    });
+            if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${name} 類型`); setFirst(idx); }
+            if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${name} 性別`); setFirst(idx); }
+            if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${name} 結紮`); setFirst(idx); }
+            if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${name} 晶片狀態`); setFirst(idx); }
+            if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { setPetError(idx, 'chip_id', `請填寫 ${name} 晶片號碼`); setFirst(idx); }
+
+            // ===== 社交狀況：僅狗狗需要 =====
+            if (isDog) {
+                if (!pet.dog_traits || pet.dog_traits.length === 0) {
+                    setPetError(idx, 'dog_traits', `請勾選 ${name} 社交狀況`);
+                    setFirst(idx);
+                }
+            }
+
+            if (!pet.grooming_temperament) { setPetError(idx, 'grooming_temperament', `請選擇 ${name} 美容性情`); setFirst(idx); }
+
+            if (!pet.medical_status) { setPetError(idx, 'medical_status', `請選擇 ${name} 病史狀況`); setFirst(idx); }
+            if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
+                setPetError(idx, 'medical_history', `請選擇 ${name} 病史項目`); 
+                setFirst(idx); 
+            }
+            if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
+                setPetError(idx, 'medical_history_other', `請填寫 ${name} 其他病史內容`);
+                setFirst(idx);
+            }
+
+            // ===== 住宿專用驗證 =====
+            if (isBoarding) {
+                // --- 疫苗與驅蟲（所有寵物都需要） ---
+                if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${name} 疫苗狀況`); setFirst(idx); }
+                if (pet.vaccine === '有' && !pet.vaccine_file) { setPetError(idx, 'vaccine_file', `請上傳 ${name} 疫苗手冊`); setFirst(idx); }
+
+                if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${name} 驅蟲狀況`); setFirst(idx); }
+                if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { setPetError(idx, 'deworm_brand', `請填寫 ${name} 驅蟲藥品牌`); setFirst(idx); }
+
+                // --- 異食癖（所有寵物都需要） ---
+                if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${name} 是否異食癖`); setFirst(idx); }
+                if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { setPetError(idx, 'pica_note', `請填寫 ${name} 異食癖內容`); setFirst(idx); }
+
+                // --- 飲食習慣（所有寵物都需要） ---
+                if (!pet.diet_habits || pet.diet_habits.length === 0) { setPetError(idx, 'diet_habits', `請選擇 ${name} 飲食習慣`); setFirst(idx); }
+                if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
+                    setPetError(idx, 'diet_other', `請填寫 ${name} 其他飲食內容`); 
+                    setFirst(idx); 
+                }
+
+                if (!pet.feeding_note || pet.feeding_note.trim() === '') { setPetError(idx, 'feeding_note', `請填寫 ${name} 餵食說明`); setFirst(idx); }
+                if (!pet.personality || pet.personality.trim() === '') { setPetError(idx, 'personality', `請填寫 ${name} 個性描述`); setFirst(idx); }
+
+                // --- 狗狗專用欄位 ---
+                if (isDog) {
+                    if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${name} 是否會吠叫`); setFirst(idx); }
+                    if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { setPetError(idx, 'barking_detail', `請填寫 ${name} 吠叫說明`); setFirst(idx); }
+                    if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${name} 尿布墊習慣`); setFirst(idx); }
+                    if (!pet.crate_status || pet.crate_status.length === 0) { setPetError(idx, 'crate_status', `請選擇 ${name} 籠內訓練`); setFirst(idx); }
+                }
+
+                // --- 貓咪專用欄位 ---
+                if (isCat) {
+                    if (!pet.cat_litter_habit) { 
+                        setPetError(idx, 'cat_litter_habit', `請選擇 ${name} 貓砂使用習慣`); 
+                        setFirst(idx); 
+                    }
+                }
+
+                // --- 所有寵物共用（但狗狗和貓咪都有） ---
+                if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${name} 住宿經驗`); setFirst(idx); }
+                if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${name} 是否護食`); setFirst(idx); }
+            }
+        });
 
 if (firstInvalidIdx !== null) {
     setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
     handleSwitchPet(firstInvalidIdx);
     setErrors(multiPetErrors[firstInvalidIdx] || {});
-    showToast("⚠️ 其他毛孩資料尚未填完整");
+    
+    // ✅ 顯示更具體的錯誤訊息
+    const errorFields = Object.keys(multiPetErrors[firstInvalidIdx] || {});
+    const fieldNames = {
+        'cat_litter_habit': '貓砂使用習慣',
+        'vaccine': '疫苗狀況',
+        'vaccine_file': '疫苗手冊照片',
+        'deworm': '驅蟲狀況',
+        'deworm_brand': '驅蟲藥品牌',
+        'pica_status': '異食癖',
+        'pica_note': '異食癖內容',
+        'diet_habits': '飲食習慣',
+        'diet_other': '其他飲食內容',
+        'feeding_note': '餵食說明',
+        'personality': '個性描述',
+        'stay_exp': '住宿經驗',
+        'food_aggr': '護食狀況',
+        'pet_name': '寵物名字',
+        'breed': '品種',
+        'weight': '體重',
+        'age': '年齡',
+        'pet_type': '寵物類型',
+        'sex': '性別',
+        'fix': '結紮',
+        'chip_status': '晶片狀態',
+        'chip_id': '晶片號碼',
+        'grooming_temperament': '美容性情',
+        'medical_status': '病史狀況',
+        'medical_history': '病史項目',
+        'boarding_grooming': '住宿期間美容'
+    };
+    const errorNames = errorFields.map(f => fieldNames[f] || f).join('、');
+    showToast(`⚠️ 請修正 ${errorFields.length} 個錯誤欄位：${errorNames}`, "error");
 
     // ✅ 等 tab 切換完，再跳到錯誤欄位
     setTimeout(() => {
         focusFirstError(multiPetErrors[firstInvalidIdx] || {});
-    }, 200);
+    }, 300);
 
     return;
 } else {
@@ -1675,7 +1738,10 @@ if (formData.owner_id && !validateTwIDorARC(formData.owner_id)) {
                 if (formData.chip_status === '有晶片' && (!formData.chip_id || formData.chip_id.trim() === '')) {
                     newErrors.chip_id = '請輸入晶片號碼';
                 }
-if ((formData.dog_traits || []).length === 0) newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
+// 社交狀況：僅狗狗需要驗證
+if (formData.pet_type === '狗狗' && (formData.dog_traits || []).length === 0) {
+    newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
+}
 if (!formData.medical_status) newErrors.medical_status = ERROR_MESSAGES.medical_status;
 else if (formData.medical_status === '有' && (formData.medical_history || []).length === 0) newErrors.medical_history = ERROR_MESSAGES.medical_history;
 
@@ -1694,21 +1760,26 @@ if (formData.medical_status === '有' && safeIncludes(formData.medical_history, 
                             newErrors.checkout_date = '退房日期必須晚於入住日期';
                         }
                     }
-                    if (!formData.is_barking) newErrors.is_barking = ERROR_MESSAGES.is_barking;
-                    if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) newErrors.barking_detail = ERROR_MESSAGES.barking_detail;
+                    
+                    // 狗狗專用欄位（貓咪跳過）
+                    if (formData.pet_type === '狗狗') {
+                        if (!formData.is_barking) newErrors.is_barking = ERROR_MESSAGES.is_barking;
+                        if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) newErrors.barking_detail = ERROR_MESSAGES.barking_detail;
+                        if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
+                        if ((formData.crate_status || []).length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
+                    }
+                    
+                    // 所有寵物共用（狗狗和貓咪都需要）
                     if (!formData.stay_exp) newErrors.stay_exp = ERROR_MESSAGES.stay_exp;
                     if (!formData.food_aggr) newErrors.food_aggr = ERROR_MESSAGES.food_aggr;
-if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                     if (!formData.vaccine) newErrors.vaccine = ERROR_MESSAGES.vaccine;
                     if (formData.vaccine === '有' && !formData.vaccine_file) newErrors.vaccine_file = ERROR_MESSAGES.vaccine_file;
                     if (!formData.deworm) newErrors.deworm = ERROR_MESSAGES.deworm;
                     if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) newErrors.deworm_brand = ERROR_MESSAGES.deworm_brand;
-if ((formData.crate_status || []).length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
-
 
                     if (!formData.pica_status) newErrors.pica_status = ERROR_MESSAGES.pica_status;
                     if (formData.pica_status === '有' && (!formData.pica_note || formData.pica_note.trim() === '')) newErrors.pica_note = ERROR_MESSAGES.pica_note;
-if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MESSAGES.diet_habits;
+                    if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MESSAGES.diet_habits;
 
                     if (!formData.feeding_note || formData.feeding_note.trim() === '') newErrors.feeding_note = ERROR_MESSAGES.feeding_note;
                     
@@ -1888,6 +1959,7 @@ const petInfoHtml = petListWithUploads.map((pet, idx) => `
     • 護食：${pet.food_aggr || ''}<br>
     • 尿布墊：${pet.pad_toilet || ''}<br>
     • 籠內訓練：${(pet.crate_status || []).join('、')}
+    ${pet.pet_type === '貓咪' ? `<br>• 貓砂使用習慣：${formData.cat_litter_habit || '未填'}` : ''}
 </td></tr>
 <tr><td class="label">住宿經驗</td><td class="value">${pet.stay_exp || ''}</td></tr>
             <tr><td class="label">疫苗與驅蟲</td><td class="value">
@@ -1904,7 +1976,7 @@ const petInfoHtml = petListWithUploads.map((pet, idx) => `
         </table>
     </div>
 `).join('');
-// ✅ 服務項目區塊（保留原本內容）
+// ✅ 服務項目區塊（加入遺漏欄位）
 const serviceSectionHtml = petListWithUploads.map((pet, idx) => `
     <div class="section">
         <div class="section-header"><h2 class="section-title">🏠 本次服務項目 ${pet.pet_name ? `- ${pet.pet_name}` : `- 寵物${idx+1}`}</h2></div>
@@ -1922,6 +1994,7 @@ const serviceSectionHtml = petListWithUploads.map((pet, idx) => `
             ${isBoarding ? `
                 <tr><td class="label">入住日期</td><td class="value">${formData.checkin_date}</td></tr>
                 <tr><td class="label">退房日期</td><td class="value">${formData.checkout_date}</td></tr>
+                ${formData.boarding_grooming ? `<tr><td class="label">住宿期間美容</td><td class="value">${formData.boarding_grooming}</td></tr>` : ''}
             ` : ''}
         </table>
     </div>
@@ -2038,6 +2111,13 @@ ${riskClauseHtml}
                                             之所有條款，並承諾遵守相關規範。
                                         </p>
                                         
+                                        <div style="margin-bottom: 15px; padding: 10px 15px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #3b82f6; text-align: left; font-size: 13px;">
+                                            <strong>📸 影像使用授權：</strong>
+                                            ${formData.media_consent === '同意' 
+                                                ? '✅ 同意將毛孩照片/影片上傳至社群網站(FB/IG)並標記名字' 
+                                                : '❌ 不同意將毛孩照片/影片上傳至社群網站'}
+                                        </div>
+                                        
                                         <div style="display: inline-block; text-align: center;">
                                             <img src="${signatureUrl}" alt="飼主簽名" style="max-width: 250px; height: auto; margin-bottom: 5px;" />
                                             <div style="font-size: 12px; color: #999; border-top: 1px solid #ccc; padding-top: 5px;">
@@ -2074,6 +2154,12 @@ if (funcError) console.error("寄信失敗:", funcError);
                     
                     // 成功區塊
                     localStorage.removeItem('wangwang_form_draft');
+                    // ✅ 清除 petList 中的 _errors
+                    setPetList(prev => prev.map(p => {
+                        const np = { ...p };
+                        delete np._errors;
+                        return np;
+                    }));
                     setShowSuccess(true);
 
                 } catch (error) {
@@ -2199,15 +2285,15 @@ if (funcError) console.error("寄信失敗:", funcError);
                 };
             }, [showFullSig]);
 
-            const pillBtn = (field, val, active) => (
-                <button type="button" onClick={() => handleChange(field, val)} 
-                    className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
-                    <span className="flex items-center justify-center gap-1.5">
-                        {active && <Icon name="check-circle" size={14} />}
-                        {val}
-                    </span>
-                </button>
-            );
+const pillBtn = useCallback((field, val, active) => (
+    <button type="button" onClick={() => handleChange(field, val)} 
+        className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
+        <span className="flex items-center justify-center gap-1.5">
+            {active && <Icon name="check-circle" size={14} />}
+            {val}
+        </span>
+    </button>
+), [handleChange]);
 
             const getTodayDate = () => {
                 const d = new Date();
@@ -3906,26 +3992,148 @@ if (funcError) console.error("寄信失敗:", funcError);
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw.js?v=11');                    console.log('Service Worker 註冊成功');
+                    // ✅ 每次更新只改這個數字！
+                    const VERSION = '5';
+                    
+                    const registration = await navigator.serviceWorker.register(`./sw.js?v=${VERSION}`);
+                    console.log('Service Worker 註冊成功');
 
+                    let updateToast = null;
+
+                    // ✅ 監聽新版本安裝完成
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('偵測到新版本');
-                                const shouldUpdate = confirm('偵測到新版本，是否立即更新？');
-                                if (shouldUpdate) {
+                                console.log(`📢 網站有新版本 (v${VERSION}) 可用`);
+
+                                if (updateToast) return;
+
+                                // ✅ 現代化更新提示
+                                updateToast = document.createElement('div');
+                                updateToast.style.cssText = `
+                                    position: fixed;
+                                    bottom: 28px;
+                                    left: 50%;
+                                    transform: translateX(-50%);
+                                    background: #ffffff;
+                                    border-radius: 16px;
+                                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.03);
+                                    z-index: 9999;
+                                    padding: 0;
+                                    animation: toastSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+                                    max-width: 440px;
+                                    width: calc(100% - 32px);
+                                    overflow: hidden;
+                                `;
+                                updateToast.innerHTML = `
+                                    <div style="display:flex;align-items:stretch;gap:0;position:relative;">
+                                        <!-- 左側彩色條 -->
+                                        <div style="width:4px;background:linear-gradient(180deg,#F7E7B5,#736357);flex-shrink:0;"></div>
+                                        
+                                        <!-- 主要內容 -->
+                                        <div style="flex:1;padding:16px 20px;display:flex;align-items:center;gap:14px;">
+<!-- 圖示 -->
+<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#F7E7B5,#e8d4a0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(247,231,181,0.3);">
+    <i data-lucide="cloud-download" style="width:22px;height:22px;stroke:#5D4D41;stroke-width:2.5;"></i>
+</div>
+                                            
+                                            <!-- 文字 -->
+                                            <div style="flex:1;min-width:0;">
+                                                <div style="font-weight:700;font-size:15px;color:#1a1a1a;letter-spacing:-0.2px;line-height:1.3;">有新版本可用</div>
+                                                <div style="font-size:13px;color:#8b8b8b;font-weight:400;line-height:1.4;">點擊按鈕立即更新體驗</div>
+                                            </div>
+                                            
+                                            <!-- 按鈕組 -->
+                                            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                                                <button style="background:#736357;color:white;border:none;padding:8px 18px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.25s cubic-bezier(0.16, 1, 0.3, 1);box-shadow:0 4px 16px rgba(115,99,87,0.25);white-space:nowrap;">更新</button>
+                                                <button style="background:transparent;color:#c5c5c5;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;justify-content:center;font-size:18px;padding:0;">✕</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+document.body.appendChild(updateToast);
+
+// ✅ 手動觸發 Lucide 渲染圖示
+if (window.lucide) {
+    window.lucide.createIcons({
+        root: updateToast,
+        attrs: { "stroke-width": 2.5 }
+    });
+}
+
+// ✅ 動畫樣式
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    @keyframes toastSlideUp {
+        from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    }
+    @keyframes toastSlideDown {
+        from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        to { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
+    }
+    .toast-update-btn:hover {
+        transform: scale(1.04);
+        background: #5D4D41 !important;
+        box-shadow: 0 6px 24px rgba(115,99,87,0.35) !important;
+    }
+    .toast-close-btn:hover {
+        background: #f3f4f6 !important;
+        color: #6b7280 !important;
+    }
+    .toast-close-btn:active {
+        transform: scale(0.9);
+    }
+    .toast-update-btn:active {
+        transform: scale(0.95);
+    }
+`;
+document.head.appendChild(styleSheet);
+
+                                // 設定按鈕樣式
+                                const btns = updateToast.querySelectorAll('button');
+                                btns[0].className = 'toast-update-btn';
+                                btns[1].className = 'toast-close-btn';
+
+                                // 點擊「更新」按鈕
+                                btns[0].addEventListener('click', () => {
+                                    updateToast.style.animation = 'toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                    setTimeout(() => {
+                                        if (updateToast) {
+                                            updateToast.remove();
+                                            updateToast = null;
+                                        }
+                                    }, 400);
                                     newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                }
+                                    setTimeout(() => window.location.reload(), 500);
+                                });
+
+                                // 點擊關閉按鈕
+                                btns[1].addEventListener('click', () => {
+                                    updateToast.style.animation = 'toastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                    setTimeout(() => {
+                                        if (updateToast) {
+                                            updateToast.remove();
+                                            updateToast = null;
+                                        }
+                                    }, 350);
+                                });
+
+                                // 10分鐘後自動消失
+                                setTimeout(() => {
+                                    if (updateToast) {
+                                        updateToast.style.animation = 'toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                        setTimeout(() => {
+                                            if (updateToast) {
+                                                updateToast.remove();
+                                                updateToast = null;
+                                            }
+                                        }, 400);
+                                    }
+                                }, 600000);
                             }
                         });
-                    });
-
-                    let refreshing = false;
-                    navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        if (refreshing) return;
-                        refreshing = true;
-                        window.location.reload();
                     });
 
                 } catch (error) {
