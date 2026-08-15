@@ -452,7 +452,13 @@ const getPetListFromBooking = (booking) => {
             feeding_note: raw.feeding_note || '',
             allergy: raw.allergy || '',
             personality: raw.personality || '',
-            special_notes: raw.special_notes || ''
+            special_notes: raw.special_notes || '',
+            cat_litter_habit: raw.cat_litter_habit || '',
+            boarding_grooming: raw.boarding_grooming || '',
+            service_type: raw.service_type || '',
+            grooming_date: raw.grooming_date || '',
+            service_type_other: raw.service_type_other || '',
+            spa_addons: raw.spa_addons || []
         }];
     }
     return [];
@@ -849,86 +855,185 @@ const normalizeBooking = (b) => {
             );
         };
 
-        // --- Dashboard Charts Component ---
+        // --- Dashboard Charts Component (獨立查詢全部訂單) ---
         const DashboardCharts = ({ bookings }) => {
             const chartRef1 = useRef(null);
             const chartRef2 = useRef(null);
             const chart1Instance = useRef(null);
             const chart2Instance = useRef(null);
+            const [allData, setAllData] = useState([]);
+            const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-    let cancelled = false;
-    (async () => {
-        await ensureChart();
-        if (cancelled) return;
+            // ✅ 獨立從資料庫查詢全部訂單（不分頁）
+            useEffect(() => {
+                let cancelled = false;
+                (async () => {
+                    setLoading(true);
+                    try {
+                        const { data, error } = await supabase
+                            .from('bookings')
+                            .select('created_at, service_type')
+                            .order('created_at', { ascending: true });
 
-        if (!bookings || bookings.length === 0 || !chartRef1.current || !chartRef2.current) return;
+                        if (!error && !cancelled) {
+                            setAllData(data || []);
+                        }
+                    } catch (e) {
+                        console.error('Dashboard 查詢失敗:', e);
+                    } finally {
+                        if (!cancelled) setLoading(false);
+                    }
+                })();
+                return () => { cancelled = true; };
+            }, []);
 
-        const monthlyData = {};
-        bookings.forEach(b => {
-            const month = b.created_at?.substring(0, 7);
-            if (month) monthlyData[month] = (monthlyData[month] || 0) + 1;
-        });
+            // ✅ 繪製圖表
+            useEffect(() => {
+                let cancelled = false;
+                (async () => {
+                    await ensureChart();
+                    if (cancelled) return;
 
-        const sortedMonths = Object.keys(monthlyData).sort().slice(-6);
+                    const dataToUse = allData || bookings || [];
+                    if (dataToUse.length === 0 || !chartRef1.current || !chartRef2.current) return;
 
-        if (chart1Instance.current) chart1Instance.current.destroy();
-        if (chartRef1.current) {
-            chart1Instance.current = new Chart(chartRef1.current, {
-                type: 'line',
-                data: {
-                    labels: sortedMonths.map(m => m.replace('-', '/')),
-                    datasets: [{
-                        label: '訂單數',
-                        data: sortedMonths.map(m => monthlyData[m]),
-                        borderColor: '#736357',
-                        backgroundColor: 'rgba(115, 99, 87, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-        }
+                    // ✅ 計算月度訂單資料（全部月份）
+                    const monthlyData = {};
+                    dataToUse.forEach(b => {
+                        const month = b.created_at?.substring(0, 7);
+                        if (month) monthlyData[month] = (monthlyData[month] || 0) + 1;
+                    });
 
-        const serviceData = {};
-        bookings.forEach(b => {
-            const type = b.service_type?.includes('住宿') ? '住宿' : (b.service_type || '其他');
-            serviceData[type] = (serviceData[type] || 0) + 1;
-        });
+                    // ✅ 排序全部月份（從最早到最近）
+                    const sortedMonths = Object.keys(monthlyData).sort();
 
-        if (chart2Instance.current) chart2Instance.current.destroy();
-        if (chartRef2.current) {
-            chart2Instance.current = new Chart(chartRef2.current, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(serviceData),
-                    datasets: [{
-                        data: Object.values(serviceData),
-                        backgroundColor: ['#F7E7B5', '#736357', '#06C755', '#3b82f6', '#ef4444', '#8b5cf6']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
-        }
-    })();
+                    // ✅ 建立圖表1：月度訂單趨勢
+                    if (chart1Instance.current) chart1Instance.current.destroy();
+                    if (chartRef1.current) {
+                        chart1Instance.current = new Chart(chartRef1.current, {
+                            type: 'line',
+                            data: {
+                                labels: sortedMonths.map(m => m.replace('-', '/')),
+                                datasets: [{
+                                    label: '訂單數',
+                                    data: sortedMonths.map(m => monthlyData[m]),
+                                    borderColor: '#736357',
+                                    backgroundColor: 'rgba(115, 99, 87, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointBackgroundColor: '#736357',
+                                    pointRadius: 3,
+                                    pointHoverRadius: 6
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    x: {
+                                        grid: { display: false },
+                                        ticks: {
+                                            maxTicksLimit: 12,
+                                            font: { size: 10 }
+                                        }
+                                    },
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1,
+                                            font: { size: 10 }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
 
-    return () => { cancelled = true; };
-}, [bookings]);
+                    // ✅ 服務類型分佈（圓餅圖）
+                    const serviceData = {};
+                    dataToUse.forEach(b => {
+                        const type = b.service_type?.includes('住宿') ? '住宿' : (b.service_type || '其他');
+                        serviceData[type] = (serviceData[type] || 0) + 1;
+                    });
+
+                    if (chart2Instance.current) chart2Instance.current.destroy();
+                    if (chartRef2.current) {
+                        chart2Instance.current = new Chart(chartRef2.current, {
+                            type: 'doughnut',
+                            data: {
+                                labels: Object.keys(serviceData),
+                                datasets: [{
+                                    data: Object.values(serviceData),
+                                    backgroundColor: ['#F7E7B5', '#736357', '#06C755', '#3b82f6', '#ef4444', '#8b5cf6']
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: { font: { size: 11 }, boxWidth: 12, padding: 8 }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                })();
+
+                return () => { cancelled = true; };
+            }, [allData, bookings]);
+
+            if (loading) {
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 h-48 flex items-center justify-center">
+                            <div className="text-slate-400 text-sm">📊 載入數據中...</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 h-48 flex items-center justify-center">
+                            <div className="text-slate-400 text-sm">📊 載入數據中...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const totalMonths = allData ? Object.keys(allData.reduce((acc, b) => {
+                const m = b.created_at?.substring(0, 7);
+                if (m) acc[m] = true;
+                return acc;
+            }, {})).length : 0;
 
             return (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
-                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">月度訂單趨勢</h4>
-                        <div className="h-40">
-                            <canvas ref={chartRef1}></canvas>
+                    {/* 月度訂單趨勢 - 手機可左右滑動 */}
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                        <div className="flex justify-between items-center mb-3">
+                            <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400">📈 月度訂單趨勢</h4>
+                            <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                                共 {totalMonths} 個月
+                            </span>
                         </div>
+                        <div className="relative">
+                            <div className="overflow-x-auto overflow-y-hidden pb-2 -mx-1 px-1 touch-pan-x">
+                                <div className="min-w-[600px] h-48">
+                                    <canvas ref={chartRef1}></canvas>
+                                </div>
+                            </div>
+                            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white dark:from-gray-800 to-transparent md:hidden"></div>
+                        </div>
+                        <p className="text-[10px] text-slate-400 text-center mt-1">👆 左右滑動查看全部月份</p>
                     </div>
+
+                    {/* 服務類型分佈 */}
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
-                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">服務類型分佈</h4>
-                        <div className="h-40">
+                        <h4 className="text-sm font-bold text-slate-500 dark:text-gray-400 mb-3">📊 服務類型分佈</h4>
+                        <div className="h-48">
                             <canvas ref={chartRef2}></canvas>
                         </div>
+                        <p className="text-[10px] text-slate-400 text-center mt-1">共 {allData?.length || 0} 筆訂單</p>
                     </div>
                 </div>
             );
@@ -1386,11 +1491,13 @@ const [selectedBookings, setSelectedBookings] = useState(new Set());
 // ✅ 分頁設定
 const PAGE_SIZE = 20;
 const [page, setPage] = useState(0);
-const [hasMore, setHasMore] = useState(true);            
+const [hasMore, setHasMore] = useState(true);
+const [totalCount, setTotalCount] = useState(0);
+const [pageSize, setPageSize] = useState(20);            
             // Filters
             const [searchFilter, setSearchFilter] = useState('');
             const [statusFilter, setStatusFilter] = useState('all');
-const [serviceFilter, setServiceFilter] = useState('all');
+const [serviceFilter, setServiceFilter] = useState({ pet: 'all', service: 'all' });
 const [dateFrom, setDateFrom] = useState('');
 const [dateTo, setDateTo] = useState('');
             
@@ -1461,7 +1568,7 @@ useEffect(() => {
                 });
 const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     setSession(session);
-    if(session) fetchBookings(0, true);
+    if(session) fetchBookings(0, true, pageSize);
 });
                 return () => subscription.unsubscribe();
             }, []);
@@ -1513,31 +1620,43 @@ const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess
                 window.location.href = 'index.html';
             };
 
-const fetchBookings = async (pageToLoad = 0, reset = false) => {
+const fetchBookings = async (pageToLoad = 0, reset = false, size = pageSize) => {
     setDataLoading(true);
 
-    const from = pageToLoad * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    const from = pageToLoad * size;
+    const to = from + size - 1;
 
+    // ✅ 先查詢總筆數
+    const { count, error: countError } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true });
+
+    if (!countError) {
+        setTotalCount(count || 0);
+    }
+
+    // ✅ 再查詢該頁資料（加入 raw_data）
     const { data, error } = await supabase
         .from('bookings')
-        .select('id, created_at, owner_name, phone, pet_name, service_type, status, checkin_date, checkout_date, service_price')
+        .select('id, created_at, owner_name, phone, pet_name, service_type, status, checkin_date, checkout_date, service_price, raw_data')
         .order('created_at', { ascending: false })
         .range(from, to);
 
     if (!error) {
         const newData = data || [];
+        // ✅ 正規化每個 booking 的 raw_data
+        const normalizedData = newData.map(b => normalizeBooking(b));
         if (reset) {
-            setBookings(newData);
-            localStorage.setItem('bookings_cache', JSON.stringify(newData));
+            setBookings(normalizedData);
+            localStorage.setItem('bookings_cache', JSON.stringify(normalizedData));
         } else {
             setBookings(prev => {
-                const merged = [...prev, ...newData];
+                const merged = [...prev, ...normalizedData];
                 localStorage.setItem('bookings_cache', JSON.stringify(merged));
                 return merged;
             });
         }
-        setHasMore(newData.length === PAGE_SIZE);
+        setHasMore(newData.length === size);
         setPage(pageToLoad);
     }
     setDataLoading(false);
@@ -1554,6 +1673,92 @@ const fetchBookingDetail = async (id) => {
     }
 };
 
+        // ✅ 新增：從資料庫搜尋訂單（不分頁，搜尋全部）
+const searchBookings = async (keyword) => {
+    if (!keyword || keyword.trim() === '') {
+        // 如果搜尋關鍵字為空，回到第一頁
+        fetchBookings(0, true, pageSize);
+        return;
+    }
+
+    setDataLoading(true);
+    try {
+        const searchLower = keyword.trim();
+        
+        // ✅ 判斷是否為日期格式（支援多種格式）
+        let searchDates = null;
+        let isDateSearch = false;
+        
+        // 1) YYYY-MM-DD 完整日期
+        if (/^\d{4}-\d{2}-\d{2}$/.test(searchLower)) {
+            searchDates = [searchLower];
+            isDateSearch = true;
+        } 
+        // 2) MM/DD 或 M/D（搜尋所有年份）
+        else if (/^\d{1,2}\/\d{1,2}$/.test(searchLower)) {
+            const parts = searchLower.split('/');
+            const month = parts[0].padStart(2, '0');
+            const day = parts[1].padStart(2, '0');
+            // ✅ 搜尋所有年份的該月日（從 2020 到 2030）
+            const years = [];
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+                years.push(`${y}-${month}-${day}`);
+            }
+            searchDates = years;
+            isDateSearch = true;
+        } 
+        // 3) MM-DD 或 M-D（搜尋所有年份）
+        else if (/^\d{1,2}-\d{1,2}$/.test(searchLower)) {
+            const parts = searchLower.split('-');
+            const month = parts[0].padStart(2, '0');
+            const day = parts[1].padStart(2, '0');
+            const years = [];
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+                years.push(`${y}-${month}-${day}`);
+            }
+            searchDates = years;
+            isDateSearch = true;
+        }
+
+        // ✅ 建立查詢 - 搜尋全部訂單（不分頁）
+        let query = supabase
+            .from('bookings')
+            .select('*', { count: 'exact' });
+
+        // ✅ 日期搜尋（支援多年份）
+        if (isDateSearch && searchDates) {
+            // 使用 or 條件搜尋多個日期（入住日期或美容日期）
+            const dateConditions = searchDates.map(d => 
+                `checkin_date.eq.${d},raw_data->>grooming_date.eq.${d}`
+            ).join(',');
+            query = query.or(dateConditions);
+        } else {
+            // 文字搜尋：姓名、電話、寵物名
+            query = query.or(`owner_name.ilike.%${searchLower}%,phone.ilike.%${searchLower}%,pet_name.ilike.%${searchLower}%`);
+        }
+
+        const { data, error, count } = await query.order('created_at', { ascending: false });
+
+        if (!error) {
+            setBookings(data || []);
+            setTotalCount(count || 0);
+            setPage(0);
+            setHasMore(false); // 搜尋結果不分頁
+            localStorage.setItem('bookings_cache', JSON.stringify(data || []));
+            showToast(`找到 ${data?.length || 0} 筆結果`, 'success');
+        } else {
+            console.error('搜尋失敗:', error);
+            showToast('搜尋失敗，請重試', 'error');
+        }
+    } catch (e) {
+        console.error('搜尋錯誤:', e);
+        showToast('搜尋發生錯誤', 'error');
+    }
+    setDataLoading(false);
+};
+
 // ✅ 載入更多
 const loadMore = () => {
     const nextPage = page + 1;
@@ -1561,34 +1766,53 @@ const loadMore = () => {
 };
 const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
+    // ✅ 從 localStorage 讀取所有快取資料（包含所有已載入的頁面）
+    const cached = localStorage.getItem('bookings_cache');
+    let allBookings = [];
+    try {
+        allBookings = cached ? JSON.parse(cached) : [];
+    } catch (e) {
+        allBookings = [];
+    }
+    
+    // ✅ 如果快取沒有資料，就用目前的 bookings
+    if (allBookings.length === 0) {
+        allBookings = bookings;
+    }
+    
     return {
-        today: bookings.filter(b => b.created_at?.startsWith(today)).length,
-        pending: bookings.filter(b => b.status === 'pending').length,
-        boarding: bookings.filter(b => b.service_type?.includes('住宿')).length,
-        grooming: bookings.filter(b => ['基礎洗澡', '精緻美容', '局部修剪', '其他項目', '包月洗澡'].includes(b.service_type)).length,
-        daycare: bookings.filter(b => b.service_type === '寵物安親').length,
-        total: bookings.length
+        today: allBookings.filter(b => b.created_at?.startsWith(today)).length,
+        pending: allBookings.filter(b => b.status === 'pending').length,
+        boarding: allBookings.filter(b => b.service_type?.includes('住宿')).length,
+        grooming: allBookings.filter(b => ['基礎洗澡', '精緻美容', '局部修剪', '其他項目', '包月洗澡'].includes(b.service_type)).length,
+        daycare: allBookings.filter(b => b.service_type === '寵物安親').length,
+        total: allBookings.length
     };
 }, [bookings]);
 
-// ✅ 先產生 filteredBookings（用預約日期來篩）
+        // ✅ 先產生 filteredBookings（支援複合篩選）
 const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
-        const petNames = getPetNames(b);
-        if (searchFilter && !(
-            b.owner_name?.includes(searchFilter) || 
-            b.phone?.includes(searchFilter) ||
-            petNames.includes(searchFilter)
-        )) return false;
-        
+        // ✅ 狀態篩選
         if (statusFilter !== 'all' && b.status !== statusFilter) return false;
         
-        if (serviceFilter !== 'all') {
-            if (serviceFilter === 'boarding' && !b.service_type?.includes('住宿')) return false;
-            if (serviceFilter === 'grooming' && b.service_type?.includes('住宿')) return false;
+        // ✅ 寵物類型篩選
+        if (serviceFilter.pet === 'dog') {
+            const petList = getPetListFromBooking(b);
+            const hasDog = petList.some(p => p.pet_type === '狗狗');
+            if (!hasDog) return false;
         }
+        if (serviceFilter.pet === 'cat') {
+            const petList = getPetListFromBooking(b);
+            const hasCat = petList.some(p => p.pet_type === '貓咪');
+            if (!hasCat) return false;
+        }
+        
+        // ✅ 服務類型篩選
+        if (serviceFilter.service === 'boarding' && !b.service_type?.includes('住宿')) return false;
+        if (serviceFilter.service === 'grooming' && b.service_type?.includes('住宿')) return false;
 
-        // ✅ 用「預約日期」來篩
+        // ✅ 日期區間篩選
         if (dateFrom || dateTo) {
             const d = getFilterDate(b);
             if (dateFrom && d < dateFrom) return false;
@@ -1597,7 +1821,7 @@ const filteredBookings = useMemo(() => {
 
         return true;
     });
-}, [bookings, searchFilter, statusFilter, serviceFilter, dateFrom, dateTo]);
+}, [bookings, statusFilter, serviceFilter, dateFrom, dateTo]);
 
 
 
@@ -1850,234 +2074,418 @@ const filteredBookings = useMemo(() => {
                         </div>
                     </nav>
 
-                    <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-<div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-                            {[
-                                { title: '今日新增', count: stats.today, icon: 'plus-circle', bgColor: 'bg-blue-50 dark:bg-blue-900', textColor: 'text-blue-500' },
-                                { title: '待確認', count: stats.pending, icon: 'alert-circle', bgColor: 'bg-yellow-50 dark:bg-yellow-900', textColor: 'text-yellow-500' },
-                                { title: '住宿預約', count: stats.boarding, icon: 'home', bgColor: 'bg-orange-50 dark:bg-orange-900', textColor: 'text-orange-500' },
-                                // 新增：洗澡美容
-                                { title: '洗澡美容', count: stats.grooming, icon: 'scissors', bgColor: 'bg-pink-50 dark:bg-pink-900', textColor: 'text-pink-500' },
-                                // 新增：寵物安親
-                                { title: '寵物安親', count: stats.daycare, icon: 'sun', bgColor: 'bg-teal-50 dark:bg-teal-900', textColor: 'text-teal-500' },
-                                { title: '總訂單數', count: stats.total, icon: 'file-text', bgColor: 'bg-purple-50 dark:bg-purple-900', textColor: 'text-purple-500' }
-                            ].map((item, idx) => (
-                                <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col justify-between h-28">
-                                    <div className="flex justify-between items-start">
-                                        <div className="text-slate-400 text-xs font-bold uppercase tracking-wider">{item.title}</div>
-                                        <div className={`${item.bgColor} ${item.textColor} p-1.5 rounded-lg`}><Icon name={item.icon} size={16}/></div>
-                                    </div>
-                                    <div className="text-2xl font-black text-slate-700 dark:text-white">{item.count}</div>
-                                </div>
-                            ))}
-                        </div>
+                    <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full space-y-6">
 
-                        <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700 overflow-x-auto">
-                            <button onClick={() => setActiveTab('orders')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'orders' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
-                                <Icon name="clipboard-list" size={16} /> 訂單管理
-                            </button>
-                            <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'dashboard' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
-                                <Icon name="bar-chart-2" size={16} /> 數據儀表板
-                            </button>
-                            {/* 新增這一段：郵件紀錄 Tab */}
-                            <button onClick={() => setActiveTab('email_logs')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'email_logs' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
-                                <Icon name="mail" size={16} /> 郵件紀錄
-                            </button>                            
-                            {/* 只有管理員看得到操作日誌 Tab */}
-                            {canViewLogs() && (
-                                <button onClick={() => setActiveTab('logs')} className={`px-4 py-3 font-bold text-sm flex items-center gap-2 transition-colors ${activeTab === 'logs' ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`}>
-                                    <Icon name="activity" size={16} /> 操作日誌
-                                </button>
-                            )}
-                        </div>
-
-                        {activeTab === 'orders' && (
-                            <div className="space-y-4">
-                                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-4">
-                                    <div className="flex flex-wrap gap-3">
-                                        <div className="relative flex-1 min-w-[200px]">
-                                            <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                            <input type="text" placeholder="搜尋電話、寵物名、飼主..." value={searchFilter} onChange={e => setSearchFilter(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
-                                        </div>
-                                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-bold">
-                                            <option value="all">全部狀態</option>
-                                            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.icon} {s.label}</option>)}
-                                        </select>
-
-<div className="flex gap-2">
-    <button onClick={() => setServiceFilter('all')}
-        className={`px-3 py-2 rounded-xl text-xs font-bold border ${
-            serviceFilter === 'all' ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-500 border-slate-200'
-        }`}>
-        全部
-    </button>
-    <button onClick={() => setServiceFilter('grooming')}
-        className={`px-3 py-2 rounded-xl text-xs font-bold border ${
-            serviceFilter === 'grooming' ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-500 border-slate-200'
-        }`}>
-        ✂️ 洗澡美容
-    </button>
-    <button onClick={() => setServiceFilter('boarding')}
-        className={`px-3 py-2 rounded-xl text-xs font-bold border ${
-            serviceFilter === 'boarding' ? 'bg-[#736357] text-white border-[#736357]' : 'bg-white text-slate-500 border-slate-200'
-        }`}>
-        🏠 住宿安親
-    </button>
-</div>                                        
-<div className="flex items-center gap-2 bg-slate-50 dark:bg-gray-700/60 border border-slate-200 dark:border-gray-600 rounded-xl px-3 py-2">
-    <Icon name="calendar" size={14} className="text-slate-400" />
-
-    <div className="flex items-center gap-3">
-        <div className="flex flex-col leading-none">
-            <span className="text-[10px] font-bold text-slate-400">開始</span>
-            <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="text-sm bg-transparent outline-none"
-            />
+{/* ===== 導航 Tabs - 美化版 ===== */}
+<div className="space-y-3">
+    {/* Tab 導航 - 加底部品牌線 */}
+    <div className="relative">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-1 flex flex-wrap items-center gap-0.5 justify-center lg:justify-start">
+            <button 
+                onClick={() => { setActiveTab('orders'); setViewMode('list'); }} 
+                className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    activeTab === 'orders' && viewMode === 'list'
+                        ? 'bg-[#736357] text-white shadow-md' 
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <Icon name="clipboard-list" size={15} /> 訂單
+            </button>
+            <button 
+                onClick={() => { setActiveTab('orders'); setViewMode('calendar'); }} 
+                className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    activeTab === 'orders' && viewMode === 'calendar'
+                        ? 'bg-[#736357] text-white shadow-md' 
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <Icon name="calendar" size={15} /> 日曆
+            </button>
+            <button 
+                onClick={() => { setActiveTab('orders'); setViewMode('crm'); }} 
+                className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    activeTab === 'orders' && viewMode === 'crm'
+                        ? 'bg-[#736357] text-white shadow-md' 
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <Icon name="users" size={15} /> 客戶
+            </button>
+            <button 
+                onClick={() => setActiveTab('dashboard')} 
+                className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    activeTab === 'dashboard' 
+                        ? 'bg-[#736357] text-white shadow-md' 
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <Icon name="bar-chart-2" size={15} /> 數據
+            </button>
+            <button 
+                onClick={() => setActiveTab('email_logs')} 
+                className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    activeTab === 'email_logs' 
+                        ? 'bg-[#736357] text-white shadow-md' 
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <Icon name="mail" size={15} /> 郵件
+            </button>
         </div>
-
-        <span className="text-slate-300 text-xs font-bold">→</span>
-
-        <div className="flex flex-col leading-none">
-            <span className="text-[10px] font-bold text-slate-400">結束</span>
-            <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="text-sm bg-transparent outline-none"
-            />
-        </div>
+        {/* 品牌色底部線 - 只在訂單相關 Tab 顯示 */}
+        {activeTab === 'orders' && (
+            <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#736357]/40 to-transparent rounded-full"></div>
+        )}
     </div>
 
-    {(dateFrom || dateTo) && (
-        <button
-            onClick={() => { setDateFrom(''); setDateTo(''); }}
-            className="ml-2 text-xs text-slate-400 hover:text-red-500 font-bold"
-        >
-            清除
-        </button>
+    {activeTab === 'orders' && (
+        <div className="space-y-3">
+            {/* 操作欄 - 美化版 */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-slate-100 dark:border-gray-700 p-3 md:p-4 space-y-2 md:space-y-3 transition-shadow hover:shadow-lg">
+                {/* 搜尋框 */}
+                <div className="relative flex-1">
+                    <Icon name="search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200" />
+                    <input 
+                        type="text" 
+                        placeholder="搜尋日期、電話、寵物名、飼主..." 
+                        value={searchFilter} 
+                        onChange={e => {
+                            const val = e.target.value;
+                            setSearchFilter(val);
+                            clearTimeout(window.searchTimeout);
+                            // ✅ 顯示正在搜尋
+                            if (val.trim() !== '') {
+                                setDataLoading(true);
+                            }
+                            window.searchTimeout = setTimeout(() => {
+                                if (val.trim() === '') {
+                                    fetchBookings(0, true, pageSize);
+                                } else {
+                                    searchBookings(val);
+                                }
+                            }, 300);
+                        }} 
+                        className="w-full pl-10 pr-10 py-2.5 md:py-3 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#736357]/30 focus:border-transparent transition-all"
+                    />
+                    {searchFilter && (
+                        <button 
+                            onClick={() => {
+                                setSearchFilter('');
+                                fetchBookings(0, true, pageSize);
+                            }}
+                            className="absolute right-3 p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-gray-600 text-slate-400 hover:text-slate-600 transition-colors"
+                            aria-label="清除搜尋"
+                        >
+                            <Icon name="x" size={16} />
+                        </button>
+                    )}
+                    {/* ✅ 搜尋中提示 */}
+                    {dataLoading && searchFilter && (
+                        <div className="absolute -bottom-6 left-0 text-xs text-slate-400 animate-pulse flex items-center gap-1">
+                            <Icon name="loader-2" size={12} className="animate-spin" />
+                            搜尋中...
+                        </div>
+                    )}
+                </div>
+
+                {/* 服務過濾 - 美化版（CRM 模式下隱藏） */}
+                {viewMode !== 'crm' && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {/* 全部按鈕 */}
+                        <button 
+                            onClick={() => setServiceFilter({ pet: 'all', service: 'all' })}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                serviceFilter.pet === 'all' && serviceFilter.service === 'all'
+                                    ? 'bg-[#736357] text-white shadow-sm' 
+                                    : 'bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            全部
+                        </button>
+                        
+                        {/* ✂️ 美容 - 手機只顯示 icon */}
+                        <button 
+                            onClick={() => setServiceFilter({ ...serviceFilter, service: serviceFilter.service === 'grooming' ? 'all' : 'grooming' })}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                                serviceFilter.service === 'grooming'
+                                    ? 'bg-[#736357] text-white shadow-sm' 
+                                    : 'bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            <span>✂️</span>
+                            <span className="hidden sm:inline">美容</span>
+                        </button>
+                        
+                        {/* 🏠 住宿 - 手機只顯示 icon */}
+                        <button 
+                            onClick={() => setServiceFilter({ ...serviceFilter, service: serviceFilter.service === 'boarding' ? 'all' : 'boarding' })}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                                serviceFilter.service === 'boarding'
+                                    ? 'bg-[#736357] text-white shadow-sm' 
+                                    : 'bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            <span>🏠</span>
+                            <span className="hidden sm:inline">住宿</span>
+                        </button>
+                        
+                        {/* 🐶 狗狗 - 手機只顯示 icon */}
+                        <button 
+                            onClick={() => setServiceFilter({ ...serviceFilter, pet: serviceFilter.pet === 'dog' ? 'all' : 'dog' })}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                                serviceFilter.pet === 'dog'
+                                    ? 'bg-[#736357] text-white shadow-sm' 
+                                    : 'bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            <span>🐶</span>
+                            <span className="hidden sm:inline">狗狗</span>
+                        </button>
+                        
+                        {/* 🐱 貓咪 - 手機只顯示 icon */}
+                        <button 
+                            onClick={() => setServiceFilter({ ...serviceFilter, pet: serviceFilter.pet === 'cat' ? 'all' : 'cat' })}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                                serviceFilter.pet === 'cat'
+                                    ? 'bg-[#736357] text-white shadow-sm' 
+                                    : 'bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            <span>🐱</span>
+                            <span className="hidden sm:inline">貓咪</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
     )}
 </div>
-                                    </div>
-                                    
-                                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100 dark:border-gray-700">
-                                        <div className="flex gap-2">
-                                            {['list', 'calendar', 'crm'].map(mode => (
-                                                <button 
-                                                    key={mode}
-                                                    onClick={() => setViewMode(mode)}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${viewMode === mode ? 'bg-brand-brown text-white' : 'bg-slate-100 dark:bg-gray-700 text-slate-500 hover:bg-slate-200'}`}
-                                                >
-                                                    <Icon name={mode === 'list' ? 'list' : mode === 'calendar' ? 'calendar' : 'users'} size={14} className="inline mr-1" />
-                                                    {mode === 'list' ? '列表' : mode === 'calendar' ? '日曆' : 'CRM'}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {selectedBookings.size > 0 && (
-                                                <>
-                                                    <span className="text-xs text-slate-500 self-center">已選 {selectedBookings.size} 筆</span>
-                                                    <select onChange={e => { if(e.target.value) handleBatchStatusUpdate(e.target.value); e.target.value = ''; }} className="px-2 py-1 rounded-lg border border-slate-200 dark:border-gray-600 text-xs font-bold bg-white dark:bg-gray-700">
-                                                        <option value="">批次更改狀態...</option>
-                                                        {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                                    </select>
-                                                </>
-                                            )}
-                                            {/* 只有管理員可以匯出報表 */}
-                                            {canExport() && (
-                                              <button onClick={() => exportToExcel(filteredBookings)} className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900 text-green-600 text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1">
-                                                    <Icon name="file-spreadsheet" size={14} /> 匯出 Excel
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
+
+{/* 訂單列表內容 */}
+{activeTab === 'orders' && (
+    <>
+        {dataLoading && bookings.length === 0 ? (
+            <SkeletonTable />
+        ) : viewMode === 'calendar' ? (
+            <CalendarView bookings={filteredBookings} onSelectBooking={b => { fetchBookingDetail(b.id); setIsEditing(false); }} />
+        ) : viewMode === 'crm' ? (
+            <CustomerCRM bookings={bookings} onSelectBooking={b => { fetchBookingDetail(b.id); setIsEditing(false); }} />
+        ) : (
+            <div>
+                <div className="space-y-3">
+                    {filteredBookings.map(b => (
+                        <div key={b.id}
+                            className="bg-white dark:bg-gray-800 p-4 md:p-5 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer max-w-full"
+                            onClick={() => { fetchBookingDetail(b.id); setIsEditing(false); }}>
+
+                            {/* 上排：日期 + 狀態 */}
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+                                <div className="flex items-center gap-1">
+                                    <Icon name="calendar" size={12} />
+                                    <span>{getBookingDateLabel(b)}</span>
+                                </div>
+                                <span className={`px-2 py-0.5 rounded-full font-bold ${
+                                    b.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+                                    b.status === 'confirmed' ? 'bg-green-100 text-green-600' :
+                                    b.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                                    'bg-blue-100 text-blue-600'
+                                }`}>
+                                    {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
+                                </span>
+                            </div>
+
+                            {/* 名字 + 服務標籤 */}
+                            <div className="flex items-center justify-between">
+                                <div className="font-black text-brand-brown dark:text-brand-yellow text-lg flex items-center gap-2 flex-wrap">
+                            {(() => {
+                                const petList = getPetListFromBooking(b);
+                                const hasDog = petList.some(p => p.pet_type === '狗狗');
+                                const hasCat = petList.some(p => p.pet_type === '貓咪');
+                                if (hasDog && hasCat) {
+                                    return (
+                                        <>
+                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">🐶</span>
+                                            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">🐱</span>
+                                        </>
+                                    );
+                                }
+                                if (hasDog) {
+                                    return <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">🐶</span>;
+                                }
+                                if (hasCat) {
+                                    return <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">🐱</span>;
+                                }
+                                return null;
+                            })()}
+                                    {getPetNames(b)}
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getServiceBadgeClass(b.service_type)}`}>
+                                    {getServiceLabel(b.service_type)}
+                                </span>
+                            </div>
+
+                            {/* 飼主資訊 */}
+                            <div className="text-xs text-slate-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                                <Icon name="user" size={12} />
+                                {b.owner_name} · {b.phone}
+                            </div>
+
+                            {/* 備註 */}
+                            {b.raw_data?.admin_notes && (
+                                <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-full">
+                                    📝 備註：{b.raw_data.admin_notes}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    {filteredBookings.length === 0 && (
+                        <div className="py-20 text-center text-slate-300 font-black">沒有找到相關訂單</div>
+                    )}
+                </div>
+
+                {/* 分頁 */}
+                {filteredBookings.length > 0 && (() => {
+                    const totalPages = Math.ceil(totalCount / pageSize);
+                    const currentPage = page + 1;
+                    const maxVisible = 5;
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                    if (endPage - startPage < maxVisible - 1) {
+                        startPage = Math.max(1, endPage - maxVisible + 1);
+                    }
+
+                    return (
+                        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-gray-700 space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                {/* 左側：顯示筆數資訊 */}
+                                <div className="text-xs text-slate-400 font-medium flex items-center gap-3">
+                                    <span>共 {totalCount} 筆</span>
+                                    <span className="text-slate-300">|</span>
+                                    <span>第 {currentPage} / {totalPages || 1} 頁</span>
                                 </div>
 
-{dataLoading && bookings.length === 0 ? (
-    <SkeletonTable />
-) : viewMode === 'calendar' ? (
-                                    <CalendarView bookings={filteredBookings} onSelectBooking={b => { fetchBookingDetail(b.id); setIsEditing(false); }} />
-                                ) : viewMode === 'crm' ? (
-                                    <CustomerCRM bookings={bookings} onSelectBooking={b => { fetchBookingDetail(b.id); setIsEditing(false); }} />
-) : (
-    <div className="space-y-3">
-{filteredBookings.map(b => (
-    <div key={b.id}
-        className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer"
-        onClick={() => { fetchBookingDetail(b.id); setIsEditing(false); }}>
+                                {/* 中間：頁碼按鈕 */}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                    <button
+                                        onClick={() => { if (page > 0) fetchBookings(0, false, pageSize); }}
+                                        disabled={page === 0}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            page === 0
+                                                ? 'bg-slate-100 dark:bg-gray-700 text-slate-300 dark:text-gray-500 cursor-not-allowed'
+                                                : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        ⟪
+                                    </button>
+                                    <button
+                                        onClick={() => { if (page > 0) fetchBookings(page - 1, false, pageSize); }}
+                                        disabled={page === 0}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            page === 0
+                                                ? 'bg-slate-100 dark:bg-gray-700 text-slate-300 dark:text-gray-500 cursor-not-allowed'
+                                                : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        ‹
+                                    </button>
 
-        {/* 上排：日期 + 狀態 */}
-        <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-            <div className="flex items-center gap-1">
-                <Icon name="calendar" size={12} />
-                <span>{getBookingDateLabel(b)}</span>
-            </div>
-            <span className={`px-2 py-0.5 rounded-full font-bold ${
-                b.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                b.status === 'confirmed' ? 'bg-green-100 text-green-600' :
-                b.status === 'cancelled' ? 'bg-red-100 text-red-600' :
-                'bg-blue-100 text-blue-600'
-            }`}>
-                {STATUS_OPTIONS.find(s => s.value === b.status)?.label}
-            </span>
-        </div>
+                                    {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(p => (
+                                        <button
+                                            key={p}
+                                            onClick={() => { fetchBookings(p - 1, false, pageSize); }}
+                                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                p === currentPage
+                                                    ? 'bg-[#736357] text-white shadow-sm'
+                                                    : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-600'
+                                            }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
 
-        {/* 名字 + 服務標籤 */}
-        <div className="flex items-center justify-between">
-            <div className="font-black text-brand-brown dark:text-brand-yellow text-lg">
-                {getPetNames(b)}
-            </div>
-<span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getServiceBadgeClass(b.service_type)}`}>
-    {getServiceLabel(b.service_type)}
-</span>
-        </div>
+                                    <button
+                                        onClick={() => { if (hasMore) fetchBookings(page + 1, false, pageSize); }}
+                                        disabled={!hasMore}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            !hasMore
+                                                ? 'bg-slate-100 dark:bg-gray-700 text-slate-300 dark:text-gray-500 cursor-not-allowed'
+                                                : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        ›
+                                    </button>
+                                    <button
+                                        onClick={() => { if (hasMore) fetchBookings(totalPages - 1, false, pageSize); }}
+                                        disabled={!hasMore}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            !hasMore
+                                                ? 'bg-slate-100 dark:bg-gray-700 text-slate-300 dark:text-gray-500 cursor-not-allowed'
+                                                : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        ⟫
+                                    </button>
+                                </div>
 
-        {/* 飼主資訊 */}
-        <div className="text-xs text-slate-500 dark:text-gray-400 mt-1 flex items-center gap-2">
-            <Icon name="user" size={12} />
-            {b.owner_name} · {b.phone}
-        </div>
+                                {/* 右側：每頁筆數 + 跳轉 */}
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={pageSize}
+                                        onChange={(e) => {
+                                            const newSize = parseInt(e.target.value);
+                                            setPageSize(newSize);
+                                            fetchBookings(0, true, newSize);
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-brown/30"
+                                    >
+                                        <option value="10">每頁 10 筆</option>
+                                        <option value="20">每頁 20 筆</option>
+                                        <option value="50">每頁 50 筆</option>
+                                        <option value="100">每頁 100 筆</option>
+                                    </select>
 
-        {/* 備註 */}
-        {b.raw_data?.admin_notes && (
-            <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-full">
-                📝 備註：{b.raw_data.admin_notes}
+                                    <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-gray-700/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-gray-600">
+                                        <span className="text-xs text-slate-500 font-medium whitespace-nowrap">跳至第</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={totalPages || 1}
+                                            className="w-12 px-1 py-0.5 rounded bg-transparent text-xs font-bold text-center focus:outline-none"
+                                            placeholder="頁"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = parseInt(e.target.value);
+                                                    if (val >= 1 && val <= (totalPages || 1)) {
+                                                        fetchBookings(val - 1, false, pageSize);
+                                                    }
+                                                    e.target.value = '';
+                                                }
+                                            }}
+                                        />
+                                        <span className="text-xs text-slate-500 font-medium whitespace-nowrap">頁</span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400">(共 {totalPages || 1} 頁)</span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         )}
-    </div>
-))}
+    </>
+)}
 
-        {filteredBookings.length === 0 && (
-            <div className="py-20 text-center text-slate-300 font-black">沒有找到相關訂單</div>
-        )}
-
-        {hasMore && filteredBookings.length > 0 && (
-            <button
-                onClick={loadMore}
-                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-500 font-bold hover:bg-slate-200 transition-all"
-            >
-                載入更多
-            </button>
-        )}
+{activeTab === 'dashboard' && (
+    <div className="space-y-6">
+        <DashboardCharts bookings={bookings} />
     </div>
 )}
-                            </div>
-                        )}
 
-                        {activeTab === 'dashboard' && (
-                            <div className="space-y-6">
-                                <DashboardCharts bookings={bookings} />
-                            </div>
-                        )}
-                        {/* 新增這一段：渲染郵件元件 */}
 {activeTab === 'email_logs' && (
     <EmailLogViewer showToast={showToast} />
 )}
-                        {activeTab === 'logs' && (
-                            <ActivityLog logs={activityLogs} />
-                        )}
+
                     </main>
 
                     {selectedBooking && (
@@ -2171,8 +2579,11 @@ const filteredBookings = useMemo(() => {
             <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-gray-700 border border-slate-100 dark:border-gray-600">
                 {/* 標題 */}
                 <div className="flex items-center justify-between bg-white/60 dark:bg-gray-800/40 px-3 py-2 rounded-lg border border-brand-yellow/30 mb-3">
-                    <div className="font-black text-brand-brown dark:text-brand-yellow">
-                        第{idx+1}隻｜{pet.pet_name || `寵物${idx+1}`}
+                    <div className="font-black text-brand-brown dark:text-brand-yellow flex items-center gap-2">
+                        <span>{pet.pet_name || `寵物${idx+1}`}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold">
+                            {pet.pet_type === '狗狗' ? '🐶 狗狗' : pet.pet_type === '貓咪' ? '🐱 貓咪' : '未填'}
+                        </span>
                     </div>
                     <div className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-gray-700 px-2 py-1 rounded-full">
                         PET {idx+1}
@@ -2237,18 +2648,23 @@ const filteredBookings = useMemo(() => {
                     </div>
                 </div>
 
-                {/* 備註 / 飲食 */}
-                <div className="mt-4">
-                    <div className="text-xs font-bold text-slate-400 mb-2">備註 / 飲食</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <DetailItem label="是否異食癖" value={(pet.pica_status || '') + (pet.pica_note ? ` (${pet.pica_note})` : '')} fullWidth />
-                        <DetailItem label="飲食習慣" value={(pet.diet_habits || []).join('、') + (pet.diet_other ? ` (其他：${pet.diet_other})` : '')} fullWidth />
-                        <DetailItem label="餵食頻率與份量" value={pet.feeding_note} fullWidth />
-                        <DetailItem label="過敏資訊" value={pet.allergy} fullWidth isMultiline />
-                        <DetailItem label="個性描述" value={pet.personality} fullWidth isMultiline />
-                        <DetailItem label="特別注意" value={pet.special_notes} fullWidth isMultiline />
-                    </div>
-                </div>
+                                                {/* 備註 / 飲食 */}
+                                                <div className="mt-4">
+                                                    <div className="text-xs font-bold text-slate-400 mb-2">備註 / 飲食</div>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                        <DetailItem label="是否異食癖" value={(pet.pica_status || '') + (pet.pica_note ? ` (${pet.pica_note})` : '')} fullWidth />
+                                                        <DetailItem label="飲食習慣" value={(pet.diet_habits || []).join('、') + (pet.diet_other ? ` (其他：${pet.diet_other})` : '')} fullWidth />
+                                                        <DetailItem label="餵食頻率與份量" value={pet.feeding_note} fullWidth />
+                                                        <DetailItem label="過敏資訊" value={pet.allergy} fullWidth isMultiline />
+                                                        <DetailItem label="個性描述" value={pet.personality} fullWidth isMultiline />
+                                                        <DetailItem label="特別注意" value={pet.special_notes} fullWidth isMultiline />
+                                                        {/* 貓咪專屬欄位 */}
+                                                        {pet.pet_type === '貓咪' && (
+                                                            <DetailItem label="貓砂使用習慣" value={pet.cat_litter_habit} fullWidth />
+                                                        )}
+                                                        <DetailItem label="住宿期間美容" value={pet.boarding_grooming || '未選擇'} fullWidth />
+                                                    </div>
+                                                </div>
 
                 {/* 疫苗照片 */}
                 <div className="mt-4">
@@ -2319,11 +2735,12 @@ const filteredBookings = useMemo(() => {
     </div>
 
     {/* ✅ 共用欄位 */}
-    <div className="mt-4 space-y-3">
-        <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-        <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-        <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
-        <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                         <div className="mt-4 space-y-3">
+                                                    <DetailItem label="指定就醫醫院" value={selectedBooking.raw_data?.preferred_clinic || '送往特約醫院'} fieldName="preferred_clinic" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="入住日期" value={selectedBooking.checkin_date} fieldName="checkin_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="退房日期" value={selectedBooking.checkout_date} fieldName="checkout_date" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="預計接回" value={selectedBooking.pickup_time} fieldName="pickup_time" isEditing={isEditing} editForm={editForm} handleEditChange={handleEditChange} />
+                                                    <DetailItem label="影像使用授權" value={selectedBooking.raw_data?.media_consent || '未填寫'} fullWidth />
     </div>
 </div>
 {selectedBooking.signature_url && (
@@ -2427,27 +2844,29 @@ const filteredBookings = useMemo(() => {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=3');
+                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=5');
                     console.log('Admin Service Worker 註冊成功');
 
-                    // ✅ 立即檢查更新
-                    registration.update();
-
-                    // ✅ 新版安裝完成後，要求它立即接管
+                    // ✅ 檢查是否有新版本（只在安裝完成時提示，不自動接管）
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('管理後台偵測到新版本，準備更新...');
-                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                console.log('📢 管理後台有新版本，下次開啟頁面時會自動更新');
+                                // ✅ 只提示，不自動重新整理
+                                // 可以顯示一個 Toast 通知使用者
                             }
                         });
                     });
 
-                    // ✅ 新 SW 接管後自動重整
+                    // ✅ 只在第一次註冊時重新整理（避免無限迴圈）
+                    let initialLoad = true;
                     navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        console.log('管理後台新版本已接管，重新整理');
-                        window.location.reload();
+                        if (initialLoad) {
+                            initialLoad = false;
+                            console.log('管理後台已更新，重新整理頁面');
+                            window.location.reload();
+                        }
                     });
 
                 } catch (error) {
