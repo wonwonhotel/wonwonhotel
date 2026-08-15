@@ -318,7 +318,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
         // 管理者 Email 設定
         const ADMIN_EMAIL = "wonwonhotel@gmail.com";
-        const STAFF_EMAIL = "staff@wonwonhotel.com"; // 請記得在 Supabase Auth 註冊此帳號
+        const STAFF_EMAIL = "staff@wonwonhotel.com"; // 
 
         // 多管理員權限設定
         const ADMIN_ROLES = {
@@ -2336,6 +2336,14 @@ const filteredBookings = useMemo(() => {
                                     📝 備註：{b.raw_data.admin_notes}
                                 </div>
                             )}
+                            
+                            {/* 影像授權狀態提醒 */}
+                            {b.raw_data?.media_consent === '不同意' && (
+                                <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded-full border border-red-200 dark:border-red-800">
+                                    <Icon name="alert-circle" size={12} />
+                                    不同意影像授權
+                                </div>
+                            )}
                         </div>
                     ))}
 
@@ -2844,7 +2852,7 @@ const filteredBookings = useMemo(() => {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=5');
+                    const registration = await navigator.serviceWorker.register('./sw-admin.js?v=6');
                     console.log('Admin Service Worker 註冊成功');
 
                     // ✅ 檢查是否有新版本（只在安裝完成時提示，不自動接管）
