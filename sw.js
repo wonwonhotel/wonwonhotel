@@ -33,18 +33,22 @@ self.addEventListener('install', (event) => {
 // 啟動 Service Worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // 清理舊快取
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // ✅ 立即接管所有頁面
+      clients.claim()
+    ])
   );
-  // ✅ 不呼叫 clients.claim()，讓舊頁面繼續由舊版控制
 });
 
 // 攔截請求

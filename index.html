@@ -3927,9 +3927,17 @@ const pillBtn = useCallback((field, val, active) => (
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 console.log(`📢 網站有新版本 (v${VERSION}) 可用`);
 
+                                // ✅ 自動跳過等待，立即啟用新版本
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                
+                                // ✅ 延遲 1.5 秒後自動重新整理
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1500);
+
                                 if (updateToast) return;
 
-                                // ✅ 現代化更新提示
+                                // ✅ 顯示更新提示（讓用戶知道正在更新）
                                 updateToast = document.createElement('div');
                                 updateToast.style.cssText = `
                                     position: fixed;
@@ -3948,99 +3956,43 @@ const pillBtn = useCallback((field, val, active) => (
                                 `;
                                 updateToast.innerHTML = `
                                     <div style="display:flex;align-items:stretch;gap:0;position:relative;">
-                                        <!-- 左側彩色條 -->
                                         <div style="width:4px;background:linear-gradient(180deg,#F7E7B5,#736357);flex-shrink:0;"></div>
-                                        
-                                        <!-- 主要內容 -->
                                         <div style="flex:1;padding:16px 20px;display:flex;align-items:center;gap:14px;">
-<!-- 圖示 -->
-<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#F7E7B5,#e8d4a0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(247,231,181,0.3);">
-    <i data-lucide="cloud-download" style="width:22px;height:22px;stroke:#5D4D41;stroke-width:2.5;"></i>
-</div>
-                                            
-                                            <!-- 文字 -->
-                                            <div style="flex:1;min-width:0;">
-                                                <div style="font-weight:700;font-size:15px;color:#1a1a1a;letter-spacing:-0.2px;line-height:1.3;">有新版本可用</div>
-                                                <div style="font-size:13px;color:#8b8b8b;font-weight:400;line-height:1.4;">點擊按鈕立即更新體驗</div>
+                                            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#F7E7B5,#e8d4a0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(247,231,181,0.3);">
+                                                <i data-lucide="refresh-cw" style="width:22px;height:22px;stroke:#5D4D41;stroke-width:2.5;" class="animate-spin"></i>
                                             </div>
-                                            
-                                            <!-- 按鈕組 -->
-                                            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-                                                <button style="background:#736357;color:white;border:none;padding:8px 18px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.25s cubic-bezier(0.16, 1, 0.3, 1);box-shadow:0 4px 16px rgba(115,99,87,0.25);white-space:nowrap;">更新</button>
-                                                <button style="background:transparent;color:#c5c5c5;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;justify-content:center;font-size:18px;padding:0;">✕</button>
+                                            <div style="flex:1;min-width:0;">
+                                                <div style="font-weight:700;font-size:15px;color:#1a1a1a;letter-spacing:-0.2px;line-height:1.3;">正在更新中...</div>
+                                                <div style="font-size:13px;color:#8b8b8b;font-weight:400;line-height:1.4;">即將自動重新整理</div>
                                             </div>
                                         </div>
                                     </div>
                                 `;
-document.body.appendChild(updateToast);
+                                document.body.appendChild(updateToast);
 
-// ✅ 手動觸發 Lucide 渲染圖示
-if (window.lucide) {
-    window.lucide.createIcons({
-        root: updateToast,
-        attrs: { "stroke-width": 2.5 }
-    });
-}
+                                // 手動觸發 Lucide
+                                if (window.lucide) {
+                                    window.lucide.createIcons({
+                                        root: updateToast,
+                                        attrs: { "stroke-width": 2.5 }
+                                    });
+                                }
 
-// ✅ 動畫樣式
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-    @keyframes toastSlideUp {
-        from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
-        to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-    }
-    @keyframes toastSlideDown {
-        from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-        to { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
-    }
-    .toast-update-btn:hover {
-        transform: scale(1.04);
-        background: #5D4D41 !important;
-        box-shadow: 0 6px 24px rgba(115,99,87,0.35) !important;
-    }
-    .toast-close-btn:hover {
-        background: #f3f4f6 !important;
-        color: #6b7280 !important;
-    }
-    .toast-close-btn:active {
-        transform: scale(0.9);
-    }
-    .toast-update-btn:active {
-        transform: scale(0.95);
-    }
-`;
-document.head.appendChild(styleSheet);
+                                // 動畫樣式
+                                const styleSheet = document.createElement('style');
+                                styleSheet.textContent = `
+                                    @keyframes toastSlideUp {
+                                        from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
+                                        to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+                                    }
+                                    @keyframes toastSlideDown {
+                                        from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+                                        to { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
+                                    }
+                                `;
+                                document.head.appendChild(styleSheet);
 
-                                // 設定按鈕樣式
-                                const btns = updateToast.querySelectorAll('button');
-                                btns[0].className = 'toast-update-btn';
-                                btns[1].className = 'toast-close-btn';
-
-                                // 點擊「更新」按鈕
-                                btns[0].addEventListener('click', () => {
-                                    updateToast.style.animation = 'toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-                                    setTimeout(() => {
-                                        if (updateToast) {
-                                            updateToast.remove();
-                                            updateToast = null;
-                                        }
-                                    }, 400);
-                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                    setTimeout(() => window.location.reload(), 500);
-                                });
-
-                                // 點擊關閉按鈕
-                                btns[1].addEventListener('click', () => {
-                                    updateToast.style.animation = 'toastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-                                    setTimeout(() => {
-                                        if (updateToast) {
-                                            updateToast.remove();
-                                            updateToast = null;
-                                        }
-                                    }, 350);
-                                });
-
-                                // 10分鐘後自動消失
+                                // 4秒後自動移除提示
                                 setTimeout(() => {
                                     if (updateToast) {
                                         updateToast.style.animation = 'toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
@@ -4051,7 +4003,7 @@ document.head.appendChild(styleSheet);
                                             }
                                         }, 400);
                                     }
-                                }, 600000);
+                                }, 4000);
                             }
                         });
                     });
