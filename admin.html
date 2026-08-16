@@ -16,6 +16,14 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 使用 Editor.js - 像社群軟體貼文一樣直覺 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.30.0/dist/editor.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.30.0/dist/editor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.1/dist/header.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@1.9.0/dist/list.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/paragraph.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.4.0/dist/inline-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.5.0/dist/quote.min.js"></script>
 
     <script>
         Babel.registerPreset("react-classic", {
@@ -1164,7 +1172,7 @@ const normalizeBooking = (b) => {
                 </div>
             </div>
         );
-// --- Email Log Viewer Component (手機優化版 + 搜尋) ---
+        // --- Email Log Viewer Component (手機優化版 + 搜尋) ---
 const EmailLogViewer = ({ showToast }) => {
             const [logs, setLogs] = useState([]);
             const [loading, setLoading] = useState(false);
@@ -1365,6 +1373,535 @@ const handleResend = async (e, log) => {
                 </div>
             );
         };
+
+        // --- Terms Manager Component (分頁模式 + 恢復預設值) ---
+        const TermsManager = ({ supabase, showToast }) => {
+            const [terms, setTerms] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [activeKey, setActiveKey] = useState('grooming');
+            const [editingKey, setEditingKey] = useState(null);
+            const [editTitle, setEditTitle] = useState('');
+            const [editContent, setEditContent] = useState('');
+            const [previewMode, setPreviewMode] = useState(false);
+            const [resetting, setResetting] = useState(false);
+            const [showResetModal, setShowResetModal] = useState(false);
+            const [selectedResetKeys, setSelectedResetKeys] = useState([]);
+
+            const TERM_KEYS = {
+                grooming: '犬、貓美容契約條款',
+                boarding: '犬、貓寄養契約條款',
+                senior: '高風險寵物美容服務風險告知',
+                boardingRisk: '高風險寵物住宿服務風險告知'
+            };
+
+            const TAB_ORDER = ['grooming', 'boarding', 'senior', 'boardingRisk'];
+
+            // 切換選擇
+            const toggleResetSelection = (key) => {
+                setSelectedResetKeys(prev => 
+                    prev.includes(key) 
+                        ? prev.filter(k => k !== key) 
+                        : [...prev, key]
+                );
+            };
+
+            // 全選/取消全選
+            const toggleSelectAll = () => {
+                if (selectedResetKeys.length === TAB_ORDER.length) {
+                    setSelectedResetKeys([]);
+                } else {
+                    setSelectedResetKeys([...TAB_ORDER]);
+                }
+            };
+
+            const loadTerms = async () => {
+                setLoading(true);
+                try {
+                    const { data, error } = await supabase
+                        .from('terms')
+                        .select('*')
+                        .order('key', { ascending: true });
+
+                    if (error) {
+                        showToast('載入條款失敗: ' + error.message, 'error');
+                        const defaultTerms = Object.entries(TERM_KEYS).map(([key, title]) => ({
+                            key,
+                            title,
+                            content: `<p>請編輯【${title}】的內容...</p>`
+                        }));
+                        setTerms(defaultTerms);
+                    } else {
+                        console.log('📋 從 terms 表讀取到的資料:', data);
+                        
+                        const defaultTerms = Object.entries(TERM_KEYS).map(([key, title]) => ({
+                            key,
+                            title,
+                            content: `<p>請編輯【${title}】的內容...</p>`
+                        }));
+
+                        const finalTerms = defaultTerms.map(defaultTerm => {
+                            const existing = data.find(t => t.key === defaultTerm.key);
+                            if (existing) {
+                                const content = existing.content && existing.content.trim() !== '' 
+                                    ? existing.content 
+                                    : `<p>請編輯【${defaultTerm.title}】的內容...</p>`;
+                                return {
+                                    ...existing,
+                                    content: content,
+                                    title: existing.title || defaultTerm.title
+                                };
+                            }
+                            return defaultTerm;
+                        });
+
+                        console.log('✅ 最終條款資料:', finalTerms.map(t => ({
+                            key: t.key,
+                            contentLength: t.content?.length || 0,
+                            contentPreview: t.content?.substring(0, 100) + '...'
+                        })));
+                        
+                        setTerms(finalTerms);
+                    }
+                } catch (err) {
+                    console.error('載入條款錯誤:', err);
+                    showToast('載入條款發生錯誤', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                loadTerms();
+            }, []);
+
+            // 恢復預設值 (支援勾選)
+            const resetToDefault = async () => {
+                if (selectedResetKeys.length === 0) {
+                    showToast('請至少選擇一個要恢復的條款', 'warning');
+                    return;
+                }
+
+                const names = selectedResetKeys.map(k => TERM_KEYS[k]).join('、');
+                if (!confirm(`確定要將以下條款恢復為預設值嗎？\n\n${names}\n\n您目前自訂的內容將會遺失！`)) return;
+                
+                setResetting(true);
+                try {
+                    // 從 settings 表讀取預設值
+                    const keysToFetch = selectedResetKeys.map(k => `default_${k}`);
+                    console.log('🔍 要讀取的 keys:', keysToFetch);
+                    
+                    const { data, error } = await supabase
+                        .from('settings')
+                        .select('key, value')
+                        .in('key', keysToFetch);
+
+                    if (error) throw error;
+                    
+                    console.log('📦 從 settings 讀取到的資料:', data);
+
+                    // 建立映射
+                    const defaultMap = {};
+                    data.forEach(item => {
+                        const termKey = item.key.replace('default_', '');
+                        defaultMap[termKey] = item.value;
+                    });
+                    
+                    console.log('🗺️ 建立的映射:', defaultMap);
+
+                    // 更新選中的條款
+                    const updates = selectedResetKeys.map(key => {
+                        const content = defaultMap[key] || `<p>請編輯【${TERM_KEYS[key]}】的內容...</p>`;
+                        console.log(`📝 更新 ${key}: 內容長度 ${content.length}`);
+                        return supabase
+                            .from('terms')
+                            .upsert({
+                                key: key,
+                                title: TERM_KEYS[key],
+                                content: content,
+                                updated_at: new Date().toISOString()
+                            }, { onConflict: 'key' });
+                    });
+
+                    await Promise.all(updates);
+                    
+                    showToast(`✅ 已恢復 ${selectedResetKeys.length} 個條款為預設值！`, 'success');
+                    await loadTerms(); // 重新載入
+                    setEditingKey(null);
+                    setPreviewMode(false);
+                    setShowResetModal(false);
+                    setSelectedResetKeys([]);
+                } catch (err) {
+                    console.error('恢復預設值失敗:', err);
+                    showToast('❌ 恢復失敗: ' + err.message, 'error');
+                } finally {
+                    setResetting(false);
+                }
+            };
+
+            const startEditing = (term) => {
+                if (editingKey === term.key) {
+                    setEditingKey(null);
+                    setPreviewMode(false);
+                    return;
+                }
+
+                setEditingKey(term.key);
+                setEditTitle(term.title || '');
+                setEditContent(term.content || '');
+                setPreviewMode(false);
+            };
+
+            const saveTerm = async (key) => {
+                const content = editContent.trim();
+                const title = editTitle || terms.find(t => t.key === key)?.title || '';
+
+                if (!content || content === '' || content === '<p><br></p>' || content === '<p></p>') {
+                    showToast('條款內容不能為空白', 'error');
+                    return;
+                }
+
+                try {
+                    const { error } = await supabase
+                        .from('terms')
+                        .upsert({
+                            key: key,
+                            title: title,
+                            content: content,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'key' });
+
+                    if (error) {
+                        showToast('儲存失敗: ' + error.message, 'error');
+                    } else {
+                        showToast('✅ 條款已成功更新！', 'success');
+                        setTerms(prev => prev.map(t => 
+                            t.key === key ? { ...t, title, content } : t
+                        ));
+                        setEditingKey(null);
+                        setPreviewMode(false);
+                    }
+                } catch (err) {
+                    console.error('儲存錯誤:', err);
+                    showToast('儲存發生錯誤: ' + err.message, 'error');
+                }
+            };
+
+            const currentTerm = terms.find(t => t.key === activeKey);
+            const isEditing = editingKey === activeKey;
+
+            if (loading) {
+                return <div className="p-8 text-center text-slate-400">載入條款資料中...</div>;
+            }
+
+            const getTabClass = (key) => {
+                const isActive = activeKey === key;
+                const term = terms.find(t => t.key === key);
+                const defaultContent = `<p>請編輯【${TERM_KEYS[key]}】的內容...</p>`;
+                const isDefault = term?.content === defaultContent || term?.content === `<p>請編輯【${term?.title || TERM_KEYS[key]}】的內容...</p>`;
+                const isEdited = term?.content && 
+                               term?.content.trim() !== '' && 
+                               term?.content !== '<p><br></p>' &&
+                               term?.content !== '<p></p>' &&
+                               !isDefault;
+                
+                // ✅ 高風險條款用紅色，一般條款用綠色
+                const isHighRisk = key === 'senior' || key === 'boardingRisk';
+                
+                // 按鈕底色
+                let bgColor = 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700';
+                if (isActive) {
+                    bgColor = 'bg-[#736357] text-white shadow-md';
+                } else if (isEdited) {
+                    bgColor = isHighRisk 
+                        ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30' 
+                        : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30';
+                }
+                
+                return `px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 whitespace-nowrap ${bgColor}`;
+            };
+
+            return (
+                <div className="space-y-6">
+                    {/* 說明區塊 + 恢復按鈕 */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <Icon name="book-open" size={24} className="text-brand-brown" />
+                                <h3 className="text-xl font-black text-slate-700 dark:text-white">條款內容管理</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowResetModal(true)}
+                                disabled={resetting}
+                                className="px-4 py-2 rounded-lg bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {resetting ? (
+                                    <Icon name="loader-2" size={16} className="animate-spin" />
+                                ) : (
+                                    <Icon name="rotate-ccw" size={16} />
+                                )}
+                                {resetting ? '恢復中...' : '🔄 恢復預設值'}
+                            </button>
+                        </div>
+                        <p className="text-sm text-slate-500 dark:text-gray-400 mt-2">
+                            點擊上方分頁切換不同條款，點擊「編輯」按鈕修改內容。支援 <strong>HTML 標籤</strong> 進行排版。
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            💡 點擊「恢復預設值」將所有條款重置為系統預設內容
+                        </p>
+                    </div>
+
+                    {/* 分頁導航 */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 p-2 flex flex-wrap items-center gap-1">
+                        {TAB_ORDER.map(key => {
+                            const term = terms.find(t => t.key === key);
+                            const label = term?.title || TERM_KEYS[key] || key;
+                            const shortLabel = label.replace('犬、貓', '').replace('服務風險告知', '').replace('風險告知', '');
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={() => {
+                                        setActiveKey(key);
+                                        setEditingKey(null);
+                                        setPreviewMode(false);
+                                    }}
+                                    className={getTabClass(key)}
+                                >
+                                    {activeKey === key && <Icon name="check-circle" size={14} />}
+                                    {shortLabel || label}
+                                    {false && (
+                                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block ml-1"></span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* 當前條款內容 */}
+                    {currentTerm && (
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+                            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-slate-50 dark:bg-gray-900/50 border-b border-slate-100 dark:border-gray-700">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-bold text-slate-700 dark:text-white">
+                                        {currentTerm.title}
+                                    </span>
+                                    <span className="text-xs bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                                        {currentTerm.key}
+                                    </span>
+                                    {false && (
+                                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+                                            ✅ 已編輯
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    {!isEditing ? (
+                                        <button
+                                            onClick={() => startEditing(currentTerm)}
+                                            className="px-4 py-1.5 rounded-lg bg-brand-brown text-white font-bold text-sm hover:bg-brand-dark-brown transition-all"
+                                        >
+                                            編輯
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => setPreviewMode(!previewMode)}
+                                                className={`px-4 py-1.5 rounded-lg font-bold text-sm transition-all ${
+                                                    previewMode 
+                                                        ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                                                        : 'bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-300'
+                                                }`}
+                                            >
+                                                {previewMode ? '✏️ 編輯' : '👁️ 預覽'}
+                                            </button>
+                                            <button
+                                                onClick={() => saveTerm(currentTerm.key)}
+                                                className="px-4 py-1.5 rounded-lg bg-green-500 text-white font-bold text-sm hover:bg-green-600 transition-all"
+                                            >
+                                                儲存
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingKey(null);
+                                                    setPreviewMode(false);
+                                                }}
+                                                className="px-4 py-1.5 rounded-lg bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold text-sm hover:bg-slate-300 transition-all"
+                                            >
+                                                取消
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="p-4">
+                                {isEditing ? (
+                                    <div>
+                                        <div className="mb-3">
+                                            <label className="text-xs font-bold text-slate-500 block mb-1">📝 條款標題</label>
+                                            <input
+                                                type="text"
+                                                value={editTitle}
+                                                onChange={(e) => setEditTitle(e.target.value)}
+                                                className="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-slate-700 dark:text-white font-medium"
+                                                placeholder="請輸入條款標題..."
+                                            />
+                                        </div>
+                                        
+                                        {previewMode ? (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 block mb-1">👁️ 預覽效果</label>
+                                                <div className="min-h-[200px] bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 rounded-lg p-4 prose prose-sm max-w-none dark:prose-invert">
+                                                    <div dangerouslySetInnerHTML={{ __html: editContent }} />
+                                                </div>
+                                                <div className="mt-2 text-xs text-slate-400 text-center">
+                                                    💡 點擊「編輯」按鈕返回修改
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 block mb-1">
+                                                    ✏️ 條款內容 (HTML)
+                                                    <span className="text-slate-400 font-normal ml-2">
+                                                        可直接貼上 HTML 代碼
+                                                    </span>
+                                                </label>
+                                                <textarea
+                                                    value={editContent}
+                                                    onChange={(e) => setEditContent(e.target.value)}
+                                                    className="w-full min-h-[300px] px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-slate-700 dark:text-white font-medium font-mono text-sm resize-y"
+                                                    placeholder="請輸入條款內容，支援 HTML 標籤..."
+                                                    style={{ lineHeight: '1.8' }}
+                                                />
+                                                <div className="mt-2 text-xs text-slate-400 flex gap-3 flex-wrap">
+                                                    <code className="bg-slate-100 dark:bg-gray-600 px-1.5 rounded">&lt;h1&gt;標題&lt;/h1&gt;</code>
+                                                    <code className="bg-slate-100 dark:bg-gray-600 px-1.5 rounded">&lt;h2&gt;子標題&lt;/h2&gt;</code>
+                                                    <code className="bg-slate-100 dark:bg-gray-600 px-1.5 rounded">&lt;strong&gt;粗體&lt;/strong&gt;</code>
+                                                    <code className="bg-slate-100 dark:bg-gray-600 px-1.5 rounded">&lt;ul&gt;&lt;li&gt;清單&lt;/li&gt;&lt;/ul&gt;</code>
+                                                    <code className="bg-slate-100 dark:bg-gray-600 px-1.5 rounded">&lt;br&gt; 換行</code>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div 
+                                        className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-gray-300"
+                                        dangerouslySetInnerHTML={{ __html: currentTerm.content }}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="text-center text-xs text-slate-400">
+                        <span className="inline-flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                            已自訂內容　|　
+                            <span className="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>
+                            預設內容
+                        </span>
+                    </div>
+
+                    {/* 恢復預設值 - 勾選 Modal */}
+                    {showResetModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 max-h-[80vh] flex flex-col">
+                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-gray-700">
+                                    <h3 className="text-lg font-black text-slate-700 dark:text-white">恢復預設值</h3>
+                                    <button 
+                                        onClick={() => {
+                                            setShowResetModal(false);
+                                            setSelectedResetKeys([]);
+                                        }}
+                                        className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        <Icon name="x" size={20} className="text-slate-400" />
+                                    </button>
+                                </div>
+                                
+                                <p className="text-sm text-slate-500 dark:text-gray-400 mb-4">
+                                    請勾選要恢復為預設值的條款（可複選）：
+                                </p>
+                                
+                                <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                                    {TAB_ORDER.map(key => {
+                                        const term = terms.find(t => t.key === key);
+                                        const isChecked = selectedResetKeys.includes(key);
+                                        const defaultContent = `<p>請編輯【${TERM_KEYS[key]}】的內容...</p>`;
+                                        const isDefault = term?.content === defaultContent || 
+                                                         term?.content === `<p>請編輯【${term?.title || TERM_KEYS[key]}】的內容...</p>`;
+                                        const isEdited = term?.content && 
+                                                       term?.content.trim() !== '' && 
+                                                       term?.content !== '<p><br></p>' &&
+                                                       term?.content !== '<p></p>' &&
+                                                       !isDefault;
+                                        return (
+                                            <label 
+                                                key={key}
+                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                                                    isChecked 
+                                                        ? 'border-brand-brown bg-brand-yellow/20 dark:bg-brand-brown/20' 
+                                                        : 'border-slate-200 dark:border-gray-600 hover:border-slate-300 dark:hover:border-gray-500'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => toggleResetSelection(key)}
+                                                    className="w-4 h-4 accent-brand-brown rounded"
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="text-sm font-bold text-slate-700 dark:text-white">
+                                                        {TERM_KEYS[key]}
+                                                    </div>
+                                                    <div className="text-xs text-slate-400">
+                                                        {isEdited ? '✅ 已自訂內容' : '📄 目前為預設值'}
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                                                    {key}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                                
+                                <div className="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-gray-700">
+                                    <button
+                                        onClick={toggleSelectAll}
+                                        className="text-xs font-bold text-brand-brown dark:text-brand-yellow hover:underline"
+                                    >
+                                        {selectedResetKeys.length === TAB_ORDER.length ? '取消全選' : '全選'}
+                                    </button>
+                                    <div className="flex-1"></div>
+                                    <button
+                                        onClick={() => {
+                                            setShowResetModal(false);
+                                            setSelectedResetKeys([]);
+                                        }}
+                                        className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-gray-600 transition-all"
+                                    >
+                                        取消
+                                    </button>
+                                    <button
+                                        onClick={resetToDefault}
+                                        disabled={resetting || selectedResetKeys.length === 0}
+                                        className="px-4 py-2 rounded-lg bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {resetting ? (
+                                            <Icon name="loader-2" size={16} className="animate-spin" />
+                                        ) : (
+                                            <Icon name="rotate-ccw" size={16} />
+                                        )}
+                                        {resetting ? '恢復中...' : `恢復 (${selectedResetKeys.length})`}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
         // --- Export Functions ---
 const exportToExcel = async (bookings, filename = 'bookings') => {
     await ensureXLSX();
@@ -2135,6 +2672,16 @@ const filteredBookings = useMemo(() => {
             >
                 <Icon name="mail" size={15} /> 郵件
             </button>
+            <button 
+                onClick={() => setActiveTab('terms')} 
+                className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    activeTab === 'terms' 
+                        ? 'bg-[#736357] text-white shadow-md' 
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <Icon name="settings" size={15} /> 設定
+            </button>
         </div>
         {/* 品牌色底部線 - 只在訂單相關 Tab 顯示 */}
         {activeTab === 'orders' && (
@@ -2489,6 +3036,11 @@ const filteredBookings = useMemo(() => {
 {activeTab === 'email_logs' && (
     <EmailLogViewer showToast={showToast} />
 )}
+
+{activeTab === 'terms' && (
+    <TermsManager supabase={supabase} showToast={showToast} />
+)}
+
 
                     </main>
 
@@ -2848,7 +3400,7 @@ const filteredBookings = useMemo(() => {
             window.addEventListener('load', async () => {
                 try {
                     // ✅ 每次更新只改這個數字！
-                    const VERSION = '6';
+                    const VERSION = '7';  // ✅ 改成新版本號
                     
                     const registration = await navigator.serviceWorker.register(`./sw-admin.js?v=${VERSION}`);
                     console.log('Admin Service Worker 註冊成功');
