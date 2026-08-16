@@ -1840,17 +1840,19 @@ if (formData.medical_status === '有' && safeIncludes(formData.medical_history, 
                     
                     if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = ERROR_MESSAGES.boarding_notice_agree;
 } else {
+    const isMultiPet = petListToSubmit.length > 1;
     petListToSubmit.forEach((pet, idx) => {
         const petName = pet.pet_name || `寵物${idx+1}`;
-if (!pet.grooming_date) newErrors.grooming_date = `請選擇 ${petName} 的預約日期`;
-if (!pet.grooming_time) newErrors.grooming_time = `請選擇 ${petName} 的預約時段`;
-if (!pet.grooming_aggressive) newErrors.grooming_aggressive = `請選擇 ${petName} 的攻擊性`;
-if (!pet.grooming_dog_friendly) newErrors.grooming_dog_friendly = `請選擇 ${petName} 與狗的相處狀況`;
-if (!pet.grooming_snack_soothe) newErrors.grooming_snack_soothe = `請選擇 ${petName} 是否接受餵零食安撫`;
-if (!pet.service_type) newErrors.service_type = `請選擇 ${petName} 的服務項目`;
-if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
-    newErrors.service_type_other = `請填寫 ${petName} 的其他服務內容`;
-}
+        const prefix = isMultiPet ? `${petName} 的 ` : '';
+        if (!pet.grooming_date) newErrors[`grooming_date_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}預約日期`;
+        if (!pet.grooming_time) newErrors[`grooming_time_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}預約時段`;
+        if (!pet.grooming_aggressive) newErrors[`grooming_aggressive_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}攻擊性`;
+        if (!pet.grooming_dog_friendly) newErrors[`grooming_dog_friendly_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}與狗的相處狀況`;
+        if (!pet.grooming_snack_soothe) newErrors[`grooming_snack_soothe_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}是否接受餵零食安撫`;
+        if (!pet.service_type) newErrors[`service_type_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}服務項目`;
+        if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
+            newErrors[`service_type_other_${idx}`] = `請填寫${isMultiPet ? ` ${petName} 的` : ''}其他服務內容`;
+        }
     });
 }
 
