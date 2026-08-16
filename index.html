@@ -3174,22 +3174,73 @@ const pillBtn = useCallback((field, val, active) => (
                 {formData.pet_type === '貓咪' && (
                     <div className="space-y-3" id="cat_litter_habit">
                         <label className="text-xs font-bold text-slate-400 ml-1">貓砂使用習慣 *</label>
-                        <div className={`flex flex-col gap-2.5 pt-1 ${errors.cat_litter_habit ? 'group-error' : ''}`}>
+                        
+                        {/* 第一步：選擇自備或館內 */}
+                        <div className={`flex gap-2 ${errors.cat_litter_habit ? 'group-error' : ''}`}>
                             <button 
                                 type="button" 
-                                onClick={() => handleChange('cat_litter_habit', '自備貓砂')} 
-                                className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.cat_litter_habit === '自備貓砂' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
+                                onClick={() => {
+                                    handleChange('cat_litter_habit', '自備貓砂');
+                                    if (errors.cat_litter_habit) setErrors(prev => ({ ...prev, cat_litter_habit: null }));
+                                }} 
+                                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.cat_litter_habit === '自備貓砂' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
                             >
-                                自備貓砂
+                                <span className="flex items-center justify-center gap-1.5">
+                                    {formData.cat_litter_habit === '自備貓砂' && <Icon name="check-circle" size={14} />}
+                                    自備貓砂
+                                </span>
                             </button>
                             <button 
                                 type="button" 
-                                onClick={() => handleChange('cat_litter_habit', '館內貓砂(礦砂/豆腐砂)')} 
-                                className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.cat_litter_habit === '館內貓砂(礦砂/豆腐砂)' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
+                                onClick={() => {
+                                    // 預設選礦砂
+                                    handleChange('cat_litter_habit', '館內貓砂(礦砂)');
+                                    if (errors.cat_litter_habit) setErrors(prev => ({ ...prev, cat_litter_habit: null }));
+                                }} 
+                                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.cat_litter_habit?.startsWith('館內貓砂') ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
                             >
-                                館內貓砂 (礦砂/豆腐砂)
+                                <span className="flex items-center justify-center gap-1.5">
+                                    {formData.cat_litter_habit?.startsWith('館內貓砂') && <Icon name="check-circle" size={14} />}
+                                    館內貓砂
+                                </span>
                             </button>
                         </div>
+
+                        {/* 第二步：如果選擇館內貓砂，顯示礦砂/豆腐砂二選一 */}
+                        {formData.cat_litter_habit?.startsWith('館內貓砂') && (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-2">
+                                <label className="text-xs font-bold text-slate-400 ml-1">請選擇貓砂種類 *</label>
+                                <div className="flex gap-2">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => {
+                                            handleChange('cat_litter_habit', '館內貓砂(礦砂)');
+                                            if (errors.cat_litter_habit) setErrors(prev => ({ ...prev, cat_litter_habit: null }));
+                                        }} 
+                                        className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.cat_litter_habit === '館內貓砂(礦砂)' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
+                                    >
+                                        <span className="flex items-center justify-center gap-1.5">
+                                            {formData.cat_litter_habit === '館內貓砂(礦砂)' && <Icon name="check-circle" size={14} />}
+                                            ⚫ 礦砂
+                                        </span>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => {
+                                            handleChange('cat_litter_habit', '館內貓砂(豆腐砂)');
+                                            if (errors.cat_litter_habit) setErrors(prev => ({ ...prev, cat_litter_habit: null }));
+                                        }} 
+                                        className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.cat_litter_habit === '館內貓砂(豆腐砂)' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
+                                    >
+                                        <span className="flex items-center justify-center gap-1.5">
+                                            {formData.cat_litter_habit === '館內貓砂(豆腐砂)' && <Icon name="check-circle" size={14} />}
+                                            🌿 豆腐砂
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         <FieldError message={errors.cat_litter_habit} />
                     </div>
                 )}
@@ -4002,7 +4053,7 @@ const pillBtn = useCallback((field, val, active) => (
             window.addEventListener('load', async () => {
                 try {
                     // ✅ 每次更新只改這個數字！
-                    const VERSION = '8';
+                    const VERSION = '9';
                     
                     const registration = await navigator.serviceWorker.register(`./sw.js?v=${VERSION}`);
                     console.log('Service Worker 註冊成功');

@@ -1,7 +1,7 @@
 // 汪汪犬旅後台 Service Worker
 // ✅ 從 URL 參數讀取版本號，或使用預設值
 const urlParams = new URLSearchParams(self.location.search);
-const VERSION = urlParams.get('v') || '8';  // ✅ 改成新版本號
+const VERSION = urlParams.get('v') || '9';  // ✅ 改成新版本號
 const CACHE_NAME = `wanwan-admin-${VERSION}`;
 
 const urlsToCache = [
