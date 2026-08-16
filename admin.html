@@ -432,6 +432,9 @@ const getPetListFromBooking = (booking) => {
             chip_status: raw.chip_status || '',
             chip_id: raw.chip_id || '',
             grooming_temperament: raw.grooming_temperament || '',
+            grooming_aggressive: raw.grooming_aggressive || '',
+            grooming_dog_friendly: raw.grooming_dog_friendly || '',
+            grooming_snack_soothe: raw.grooming_snack_soothe || '',
             dog_traits: raw.dog_traits || [],
             medical_status: raw.medical_status || '',
             medical_history: raw.medical_history || [],
@@ -457,6 +460,7 @@ const getPetListFromBooking = (booking) => {
             boarding_grooming: raw.boarding_grooming || '',
             service_type: raw.service_type || '',
             grooming_date: raw.grooming_date || '',
+            grooming_time: raw.grooming_time || '',
             service_type_other: raw.service_type_other || '',
             spa_addons: raw.spa_addons || []
         }];
@@ -2628,23 +2632,26 @@ const filteredBookings = useMemo(() => {
                     </div>
                 </div>
 
-                {/* 健康與行為 */}
-                <div className="mt-4">
-                    <div className="text-xs font-bold text-slate-400 mb-2">健康與行為</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <DetailItem label="美容性情評估" value={pet.grooming_temperament} fullWidth />
-                        <DetailItem label="親狗程度" value={pet.dog_traits} fullWidth />
-                        <DetailItem label="過往病史" value={pet.medical_status} />
-                        <DetailItem label="病史詳細說明" value={(pet.medical_history || []).join('、') + (pet.medical_history_other ? ` (${pet.medical_history_other})` : '')} fullWidth />
-                        <DetailItem label="住宿經驗" value={pet.stay_exp} />
-                        <DetailItem label="籠內訓練狀況" value={pet.crate_status} />
-                        <DetailItem label="容易吠叫" value={(pet.is_barking || '') + (pet.barking_detail ? ` (${pet.barking_detail})` : '')} fullWidth />
-                        <DetailItem label="護食狀況" value={pet.food_aggr} />
-                        <DetailItem label="定點如廁" value={pet.pad_toilet} />
-                        <DetailItem label="定期疫苗" value={pet.vaccine} />
-                        <DetailItem label="定期驅蟲" value={pet.deworm + (pet.deworm_brand ? ` (${pet.deworm_brand})` : '')} fullWidth />
-                    </div>
-                </div>
+{/* 健康與行為 */}
+<div className="mt-4">
+    <div className="text-xs font-bold text-slate-400 mb-2">健康與行為</div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <DetailItem label="美容性情評估" value={pet.grooming_temperament} fullWidth />
+        <DetailItem label="攻擊性" value={pet.grooming_aggressive} fullWidth />
+        <DetailItem label="與狗相處" value={pet.grooming_dog_friendly} fullWidth />
+        <DetailItem label="接受餵零食安撫" value={pet.grooming_snack_soothe} fullWidth />
+        <DetailItem label="親狗程度" value={pet.dog_traits} fullWidth />
+        <DetailItem label="過往病史" value={pet.medical_status} />
+        <DetailItem label="病史詳細說明" value={(pet.medical_history || []).join('、') + (pet.medical_history_other ? ` (${pet.medical_history_other})` : '')} fullWidth />
+        <DetailItem label="住宿經驗" value={pet.stay_exp} />
+        <DetailItem label="籠內訓練狀況" value={pet.crate_status} />
+        <DetailItem label="容易吠叫" value={(pet.is_barking || '') + (pet.barking_detail ? ` (${pet.barking_detail})` : '')} fullWidth />
+        <DetailItem label="護食狀況" value={pet.food_aggr} />
+        <DetailItem label="定點如廁" value={pet.pad_toilet} />
+        <DetailItem label="定期疫苗" value={pet.vaccine} />
+        <DetailItem label="定期驅蟲" value={pet.deworm + (pet.deworm_brand ? ` (${pet.deworm_brand})` : '')} fullWidth />
+    </div>
+</div>
 
                                                 {/* 備註 / 飲食 */}
                                                 <div className="mt-4">
@@ -2698,26 +2705,34 @@ const filteredBookings = useMemo(() => {
                     第{idx+1}隻｜{pet.pet_name || `寵物${idx+1}`}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <DetailItem 
-                        label="服務項目" 
-                        value={
-                            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
-                            ? '住宿' 
-                            : (pet.service_type || '')
-                        } 
-                    />
-                    <DetailItem 
-                        label="預約日期" 
-                        value={
-                            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
-                            ? selectedBooking.checkin_date 
-                            : (pet.grooming_date || '')
-                        } 
-                    />
-                    <DetailItem label="SPA 加購項目" value={pet.spa_addons} fullWidth />
-                    <DetailItem label="其他服務內容" value={pet.service_type_other} fullWidth />
-                </div>
+<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <DetailItem 
+        label="服務項目" 
+        value={
+            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+            ? '住宿' 
+            : (pet.service_type || '')
+        } 
+    />
+    <DetailItem 
+        label="預約日期" 
+        value={
+            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+            ? selectedBooking.checkin_date 
+            : (pet.grooming_date || '')
+        } 
+    />
+    <DetailItem 
+        label="預約時段" 
+        value={
+            (selectedBooking.checkin_date || selectedBooking.service_type?.includes('住宿')) 
+            ? '' 
+            : (pet.grooming_time || '')
+        } 
+    />
+    <DetailItem label="SPA 加購項目" value={pet.spa_addons} fullWidth />
+    <DetailItem label="其他服務內容" value={pet.service_type_other} fullWidth />
+</div>
             </div>
         ))}
     </div>
@@ -2833,7 +2848,7 @@ const filteredBookings = useMemo(() => {
             window.addEventListener('load', async () => {
                 try {
                     // ✅ 每次更新只改這個數字！
-                    const VERSION = '5';
+                    const VERSION = '6';
                     
                     const registration = await navigator.serviceWorker.register(`./sw-admin.js?v=${VERSION}`);
                     console.log('Admin Service Worker 註冊成功');

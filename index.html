@@ -861,6 +861,10 @@ const ERROR_MESSAGES = {
             special_notes: '請填寫注意事項 (若無請填無)',
             boarding_notice_agree: '請勾選同意入住須知',
             grooming_date: '請選擇預約日期',
+grooming_time: '請選擇預約時段',
+grooming_aggressive: '請選擇攻擊性',
+grooming_dog_friendly: '請選擇與狗的相處狀況',
+grooming_snack_soothe: '請選擇是否接受餵零食安撫',
             service_type: '請選擇服務項目',
             service_type_other: '請填寫其他服務項目內容',
             legal_agree: '請勾選同意契約條款',
@@ -869,7 +873,10 @@ const ERROR_MESSAGES = {
             pica_note: '請備註異食癖內容',
             diet_habits: '請至少選擇一項飲食習慣',
             feeding_note: '請填寫餵食頻率與份量說明',
-            diet_other: '請填寫其他飲食內容'
+            diet_other: '請填寫其他飲食內容',
+            media_consent: '請選擇是否同意影像使用授權',
+            cat_litter_habit: '請選擇貓砂使用習慣',
+            boarding_grooming: '請選擇是否需要在住宿期間安排美容'
         };
 
         const compressImage = (file) => {
@@ -1024,8 +1031,12 @@ pet_name: '', pet_type: '', breed: '', sex: '', age: '', age_months: '', is_unde
 service_type: '', service_type_other: '', 
 spa_addons: [],
 grooming_date: '',
+grooming_time: '',
 pickup_time: '',
-                legal_agree: false
+                legal_agree: false,
+                media_consent: '',
+                cat_litter_habit: '',
+                boarding_grooming: ''
             });
             const safeIncludes = (arr, val) => Array.isArray(arr) && arr.includes(val);
             // ====== 同住毛孩 Tab 狀態 ======
@@ -1044,29 +1055,33 @@ const [currentPetIdx, setCurrentPetIdx] = useState(0);
             }, [formData.age, formData.age_months, formData.is_under_one]);
 
             // ✅ 計算所有毛孩年齡
-            const calcPetAge = (pet) => {
-                if (pet.is_under_one && pet.age_months) {
-                    return parseFloat(pet.age_months) / 12;
-                }
-                return parseFloat(pet.age) || 0;
-            };
+const calcPetAge = useCallback((pet) => {
+    if (pet.is_under_one && pet.age_months) {
+        return parseFloat(pet.age_months) / 12;
+    }
+    return parseFloat(pet.age) || 0;
+}, []);
 
             // ✅ 取得所有毛孩資料（包含目前畫面）
-            const allPetsData = useMemo(() => {
-                const currentPet = { ...formData };
-                return petList.map((p, i) => i === currentPetIdx ? { ...p, ...currentPet } : p);
-            }, [petList, formData, currentPetIdx]);
+// ✅ 使用 JSON.stringify 來比較 formData 的變化
+const allPetsData = useMemo(() => {
+    const currentPet = { ...formData };
+    return petList.map((p, i) => i === currentPetIdx ? { ...p, ...currentPet } : p);
+}, [petList, formData, currentPetIdx]);
 
             // ✅ 找出所有高風險毛孩
-            const highRiskPets = useMemo(() => {
-                return allPetsData
-                    .map(p => {
-                        const age = calcPetAge(p);
-                        const type = age >= 8 ? 'senior' : (age > 0 && age < 0.42 ? 'puppy' : null);
-                        return { ...p, age, type };
-                    })
-                    .filter(p => p.type);
-            }, [allPetsData]);
+const highRiskPets = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < allPetsData.length; i++) {
+        const p = allPetsData[i];
+        const age = (p.is_under_one && p.age_months) ? (parseFloat(p.age_months) / 12) : (parseFloat(p.age) || 0);
+        const type = age >= 8 ? 'senior' : (age > 0 && age < 0.42 ? 'puppy' : null);
+        if (type) {
+            result.push({ ...p, age, type });
+        }
+    }
+    return result;
+}, [allPetsData]);
 
             // ✅ 是否有任何高風險毛孩
             const isHighRisk = useMemo(() => {
@@ -1167,13 +1182,13 @@ const selectServiceFlow = (type) => {
                 return diffDays > 0 ? diffDays : null;
             }, [formData.checkin_date, formData.checkout_date]);
 
-            const handleChange = (field, value) => {
-                let finalVal = value;
-                if (field === 'email') finalVal = value.toLowerCase();
-                if (field === 'owner_id') finalVal = value.toUpperCase();
-                setFormData(prev => ({ ...prev, [field]: finalVal }));
-                if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
-            };
+const handleChange = useCallback((field, value) => {
+    let finalVal = value;
+    if (field === 'email') finalVal = value.toLowerCase();
+    if (field === 'owner_id') finalVal = value.toUpperCase();
+    setFormData(prev => ({ ...prev, [field]: finalVal }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+}, [errors]);
 // ====== 同住毛孩 Tab 專用欄位 ======
 const PET_SPECIFIC_FIELDS = [
   'pet_name','pet_type','breed','weight','sex','fix',
@@ -1184,7 +1199,8 @@ const PET_SPECIFIC_FIELDS = [
   'is_barking','barking_detail','stay_exp','food_aggr','pad_toilet',
   'vaccine','vaccine_file','deworm','deworm_brand','crate_status',
   'pica_status','pica_note','diet_habits','diet_other','feeding_note',
-  'allergy','personality','special_notes',  'grooming_date','service_type','service_type_other','spa_addons'
+  'allergy','personality','special_notes',  'grooming_date','grooming_time','grooming_aggressive','grooming_dog_friendly','grooming_snack_soothe','service_type','service_type_other','spa_addons',
+  'cat_litter_habit','boarding_grooming'
 ];
 
 // 儲存目前這隻寵物到清單
@@ -1471,13 +1487,14 @@ const toggleArrayField = (field, value) => {
 
 const validateEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
             const validatePhone = (phone) => /^09\d{8}$/.test(phone);
+const TW_ID_LETTERS = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
+
 const validateTwIDorARC = (id) => {
     if (!id) return false;
     const value = id.toUpperCase().trim();
-    const letters = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
 
     const checkWithChecksum = (str) => {
-        const letterVal = letters.indexOf(str[0]) + 10;
+        const letterVal = TW_ID_LETTERS.indexOf(str[0]) + 10;
         if (letterVal < 10) return false;
         const n1 = Math.floor(letterVal / 10);
         const n2 = letterVal % 10;
@@ -1520,7 +1537,7 @@ const focusFirstError = (errs) => {
         'stay_exp','food_aggr','pad_toilet','vaccine','vaccine_file',
         'deworm','deworm_brand','crate_status','pica_status','pica_note',
         'diet_habits','diet_other','feeding_note','personality',
-        'grooming_date','service_type','service_type_other',
+        'grooming_date','grooming_time','grooming_aggressive','grooming_dog_friendly','grooming_snack_soothe','service_type','service_type_other',
         'legal_agree','signature'
     ];
 
@@ -1549,77 +1566,135 @@ const focusFirstError = (errs) => {
         multiPetErrors[idx][field] = msg;
     };
 
-    petListToSubmit.forEach((pet, idx) => {
-        const name = pet.pet_name || `寵物${idx+1}`;
+        petListToSubmit.forEach((pet, idx) => {
+            const name = pet.pet_name || `寵物${idx+1}`;
+            const isCat = pet.pet_type === '貓咪';
+            const isDog = pet.pet_type === '狗狗';
 
-        if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${name} 名字`); setFirst(idx); }
-        if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${name} 品種`); setFirst(idx); }
-        if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${name} 體重`); setFirst(idx); }
+            // ===== 基本必填（所有寵物） =====
+            if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${name} 名字`); setFirst(idx); }
+            if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${name} 品種`); setFirst(idx); }
+            if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${name} 體重`); setFirst(idx); }
 
-        if (pet.is_under_one) {
-            if (!pet.age_months) { setPetError(idx, 'age', `請填寫 ${name} 月齡`); setFirst(idx); }
-        } else {
-            if (!pet.age) { setPetError(idx, 'age', `請填寫 ${name} 年齡`); setFirst(idx); }
-        }
-
-        if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${name} 類型`); setFirst(idx); }
-        if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${name} 性別`); setFirst(idx); }
-        if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${name} 結紮`); setFirst(idx); }
-        if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${name} 晶片狀態`); setFirst(idx); }
-        if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { setPetError(idx, 'chip_id', `請填寫 ${name} 晶片號碼`); setFirst(idx); }
-
-        if (!pet.dog_traits || pet.dog_traits.length === 0) { setPetError(idx, 'dog_traits', `請勾選 ${name} 社交狀況`); setFirst(idx); }
-        if (!pet.grooming_temperament) { setPetError(idx, 'grooming_temperament', `請選擇 ${name} 美容性情`); setFirst(idx); }
-
-        if (!pet.medical_status) { setPetError(idx, 'medical_status', `請選擇 ${name} 病史狀況`); setFirst(idx); }
-        if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
-            setPetError(idx, 'medical_history', `請選擇 ${name} 病史項目`); 
-            setFirst(idx); 
-        }
-        if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
-            setPetError(idx, 'medical_history_other', `請填寫 ${name} 其他病史內容`);
-            setFirst(idx);
-        }
-
-        if (isBoarding) {
-            if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${name} 是否會吠叫`); setFirst(idx); }
-            if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { setPetError(idx, 'barking_detail', `請填寫 ${name} 吠叫說明`); setFirst(idx); }
-            if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${name} 住宿經驗`); setFirst(idx); }
-            if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${name} 是否護食`); setFirst(idx); }
-            if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${name} 尿布墊習慣`); setFirst(idx); }
-
-            if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${name} 疫苗狀況`); setFirst(idx); }
-            if (pet.vaccine === '有' && !pet.vaccine_file) { setPetError(idx, 'vaccine_file', `請上傳 ${name} 疫苗手冊`); setFirst(idx); }
-
-            if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${name} 驅蟲狀況`); setFirst(idx); }
-            if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { setPetError(idx, 'deworm_brand', `請填寫 ${name} 驅蟲藥品牌`); setFirst(idx); }
-
-            if (!pet.crate_status || pet.crate_status.length === 0) { setPetError(idx, 'crate_status', `請選擇 ${name} 籠內訓練`); setFirst(idx); }
-
-            if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${name} 是否異食癖`); setFirst(idx); }
-            if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { setPetError(idx, 'pica_note', `請填寫 ${name} 異食癖內容`); setFirst(idx); }
-
-            if (!pet.diet_habits || pet.diet_habits.length === 0) { setPetError(idx, 'diet_habits', `請選擇 ${name} 飲食習慣`); setFirst(idx); }
-            if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
-                setPetError(idx, 'diet_other', `請填寫 ${name} 其他飲食內容`); 
-                setFirst(idx); 
+            if (pet.is_under_one) {
+                if (!pet.age_months) { setPetError(idx, 'age', `請填寫 ${name} 月齡`); setFirst(idx); }
+            } else {
+                if (!pet.age) { setPetError(idx, 'age', `請填寫 ${name} 年齡`); setFirst(idx); }
             }
 
-            if (!pet.feeding_note || pet.feeding_note.trim() === '') { setPetError(idx, 'feeding_note', `請填寫 ${name} 餵食說明`); setFirst(idx); }
-            if (!pet.personality || pet.personality.trim() === '') { setPetError(idx, 'personality', `請填寫 ${name} 個性描述`); setFirst(idx); }
-        }
-    });
+            if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${name} 類型`); setFirst(idx); }
+            if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${name} 性別`); setFirst(idx); }
+            if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${name} 結紮`); setFirst(idx); }
+            if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${name} 晶片狀態`); setFirst(idx); }
+            if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { setPetError(idx, 'chip_id', `請填寫 ${name} 晶片號碼`); setFirst(idx); }
+
+            // ===== 社交狀況：僅狗狗需要 =====
+            if (isDog) {
+                if (!pet.dog_traits || pet.dog_traits.length === 0) {
+                    setPetError(idx, 'dog_traits', `請勾選 ${name} 社交狀況`);
+                    setFirst(idx);
+                }
+            }
+
+            if (!pet.grooming_temperament) { setPetError(idx, 'grooming_temperament', `請選擇 ${name} 美容性情`); setFirst(idx); }
+
+            if (!pet.medical_status) { setPetError(idx, 'medical_status', `請選擇 ${name} 病史狀況`); setFirst(idx); }
+            if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
+                setPetError(idx, 'medical_history', `請選擇 ${name} 病史項目`); 
+                setFirst(idx); 
+            }
+            if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
+                setPetError(idx, 'medical_history_other', `請填寫 ${name} 其他病史內容`);
+                setFirst(idx);
+            }
+
+            // ===== 住宿專用驗證 =====
+            if (isBoarding) {
+                // --- 疫苗與驅蟲（所有寵物都需要） ---
+                if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${name} 疫苗狀況`); setFirst(idx); }
+                if (pet.vaccine === '有' && !pet.vaccine_file) { setPetError(idx, 'vaccine_file', `請上傳 ${name} 疫苗手冊`); setFirst(idx); }
+
+                if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${name} 驅蟲狀況`); setFirst(idx); }
+                if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { setPetError(idx, 'deworm_brand', `請填寫 ${name} 驅蟲藥品牌`); setFirst(idx); }
+
+                // --- 異食癖（所有寵物都需要） ---
+                if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${name} 是否異食癖`); setFirst(idx); }
+                if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { setPetError(idx, 'pica_note', `請填寫 ${name} 異食癖內容`); setFirst(idx); }
+
+                // --- 飲食習慣（所有寵物都需要） ---
+                if (!pet.diet_habits || pet.diet_habits.length === 0) { setPetError(idx, 'diet_habits', `請選擇 ${name} 飲食習慣`); setFirst(idx); }
+                if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
+                    setPetError(idx, 'diet_other', `請填寫 ${name} 其他飲食內容`); 
+                    setFirst(idx); 
+                }
+
+                if (!pet.feeding_note || pet.feeding_note.trim() === '') { setPetError(idx, 'feeding_note', `請填寫 ${name} 餵食說明`); setFirst(idx); }
+                if (!pet.personality || pet.personality.trim() === '') { setPetError(idx, 'personality', `請填寫 ${name} 個性描述`); setFirst(idx); }
+
+                // --- 狗狗專用欄位 ---
+                if (isDog) {
+                    if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${name} 是否會吠叫`); setFirst(idx); }
+                    if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { setPetError(idx, 'barking_detail', `請填寫 ${name} 吠叫說明`); setFirst(idx); }
+                    if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${name} 尿布墊習慣`); setFirst(idx); }
+                    if (!pet.crate_status || pet.crate_status.length === 0) { setPetError(idx, 'crate_status', `請選擇 ${name} 籠內訓練`); setFirst(idx); }
+                }
+
+                // --- 貓咪專用欄位 ---
+                if (isCat) {
+                    if (!pet.cat_litter_habit) { 
+                        setPetError(idx, 'cat_litter_habit', `請選擇 ${name} 貓砂使用習慣`); 
+                        setFirst(idx); 
+                    }
+                }
+
+                // --- 所有寵物共用（但狗狗和貓咪都有） ---
+                if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${name} 住宿經驗`); setFirst(idx); }
+                if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${name} 是否護食`); setFirst(idx); }
+            }
+        });
 
 if (firstInvalidIdx !== null) {
     setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
     handleSwitchPet(firstInvalidIdx);
     setErrors(multiPetErrors[firstInvalidIdx] || {});
-    showToast("⚠️ 其他毛孩資料尚未填完整");
+    
+    // ✅ 顯示更具體的錯誤訊息
+    const errorFields = Object.keys(multiPetErrors[firstInvalidIdx] || {});
+    const fieldNames = {
+        'cat_litter_habit': '貓砂使用習慣',
+        'vaccine': '疫苗狀況',
+        'vaccine_file': '疫苗手冊照片',
+        'deworm': '驅蟲狀況',
+        'deworm_brand': '驅蟲藥品牌',
+        'pica_status': '異食癖',
+        'pica_note': '異食癖內容',
+        'diet_habits': '飲食習慣',
+        'diet_other': '其他飲食內容',
+        'feeding_note': '餵食說明',
+        'personality': '個性描述',
+        'stay_exp': '住宿經驗',
+        'food_aggr': '護食狀況',
+        'pet_name': '寵物名字',
+        'breed': '品種',
+        'weight': '體重',
+        'age': '年齡',
+        'pet_type': '寵物類型',
+        'sex': '性別',
+        'fix': '結紮',
+        'chip_status': '晶片狀態',
+        'chip_id': '晶片號碼',
+        'grooming_temperament': '美容性情',
+        'medical_status': '病史狀況',
+        'medical_history': '病史項目',
+        'boarding_grooming': '住宿期間美容'
+    };
+    const errorNames = errorFields.map(f => fieldNames[f] || f).join('、');
+    showToast(`⚠️ 請修正 ${errorFields.length} 個錯誤欄位：${errorNames}`, "error");
 
     // ✅ 等 tab 切換完，再跳到錯誤欄位
     setTimeout(() => {
         focusFirstError(multiPetErrors[firstInvalidIdx] || {});
-    }, 200);
+    }, 300);
 
     return;
 } else {
@@ -1668,7 +1743,10 @@ if (formData.owner_id && !validateTwIDorARC(formData.owner_id)) {
                 if (formData.chip_status === '有晶片' && (!formData.chip_id || formData.chip_id.trim() === '')) {
                     newErrors.chip_id = '請輸入晶片號碼';
                 }
-if ((formData.dog_traits || []).length === 0) newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
+// 社交狀況：僅狗狗需要驗證
+if (formData.pet_type === '狗狗' && (formData.dog_traits || []).length === 0) {
+    newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
+}
 if (!formData.medical_status) newErrors.medical_status = ERROR_MESSAGES.medical_status;
 else if (formData.medical_status === '有' && (formData.medical_history || []).length === 0) newErrors.medical_history = ERROR_MESSAGES.medical_history;
 
@@ -1687,21 +1765,26 @@ if (formData.medical_status === '有' && safeIncludes(formData.medical_history, 
                             newErrors.checkout_date = '退房日期必須晚於入住日期';
                         }
                     }
-                    if (!formData.is_barking) newErrors.is_barking = ERROR_MESSAGES.is_barking;
-                    if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) newErrors.barking_detail = ERROR_MESSAGES.barking_detail;
+                    
+                    // 狗狗專用欄位（貓咪跳過）
+                    if (formData.pet_type === '狗狗') {
+                        if (!formData.is_barking) newErrors.is_barking = ERROR_MESSAGES.is_barking;
+                        if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) newErrors.barking_detail = ERROR_MESSAGES.barking_detail;
+                        if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
+                        if ((formData.crate_status || []).length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
+                    }
+                    
+                    // 所有寵物共用（狗狗和貓咪都需要）
                     if (!formData.stay_exp) newErrors.stay_exp = ERROR_MESSAGES.stay_exp;
                     if (!formData.food_aggr) newErrors.food_aggr = ERROR_MESSAGES.food_aggr;
-if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
                     if (!formData.vaccine) newErrors.vaccine = ERROR_MESSAGES.vaccine;
                     if (formData.vaccine === '有' && !formData.vaccine_file) newErrors.vaccine_file = ERROR_MESSAGES.vaccine_file;
                     if (!formData.deworm) newErrors.deworm = ERROR_MESSAGES.deworm;
                     if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) newErrors.deworm_brand = ERROR_MESSAGES.deworm_brand;
-if ((formData.crate_status || []).length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
-
 
                     if (!formData.pica_status) newErrors.pica_status = ERROR_MESSAGES.pica_status;
                     if (formData.pica_status === '有' && (!formData.pica_note || formData.pica_note.trim() === '')) newErrors.pica_note = ERROR_MESSAGES.pica_note;
-if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MESSAGES.diet_habits;
+                    if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MESSAGES.diet_habits;
 
                     if (!formData.feeding_note || formData.feeding_note.trim() === '') newErrors.feeding_note = ERROR_MESSAGES.feeding_note;
                     
@@ -1711,11 +1794,15 @@ if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MES
 } else {
     petListToSubmit.forEach((pet, idx) => {
         const petName = pet.pet_name || `寵物${idx+1}`;
-        if (!pet.grooming_date) newErrors.grooming_date = `請選擇 ${petName} 的預約日期`;
-        if (!pet.service_type) newErrors.service_type = `請選擇 ${petName} 的服務項目`;
-        if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
-            newErrors.service_type_other = `請填寫 ${petName} 的其他服務內容`;
-        }
+if (!pet.grooming_date) newErrors.grooming_date = `請選擇 ${petName} 的預約日期`;
+if (!pet.grooming_time) newErrors.grooming_time = `請選擇 ${petName} 的預約時段`;
+if (!pet.grooming_aggressive) newErrors.grooming_aggressive = `請選擇 ${petName} 的攻擊性`;
+if (!pet.grooming_dog_friendly) newErrors.grooming_dog_friendly = `請選擇 ${petName} 與狗的相處狀況`;
+if (!pet.grooming_snack_soothe) newErrors.grooming_snack_soothe = `請選擇 ${petName} 是否接受餵零食安撫`;
+if (!pet.service_type) newErrors.service_type = `請選擇 ${petName} 的服務項目`;
+if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
+    newErrors.service_type_other = `請填寫 ${petName} 的其他服務內容`;
+}
     });
 }
 
@@ -1738,6 +1825,17 @@ if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MES
 
                 if (!formData.legal_agree) newErrors.legal_agree = ERROR_MESSAGES.legal_agree;
                 if (!realtimeSig) newErrors.signature = ERROR_MESSAGES.signature;
+                if (!formData.media_consent) newErrors.media_consent = ERROR_MESSAGES.media_consent;
+                
+                // 住宿模式：貓咪需驗證貓砂習慣
+                if (isBoarding && formData.pet_type === '貓咪' && !formData.cat_litter_habit) {
+                    newErrors.cat_litter_habit = ERROR_MESSAGES.cat_litter_habit;
+                }
+                
+// 住宿模式：僅貓咪需驗證是否選擇住宿期間美容
+if (isBoarding && formData.pet_type === '貓咪' && !formData.boarding_grooming) {
+    newErrors.boarding_grooming = ERROR_MESSAGES.boarding_grooming;
+}
 
 setErrors(newErrors);
 
@@ -1870,6 +1968,7 @@ const petInfoHtml = petListWithUploads.map((pet, idx) => `
     • 護食：${pet.food_aggr || ''}<br>
     • 尿布墊：${pet.pad_toilet || ''}<br>
     • 籠內訓練：${(pet.crate_status || []).join('、')}
+    ${pet.pet_type === '貓咪' ? `<br>• 貓砂使用習慣：${formData.cat_litter_habit || '未填'}` : ''}
 </td></tr>
 <tr><td class="label">住宿經驗</td><td class="value">${pet.stay_exp || ''}</td></tr>
             <tr><td class="label">疫苗與驅蟲</td><td class="value">
@@ -1886,24 +1985,32 @@ const petInfoHtml = petListWithUploads.map((pet, idx) => `
         </table>
     </div>
 `).join('');
-// ✅ 服務項目區塊（保留原本內容）
+// ✅ 服務項目區塊（加入遺漏欄位）
 const serviceSectionHtml = petListWithUploads.map((pet, idx) => `
     <div class="section">
         <div class="section-header"><h2 class="section-title">🏠 本次服務項目 ${pet.pet_name ? `- ${pet.pet_name}` : `- 寵物${idx+1}`}</h2></div>
         <table class="info-table">
             <tr><td class="label">服務類別</td><td class="value"><strong>${isBoarding ? '住宿 ＋ 美容' : (pet.service_type || '')}</strong></td></tr>
-            ${!isBoarding ? `<tr><td class="label">預約日期</td><td class="value">${pet.grooming_date || ''}</td></tr>` : ''}
+${!isBoarding ? `
+    <tr><td class="label">預約日期</td><td class="value">${pet.grooming_date || ''}</td></tr>
+    <tr><td class="label">預約時段</td><td class="value">${pet.grooming_time || ''}</td></tr>
+    <tr><td class="label">攻擊性</td><td class="value">${pet.grooming_aggressive || ''}</td></tr>
+    <tr><td class="label">與狗相處</td><td class="value">${pet.grooming_dog_friendly || ''}</td></tr>
+` : ''}
+${isBoarding ? `
+    <tr><td class="label">入住日期</td><td class="value">${formData.checkin_date}</td></tr>
+    <tr><td class="label">退房日期</td><td class="value">${formData.checkout_date}</td></tr>
+    <tr><td class="label">攻擊性</td><td class="value">${pet.grooming_aggressive || ''}</td></tr>
+    <tr><td class="label">與狗相處</td><td class="value">${pet.grooming_dog_friendly || ''}</td></tr>
+    <tr><td class="label">接受餵零食安撫</td><td class="value">${pet.grooming_snack_soothe || ''}</td></tr>
+    ${formData.boarding_grooming ? `<tr><td class="label">住宿期間美容</td><td class="value">${formData.boarding_grooming}</td></tr>` : ''}
+` : ''}
             ${!isBoarding && pet.service_type === '其他項目' ? `<tr><td class="label">說明</td><td class="value">${pet.service_type_other || ''}</td></tr>` : ''}
 
             ${!isBoarding && pet.spa_addons && pet.spa_addons.length > 0 ? `
                 <tr><td class="label">SPA 加購項目</td><td class="value">
                     ${pet.spa_addons.map(item => `<span class="tag">${item}</span>`).join('')}
                 </td></tr>
-            ` : ''}
-
-            ${isBoarding ? `
-                <tr><td class="label">入住日期</td><td class="value">${formData.checkin_date}</td></tr>
-                <tr><td class="label">退房日期</td><td class="value">${formData.checkout_date}</td></tr>
             ` : ''}
         </table>
     </div>
@@ -1977,10 +2084,10 @@ const serviceSectionHtml = petListWithUploads.map((pet, idx) => `
                                 </div>
 
                                 <div class="content">
-                                    <div class="welcome-text">
-                                        <p>親愛的 <strong>${formData.owner_name}</strong> 您好：</p>
-<p>感謝您選擇汪汪犬旅！這是您為毛孩 <strong>${petNameList}</strong> 簽署的服務契約詳細內容，請留存備查。</p>
-                                    </div>
+<div class="welcome-text">
+    <p>親愛的 <strong>${formData.owner_name}</strong> 您好：</p>
+    <p>感謝您選擇汪汪犬旅！這是您為毛孩 <strong>${petNameList}</strong> 簽署的服務契約詳細內容，請留存備查。</p>
+</div>
 
                                     <div class="section">
                                         <div class="section-header"><h2 class="section-title">👤 飼主與聯絡資訊</h2></div>
@@ -2020,6 +2127,13 @@ ${riskClauseHtml}
                                             之所有條款，並承諾遵守相關規範。
                                         </p>
                                         
+                                        <div style="margin-bottom: 15px; padding: 10px 15px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #3b82f6; text-align: left; font-size: 13px;">
+                                            <strong>📸 影像使用授權：</strong>
+                                            ${formData.media_consent === '同意' 
+                                                ? '✅ 同意將毛孩照片/影片上傳至社群網站(FB/IG)並標記名字' 
+                                                : '❌ 不同意將毛孩照片/影片上傳至社群網站'}
+                                        </div>
+                                        
                                         <div style="display: inline-block; text-align: center;">
                                             <img src="${signatureUrl}" alt="飼主簽名" style="max-width: 250px; height: auto; margin-bottom: 5px;" />
                                             <div style="font-size: 12px; color: #999; border-top: 1px solid #ccc; padding-top: 5px;">
@@ -2056,6 +2170,12 @@ if (funcError) console.error("寄信失敗:", funcError);
                     
                     // 成功區塊
                     localStorage.removeItem('wangwang_form_draft');
+                    // ✅ 清除 petList 中的 _errors
+                    setPetList(prev => prev.map(p => {
+                        const np = { ...p };
+                        delete np._errors;
+                        return np;
+                    }));
                     setShowSuccess(true);
 
                 } catch (error) {
@@ -2181,15 +2301,15 @@ if (funcError) console.error("寄信失敗:", funcError);
                 };
             }, [showFullSig]);
 
-            const pillBtn = (field, val, active) => (
-                <button type="button" onClick={() => handleChange(field, val)} 
-                    className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
-                    <span className="flex items-center justify-center gap-1.5">
-                        {active && <Icon name="check-circle" size={14} />}
-                        {val}
-                    </span>
-                </button>
-            );
+const pillBtn = useCallback((field, val, active) => (
+    <button type="button" onClick={() => handleChange(field, val)} 
+        className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${active ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
+        <span className="flex items-center justify-center gap-1.5">
+            {active && <Icon name="check-circle" size={14} />}
+            {val}
+        </span>
+    </button>
+), [handleChange]);
 
             const getTodayDate = () => {
                 const d = new Date();
@@ -2460,439 +2580,600 @@ if (funcError) console.error("寄信失敗:", funcError);
 
                             {/* 2. 寵物資料與住宿問卷 */}
                             <section className={`glass-card p-8 md:p-10 space-y-8 section-highlight ${isBoarding ? 'bg-gradient-to-b from-white to-[#F7E7B5]/10 dark:from-gray-800 dark:to-[#F7E7B5]/5' : 'bg-white dark:bg-gray-800'}`}>
-                                {/* ====== 同住毛孩 Tabs ====== */}
-<div className="flex gap-2 overflow-x-auto pb-2">
-{petList.map((pet, idx) => (
-    <div key={idx} className="flex items-center gap-1">
-        <button
-            onClick={() => handleSwitchPet(idx)}
-            className={`px-4 py-2 rounded-xl border-2 text-xs font-bold whitespace-nowrap ${
-                currentPetIdx === idx
-                    ? 'bg-[#736357] text-white border-[#736357]'
-                    : 'bg-white text-slate-400 border-slate-200'
-            }`}
-        >
-            {(idx === currentPetIdx ? (formData.pet_name || pet.pet_name) : pet.pet_name) || `寵物 ${idx+1}`}
-        </button>
-        {petList.length > 1 && (
-            <button 
-                type="button"
-                onClick={() => handleDeletePet(idx)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-all"
-                title="刪除這隻毛孩"
-            >
-                <Icon name="x" size={14} />
-            </button>
-        )}
-    </div>
-))}
-    <button onClick={handleAddPet}
-        className="px-4 py-2 rounded-xl border-2 border-dashed text-[#736357] font-bold">
-        + 毛孩
-    </button>
-</div>
-                                <div className="flex items-center gap-4 border-b border-[#736357]/10 dark:border-gray-600 pb-6">
-                                    <div className="w-10 h-10 rounded-full bg-[#736357]/5 dark:bg-gray-700 flex items-center justify-center text-[#736357] dark:text-[#F7E7B5]">
-                                        <Icon name="calendar" size={20}/>
-                                    </div>
-                                    <h3 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">
-                                        {isBoarding ? "住宿行為與健康問卷" : "寵物詳細資料"}
-                                    </h3>
-                                </div>
-                                
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {isBoarding && (
-                                        <>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-400 ml-1">入住日期 *</label>
-                                                <InputWithError 
-                                                    name="checkin_date" 
-                                                    type="date" 
-                                                    value={formData.checkin_date} 
-                                                    onChange={e=>handleChange('checkin_date', e.target.value)} 
-                                                    error={errors.checkin_date}
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-400 ml-1">退房日期 *</label>
-                                                <InputWithError 
-                                                    name="checkout_date" 
-                                                    type="date" 
-                                                    value={formData.checkout_date} 
-                                                    onChange={e=>handleChange('checkout_date', e.target.value)} 
-                                                    error={errors.checkout_date}
-                                                />
-                                            </div>
-                                            {/* Stay duration display */}
-                                            {stayDuration && (
-                                                <div className="md:col-span-2 flex justify-center py-2">
-                                                    <div className="stay-duration-badge">
-                                                        <Icon name="calendar-days" size={18} />
-                                                        <span>住宿天數：{stayDuration} 晚</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                    <div className="space-y-2" id="pet_type" tabIndex="-1">
-    <label className="text-xs font-bold text-slate-400 ml-1">寵物類型 *</label>
-    <div className={`flex gap-2 ${errors.pet_type ? 'group-error' : ''}`}>
-        {pillBtn('pet_type', '狗狗', formData.pet_type==='狗狗')}
-        {pillBtn('pet_type', '貓咪', formData.pet_type==='貓咪')}
-    </div>
-    <FieldError message={errors.pet_type} />
-</div>
-                                    <div className="md:col-span-2 grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-2">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-400 ml-1">寵物名字 *</label>
-                                            <InputWithError 
-                                                name="pet_name" 
-                                                value={formData.pet_name} 
-                                                onChange={e=>handleChange('pet_name', e.target.value)} 
-                                                error={errors.pet_name}
-                                            />
-                                        </div>
-                                        
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-400 ml-1">品種 *</label>
-                                            <InputWithError 
-                                                name="breed" 
-                                                value={formData.breed} 
-                                                onChange={e=>handleChange('breed', e.target.value)} 
-                                                error={errors.breed}
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-400 ml-1">體重 * (kg)</label>
-                                            <InputWithError 
-                                                name="weight" 
-                                                type="number" 
-                                                step="0.1" 
-                                                value={formData.weight} 
-                                                onChange={e=>handleChange('weight', e.target.value)} 
-                                                error={errors.weight}
-                                            />
-                                        </div>
-<div className="space-y-2" id="age">
-    <label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label>
-    
-    {/* 年齡類型切換按鈕 */}
-    <div className={`flex gap-2 ${errors.age ? 'group-error' : ''}`}>
+                                {/* ====== 同住毛孩 Tabs（美化版） ====== */}
+<div className="flex flex-col gap-4">
+    <div className="flex flex-wrap items-center gap-2">
+        {petList.map((pet, idx) => (
+            <div key={idx} className="flex items-center gap-1">
+                <button
+                    onClick={() => handleSwitchPet(idx)}
+                    className={`px-5 py-2.5 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-300 ${
+                        currentPetIdx === idx
+                            ? 'bg-[#736357] text-white shadow-md shadow-[#736357]/25 scale-[1.02]'
+                            : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-2 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5]'
+                    }`}
+                >
+                    <span className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-[#F7E7B5]/40 dark:bg-gray-600 flex items-center justify-center text-[10px] font-black text-[#736357] dark:text-[#F7E7B5]">
+                            {idx + 1}
+                        </span>
+                        {(idx === currentPetIdx ? (formData.pet_name || pet.pet_name) : pet.pet_name) || `寵物 ${idx+1}`}
+                    </span>
+                </button>
+                {petList.length > 1 && (
+                    <button 
+                        type="button"
+                        onClick={() => handleDeletePet(idx)}
+                        className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-400 border border-red-200 hover:bg-red-100 hover:text-red-600 transition-all"
+                        title="刪除這隻毛孩"
+                    >
+                        <Icon name="x" size={12} />
+                    </button>
+                )}
+            </div>
+        ))}
         <button 
-            type="button" 
-            onClick={() => {
-                setFormData(prev => ({ ...prev, is_under_one: false, age_months: '', age: '' }));
-                if (errors.age) setErrors(prev => ({ ...prev, age: null }));
-            }}
-            className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${!formData.is_under_one ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}
+            onClick={handleAddPet}
+            className="px-5 py-2.5 rounded-2xl border-2 border-dashed border-[#736357]/40 dark:border-gray-600 text-[#736357] dark:text-[#F7E7B5] font-bold text-sm hover:bg-[#F7E7B5]/20 dark:hover:bg-gray-700 transition-all hover:border-[#736357] dark:hover:border-[#F7E7B5] flex items-center gap-1.5"
         >
-            <span className="flex items-center justify-center gap-1.5">
-                {!formData.is_under_one && <Icon name="check-circle" size={14} />}
-                滿一歲以上
-            </span>
-        </button>
-        <button 
-            type="button" 
-            onClick={() => {
-                setFormData(prev => ({ ...prev, is_under_one: true, age: '', age_months: '' }));
-                if (errors.age) setErrors(prev => ({ ...prev, age: null }));
-            }}
-            className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.is_under_one ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}
-        >
-            <span className="flex items-center justify-center gap-1.5">
-                {formData.is_under_one && <Icon name="check-circle" size={14} />}
-                未滿一歲
-            </span>
+            <Icon name="plus" size={16} />
+            新增毛孩
         </button>
     </div>
 
-    {/* 根據選擇顯示不同輸入 */}
-    {formData.is_under_one ? (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-            <select 
-                name="age_months"
-                value={formData.age_months}
-                onChange={e => {
-                    handleChange('age_months', e.target.value);
-                    if (errors.age) setErrors(prev => ({ ...prev, age: null }));
-                }}
-                className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error shake-error' : ''}`}
+    {/* ====== 寵物類型（美化版） ====== */}
+    <div className="space-y-2" id="pet_type" tabIndex="-1">
+        <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider flex items-center gap-2">
+            寵物類型 *
+        </label>
+        <div className={`flex gap-2 ${errors.pet_type ? 'group-error' : ''}`}>
+            <button 
+                type="button" 
+                onClick={() => handleChange('pet_type', '狗狗')} 
+                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform flex items-center justify-center gap-2 ${
+                    formData.pet_type === '狗狗' 
+                        ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' 
+                        : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'
+                }`}
             >
-                <option value="">請選擇月齡</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => (
-                    <option key={m} value={m}>{m} 個月</option>
-                ))}
-            </select>
+                {formData.pet_type === '狗狗' && <Icon name="check-circle" size={14} />}
+                <Icon name="dog" size={18} />
+                狗狗
+            </button>
+            <button 
+                type="button" 
+                onClick={() => handleChange('pet_type', '貓咪')} 
+                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform flex items-center justify-center gap-2 ${
+                    formData.pet_type === '貓咪' 
+                        ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' 
+                        : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'
+                }`}
+            >
+                {formData.pet_type === '貓咪' && <Icon name="check-circle" size={14} />}
+                <Icon name="cat" size={18} />
+                貓咪
+            </button>
         </div>
-    ) : (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-            <input 
-                name="age"
-                type="number"
-                min="1"
-                step="1"
-                value={formData.age}
-                onChange={e => {
-                    handleChange('age', e.target.value);
-                    if (errors.age) setErrors(prev => ({ ...prev, age: null }));
-                }}
-                placeholder="請輸入年齡（整數）"
-                className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error shake-error' : ''}`} 
-            />
-        </div>
+        <FieldError message={errors.pet_type} />
+    </div>
+</div>
+
+<div className="flex items-center gap-4 border-b border-[#736357]/10 dark:border-gray-600 pb-6">
+    <div className="w-10 h-10 rounded-full bg-[#736357]/5 dark:bg-gray-700 flex items-center justify-center text-[#736357] dark:text-[#F7E7B5]">
+        <Icon name="calendar" size={20}/>
+    </div>
+    <h3 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">
+        {isBoarding ? "住宿行為與健康問卷" : "寵物詳細資料"}
+    </h3>
+</div>
+                                
+<div className="grid md:grid-cols-2 gap-6">
+    {isBoarding && (
+        <>
+            <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 ml-1">入住日期 *</label>
+                <InputWithError 
+                    name="checkin_date" 
+                    type="date" 
+                    value={formData.checkin_date} 
+                    onChange={e=>handleChange('checkin_date', e.target.value)} 
+                    error={errors.checkin_date}
+                />
+            </div>
+            <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 ml-1">退房日期 *</label>
+                <InputWithError 
+                    name="checkout_date" 
+                    type="date" 
+                    value={formData.checkout_date} 
+                    onChange={e=>handleChange('checkout_date', e.target.value)} 
+                    error={errors.checkout_date}
+                />
+            </div>
+            {/* Stay duration display */}
+            {stayDuration && (
+                <div className="md:col-span-2 flex justify-center py-2">
+                    <div className="stay-duration-badge">
+                        <Icon name="calendar-days" size={18} />
+                        <span>住宿天數：{stayDuration} 晚</span>
+                    </div>
+                </div>
+            )}
+        </>
     )}
     
-    <FieldError message={errors.age} /> 
-</div>
-
-
-
-                                        <div className="space-y-2" id="sex">
-                                            <label className="text-xs font-bold text-slate-400 ml-1">性別 *</label>
-                                            <div className={`flex gap-2 ${errors.sex ? 'group-error' : ''}`}>
-                                                {pillBtn('sex', '公', formData.sex==='公')}
-                                                {pillBtn('sex', '母', formData.sex==='母')}
-                                            </div>
-                                            <FieldError message={errors.sex} />
-                                        </div>
-                                        <div className="space-y-2" id="fix">
-                                            <label className="text-xs font-bold text-slate-400 ml-1">結紮 *</label>
-                                            <div className={`flex gap-2 ${errors.fix ? 'group-error' : ''}`}>
-                                                {pillBtn('fix', '是', formData.fix==='是')}
-                                                {pillBtn('fix', '否', formData.fix==='否')}
-                                            </div>
-                                            <FieldError message={errors.fix} />
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-4">
-                                        <div className="grid md:grid-cols-2 gap-8">
-                                            <div className="space-y-3" id="dog_traits" tabIndex="-1">
-                                                <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">社交狀況 (可複選) *</label>
-                                                <div className={`flex flex-col gap-2.5 pt-1 ${errors.dog_traits ? 'group-error' : ''}`}>
-{['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
-    <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${safeIncludes(formData.dog_traits, v) ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{v}</button>
-))}
-                                                </div>
-                                                <FieldError message={errors.dog_traits} />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4" id="grooming_temperament" tabIndex="-1">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">寵物美容性情與攻擊性評估 *</label>
-                                            <div className={`flex flex-col gap-2.5 pt-1 ${errors.grooming_temperament ? 'group-error' : ''}`}>
-                                                {[
-                                                    { value: '天使寶寶', label: '天使寶寶：個性溫和，無任何攻擊紀錄，也不怕生。' },
-                                                    { value: '有點緊張', label: '有點緊張：膽小怕生，可能會低吼或閃躲，但未曾咬人。' },
-                                                    { value: '恰北北/護主', label: <span>恰北北/護主：對於特定部位（如腳、尾巴、臉）敏感，或看到陌生人/狗貓會兇，曾有攻擊或試圖咬人的紀錄。<span className="text-red-500 font-bold">（請務必告知，讓我們做好防護準備）</span></span> }
-                                                ].map(option => (
-                                                    <button 
-                                                        type="button" 
-                                                        key={option.value} 
-                                                        onClick={() => handleChange('grooming_temperament', option.value)} 
-                                                        className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.grooming_temperament === option.value ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
-                                                    >
-                                                        {option.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <FieldError message={errors.grooming_temperament} />
-                                        </div>
-
-                                        <div className="space-y-4" id="chip_status" tabIndex="-1">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">晶片 *</label>
-                                            <div className={`flex flex-col gap-2.5 pt-1 ${errors.chip_status ? 'group-error' : ''}`}>
-                                                {['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (
-                                                    <button key={s} type="button" onClick={()=>handleChange('chip_status', s)} className={`pill-button px-5 py-3.5 rounded-xl text-left font-bold text-sm border-2 transition-all duration-300 ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{s}</button>
-                                                ))}
-                                            </div>
-                                            <FieldError message={errors.chip_status} />
-                                            {formData.chip_status === '有晶片' && <input placeholder="輸入 10 或 15 碼晶片號碼" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] mt-3 animate-in fade-in" />}
-                                        </div>
-
-<div className="space-y-1.5">
-    <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">指定就醫診療機構(若未填寫，則送往特約醫院)</label>
-    <InputWithError 
-        name="preferred_clinic"
-        value={formData.preferred_clinic} 
-        onChange={e=>handleChange('preferred_clinic', e.target.value)} 
-        placeholder="(若未填寫，則送往特約醫院)"
-        error={errors.preferred_clinic}
-    />
-    {/* 新增的美化提示框 */}
-    <div className="mt-2 p-3 rounded-xl bg-slate-50 dark:bg-gray-700/50 border border-slate-200 dark:border-gray-600 flex items-center gap-3">
-        <div className="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
-            <Icon name="hospital" size={18} />
+    <div className="md:col-span-2 grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-2">
+        <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 ml-1">寵物名字 *</label>
+            <InputWithError 
+                name="pet_name" 
+                value={formData.pet_name} 
+                onChange={e=>handleChange('pet_name', e.target.value)} 
+                error={errors.pet_name}
+            />
         </div>
-        <div>
-            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">特約醫院：</div>
-            <div className="font-semibold text-[#736357] dark:text-[#F7E7B5] text-sm">
-                耐旺福動物醫院 (台中市北屯區松竹路二段383之5號)
+        
+        <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 ml-1">品種 *</label>
+            <InputWithError 
+                name="breed" 
+                value={formData.breed} 
+                onChange={e=>handleChange('breed', e.target.value)} 
+                error={errors.breed}
+            />
+        </div>
+        <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 ml-1">體重 * (kg)</label>
+            <InputWithError 
+                name="weight" 
+                type="number" 
+                step="0.1" 
+                value={formData.weight} 
+                onChange={e=>handleChange('weight', e.target.value)} 
+                error={errors.weight}
+            />
+        </div>
+        <div className="space-y-2" id="age">
+            <label className="text-xs font-bold text-slate-400 ml-1">年齡 *</label>
+            
+            {/* 年齡類型切換按鈕 */}
+            <div className={`flex gap-2 ${errors.age ? 'group-error' : ''}`}>
+                <button 
+                    type="button" 
+                    onClick={() => {
+                        setFormData(prev => ({ ...prev, is_under_one: false, age_months: '', age: '' }));
+                        if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+                    }}
+                    className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${!formData.is_under_one ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}
+                >
+                    <span className="flex items-center justify-center gap-1.5">
+                        {!formData.is_under_one && <Icon name="check-circle" size={14} />}
+                        滿一歲以上
+                    </span>
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => {
+                        setFormData(prev => ({ ...prev, is_under_one: true, age: '', age_months: '' }));
+                        if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+                    }}
+                    className={`pill-button flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${formData.is_under_one ? 'bg-[#736357] text-white border-[#736357] shadow-lg' : 'bg-white dark:bg-gray-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357]'}`}
+                >
+                    <span className="flex items-center justify-center gap-1.5">
+                        {formData.is_under_one && <Icon name="check-circle" size={14} />}
+                        未滿一歲
+                    </span>
+                </button>
             </div>
+
+            {/* 根據選擇顯示不同輸入 */}
+            {formData.is_under_one ? (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <select 
+                        name="age_months"
+                        value={formData.age_months}
+                        onChange={e => {
+                            handleChange('age_months', e.target.value);
+                            if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+                        }}
+                        className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error shake-error' : ''}`}
+                    >
+                        <option value="">請選擇月齡</option>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => (
+                            <option key={m} value={m}>{m} 個月</option>
+                        ))}
+                    </select>
+                </div>
+            ) : (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <input 
+                        name="age"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.age}
+                        onChange={e => {
+                            handleChange('age', e.target.value);
+                            if (errors.age) setErrors(prev => ({ ...prev, age: null }));
+                        }}
+                        placeholder="請輸入年齡（整數）"
+                        className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.age ? 'input-error shake-error' : ''}`} 
+                    />
+                </div>
+            )}
+            
+            <FieldError message={errors.age} /> 
+        </div>
+
+
+
+        <div className="space-y-2" id="sex">
+            <label className="text-xs font-bold text-slate-400 ml-1">性別 *</label>
+            <div className={`flex gap-2 ${errors.sex ? 'group-error' : ''}`}>
+                {pillBtn('sex', '公', formData.sex==='公')}
+                {pillBtn('sex', '母', formData.sex==='母')}
+            </div>
+            <FieldError message={errors.sex} />
+        </div>
+        <div className="space-y-2" id="fix">
+            <label className="text-xs font-bold text-slate-400 ml-1">結紮 *</label>
+            <div className={`flex gap-2 ${errors.fix ? 'group-error' : ''}`}>
+                {pillBtn('fix', '是', formData.fix==='是')}
+                {pillBtn('fix', '否', formData.fix==='否')}
+            </div>
+            <FieldError message={errors.fix} />
         </div>
     </div>
+
+    <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-4">
+        {/* 社交狀況：僅狗狗顯示 */}
+        {formData.pet_type === '狗狗' && (
+            <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-3" id="dog_traits" tabIndex="-1">
+                    <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">社交狀況 (可複選) *</label>
+                    <div className={`flex flex-col gap-2.5 pt-1 ${errors.dog_traits ? 'group-error' : ''}`}>
+                        {['有攻擊性','無攻擊性','可與狗朋友們一起玩耍','不能與狗朋友們一起玩耍'].map(v => (
+                            <button type="button" key={v} onClick={()=>toggleArrayField('dog_traits', v)} className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${safeIncludes(formData.dog_traits, v) ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{v}</button>
+                        ))}
+                    </div>
+                    <FieldError message={errors.dog_traits} />
+                </div>
+            </div>
+        )}
+
+<div className="space-y-4" id="grooming_temperament" tabIndex="-1">
+    <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">寵物美容性情與攻擊性評估 *</label>
+    <div className={`flex flex-col gap-2.5 pt-1 ${errors.grooming_temperament ? 'group-error' : ''}`}>
+        {[
+            { value: '天使寶寶', label: '天使寶寶：個性溫和，無任何攻擊紀錄，也不怕生。' },
+            { value: '有點緊張', label: '有點緊張：膽小怕生，可能會低吼或閃躲，但未曾咬人。' },
+            { value: '恰北北/護主', label: <span>恰北北/護主：對於特定部位（如腳、尾巴、臉）敏感，或看到陌生人/狗貓會兇，曾有攻擊或試圖咬人的紀錄。<span className="text-red-500 font-bold">（請務必告知，讓我們做好防護準備）</span></span> }
+        ].map(option => (
+            <button 
+                type="button" 
+                key={option.value} 
+                onClick={() => handleChange('grooming_temperament', option.value)} 
+                className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.grooming_temperament === option.value ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
+            >
+                {option.label}
+            </button>
+        ))}
+    </div>
+    <FieldError message={errors.grooming_temperament} />
 </div>
 
-                                        <div className="space-y-4" id="medical_status">
-                                            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">過往病史 (可複選) *</label>
-                                            <div className={`flex gap-3 mb-4 ${errors.medical_status ? 'group-error' : ''}`}>
-                                                {pillBtn('medical_status', '有', formData.medical_status === '有')}
-                                                {pillBtn('medical_status', '無', formData.medical_status === '無')}
-                                            </div>
-                                            <FieldError message={errors.medical_status} />
-                                            
-                                            {formData.medical_status === '有' && (
-                                                <div className={`space-y-4 animate-in fade-in slide-in-from-top-2 duration-400 ${errors.medical_history ? 'group-error' : ''}`}>
-<div className="flex flex-wrap gap-2">
-    {['心臟病','氣喘','氣管塌陷','白內障','癲癇','心絲蟲','艾利希體','腹膜炎','腹積水','手術外傷未癒合','髖關節問題','骨折','腸炎','血便','血尿','懷孕','傳診性疾病'].map(v => (
-        <button type="button" key={v} onClick={() => toggleArrayField('medical_history', v)} className={`pill-button px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${safeIncludes(formData.medical_history, v) ? 'bg-[#736357] text-white shadow-md' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5]'}`}>{v}</button>
-    ))}
-    <button type="button" onClick={() => toggleArrayField('medical_history', '其他')} className={`pill-button px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${safeIncludes(formData.medical_history, '其他') ? 'bg-[#06C755] text-white border-[#06C755] shadow-md' : 'bg-white dark:bg-gray-700 text-slate-400 border-dashed border-slate-300 dark:border-gray-500 hover:border-[#06C755] hover:text-[#06C755]'}`}>＋ 其他</button>
+{/* 攻擊性（美容與住宿皆顯示） */}
+<div className="space-y-3" id="grooming_aggressive">
+    <label className="text-xs font-bold text-slate-400 ml-1">攻擊性 *</label>
+    <div className={`flex gap-2 ${errors.grooming_aggressive ? 'group-error' : ''}`}>
+        {['有攻擊性','無攻擊性'].map(v => (
+            <button 
+                key={v} 
+                type="button" 
+                onClick={() => handleChange('grooming_aggressive', v)} 
+                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.grooming_aggressive === v ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
+            >
+                <span className="flex items-center justify-center gap-1.5">
+                    {formData.grooming_aggressive === v && <Icon name="check-circle" size={14} />}
+                    {v}
+                </span>
+            </button>
+        ))}
+    </div>
+    <FieldError message={errors.grooming_aggressive} />
 </div>
-<FieldError message={errors.medical_history} />
-{safeIncludes(formData.medical_history, '其他') && <textarea value={formData.medical_history_other || ''} onChange={e => setFormData({...formData, medical_history_other: e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[80px] text-sm shadow-inner animate-in fade-in" placeholder="請詳細說明其他病史..." />}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
 
-                                    {/* 住宿專用區塊 */}
-                                    {isBoarding && (
-                                        <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-4 animate-in fade-in">
-                                            <div className="grid md:grid-cols-2 gap-8">
-                                                <div className="space-y-3" id="is_barking">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">會容易吠叫嗎 *</label>
-                                                    <div className={`flex gap-2 ${errors.is_barking ? 'group-error' : ''}`}>
-                                                        {pillBtn('is_barking', '會', formData.is_barking === '會')}
-                                                        {pillBtn('is_barking', '不會', formData.is_barking === '不會')}
-                                                    </div>
-                                                    <FieldError message={errors.is_barking} />
-                                                    {formData.is_barking === '會' && (
-                                                        <div className="space-y-1">
-                                                            <textarea name="barking_detail" value={formData.barking_detail || ''} onChange={e => handleChange('barking_detail', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] mt-2 min-h-[80px] text-sm ${errors.barking_detail ? 'input-error' : ''}`} placeholder="什麼情況下會吠叫？" />
-                                                            <FieldError message={errors.barking_detail} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="space-y-3" id="stay_exp">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">有住宿過的經驗嗎 *</label>
-                                                    <div className={`flex gap-2 ${errors.stay_exp ? 'group-error' : ''}`}>
-                                                        {pillBtn('stay_exp', '有', formData.stay_exp==='有')}
-                                                        {pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}
-                                                    </div>
-                                                    <FieldError message={errors.stay_exp} />
-                                                </div>
-                                                <div className="space-y-3" id="food_aggr">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">會護食嗎 *</label>
-                                                    <div className={`flex gap-2 ${errors.food_aggr ? 'group-error' : ''}`}>
-                                                        {pillBtn('food_aggr', '會', formData.food_aggr==='會')}
-                                                        {pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}
-                                                    </div>
-                                                    <FieldError message={errors.food_aggr} />
-                                                </div>
-                                                <div className="space-y-3" id="pad_toilet">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">會在尿布墊上上廁所嗎 *</label>
-                                                    <div className={`flex gap-2 ${errors.pad_toilet ? 'group-error' : ''}`}>
-                                                        {pillBtn('pad_toilet', '會', formData.pad_toilet==='會')}
-                                                        {pillBtn('pad_toilet', '不會', formData.pad_toilet==='不會')}
-                                                    </div>
-                                                    <FieldError message={errors.pad_toilet} />
-                                                </div>
-                                                <div className="space-y-3" id="vaccine">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">每年定期施打疫苗 (請提供疫苗手冊) *</label>
-                                                    <div className={`flex gap-2 ${errors.vaccine ? 'group-error' : ''}`}>
-                                                        {pillBtn('vaccine', '有', formData.vaccine==='有')}
-                                                        {pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}
-                                                    </div>
-                                                    <FieldError message={errors.vaccine} />
-                                                    
-                                                    {formData.vaccine === '有' && (
-                                                        <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
-                                                            <input type="file" accept="image/*" id="vaccine-upload" className="hidden"
-                                                                onChange={async (e) => {
-                                                                    const file = e.target.files[0];
-                                                                    if (file) {
-                                                                        setIsProcessingImg(true); 
-                                                                        showToast("📸 正在壓縮圖片中，請稍候...", "success");
-                                                                        
-                                                                        try {
-                                                                            const compressedDataUrl = await compressImage(file);
-                                                                            setFormData(prev => ({...prev, vaccine_file: compressedDataUrl}));
-                                                                            if(errors.vaccine_file) setErrors(prev=>({...prev, vaccine_file:null}));
-                                                                            showToast("✅ 圖片上傳並壓縮成功！", "success");
-                                                                        } catch (error) {
-                                                                            console.error(error);
-                                                                            showToast("❌ 圖片處理失敗，請重試");
-                                                                        } finally {
-                                                                            setIsProcessingImg(false);
-                                                                        }
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <label id="vaccine-label" htmlFor="vaccine-upload" 
-                                                                className={`w-full flex items-center justify-center gap-2 py-6 border-2 border-dashed border-[#F7E7B5] bg-[#F7E7B5]/5 rounded-2xl cursor-pointer hover:bg-[#F7E7B5]/20 transition-all ${errors.vaccine_file ? 'shake-error border-red-500' : ''} ${isProcessingImg ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            >
-                                                                {isProcessingImg ? (
-                                                                    <>
-                                                                        <Icon name="loader-2" size={20} className="text-[#736357] animate-spin" />
-                                                                        <span className="text-sm font-bold text-[#736357] dark:text-[#F7E7B5]">圖片處理中...</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Icon name="image" size={20} className="text-[#736357] dark:text-[#F7E7B5]" />
-                                                                        <span className="text-sm font-bold text-[#736357] dark:text-[#F7E7B5]">
-                                                                            {formData.vaccine_file ? "更換疫苗手冊照片" : "選擇照片或開啟相機"}
-                                                                        </span>
-                                                                    </>
-                                                                )}
-                                                            </label>
-                                                            <FieldError message={errors.vaccine_file} />
-
-                                                            {formData.vaccine_file && !isProcessingImg && (
-                                                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#736357]/10 shadow-sm">
-                                                                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
-                                                                    <button type="button" onClick={() => setFormData({...formData, vaccine_file: null})} className="absolute top-3 right-3 bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-red-50 transition-colors">
-                                                                        <Icon name="x" size={16} />
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="space-y-3" id="deworm">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">每月定期驅蟲預防 *</label>
-                                                    <div className={`flex gap-2 ${errors.deworm ? 'group-error' : ''}`}>
-                                                        {pillBtn('deworm', '有', formData.deworm==='有')}
-                                                        {pillBtn('deworm', '無', formData.deworm==='無')}
-                                                    </div>
-                                                    <FieldError message={errors.deworm} />
-                                                    {formData.deworm === '有' && (
-                                                        <div className="space-y-1">
-                                                            <input name="deworm_brand" value={formData.deworm_brand} onChange={e=>handleChange('deworm_brand', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3 font-bold text-[#736357] dark:text-[#F7E7B5] mt-2 text-sm shadow-inner ${errors.deworm_brand ? 'input-error' : ''}`} placeholder="使用哪個牌子的驅蟲藥？" />
-                                                            <FieldError message={errors.deworm_brand} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4" id="crate_status">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <label className="text-xs font-bold text-slate-400 ml-1">籠內訓練狀況 (可複選) *</label>
-                                                    <p className="text-[11px] font-bold text-[#736357]/60 dark:text-gray-400 ml-1">何謂籠內訓練：<a href="https://www.hapet.com.tw/blog/posts/cratetraining" target="_blank" className="text-[#736357] dark:text-[#F7E7B5] underline decoration-dashed underline-offset-4 hover:text-[#06C755] transition-all">能在圍欄或房間內獨立休息，不焦慮、不持續吠叫、不激動衝撞</a></p>
-                                                </div>
-<div className={`flex flex-col gap-2.5 pt-1 ${errors.crate_status ? 'group-error' : ''}`}>
-    {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
-        <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${safeIncludes(formData.crate_status, v) ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{v}</button>
-    ))}
+{/* 與狗相處（美容與住宿皆顯示） */}
+<div className="space-y-3" id="grooming_dog_friendly">
+    <label className="text-xs font-bold text-slate-400 ml-1">與狗相處 *</label>
+    <div className={`flex gap-2 ${errors.grooming_dog_friendly ? 'group-error' : ''}`}>
+        {['可與狗朋友玩','不可與狗朋友玩'].map(v => (
+            <button 
+                key={v} 
+                type="button" 
+                onClick={() => handleChange('grooming_dog_friendly', v)} 
+                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.grooming_dog_friendly === v ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
+            >
+                <span className="flex items-center justify-center gap-1.5">
+                    {formData.grooming_dog_friendly === v && <Icon name="check-circle" size={14} />}
+                    {v}
+                </span>
+            </button>
+        ))}
+    </div>
+    <FieldError message={errors.grooming_dog_friendly} />
 </div>
-                                                <FieldError message={errors.crate_status} />
-                                            </div>
 
+{/* 是否接受餵零食安撫情緒（僅住宿顯示） */}
+{isBoarding && (
+    <div className="space-y-3" id="grooming_snack_soothe">
+        <label className="text-xs font-bold text-slate-400 ml-1">是否接受餵零食安撫情緒 *</label>
+        <div className={`flex gap-2 ${errors.grooming_snack_soothe ? 'group-error' : ''}`}>
+            {['接受','不接受'].map(v => (
+                <button 
+                    key={v} 
+                    type="button" 
+                    onClick={() => handleChange('grooming_snack_soothe', v)} 
+                    className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.grooming_snack_soothe === v ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}
+                >
+                    <span className="flex items-center justify-center gap-1.5">
+                        {formData.grooming_snack_soothe === v && <Icon name="check-circle" size={14} />}
+                        {v}
+                    </span>
+                </button>
+            ))}
+        </div>
+        <FieldError message={errors.grooming_snack_soothe} />
+    </div>
+)}
+
+        <div className="space-y-4" id="chip_status" tabIndex="-1">
+            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">晶片 *</label>
+            <div className={`flex flex-col gap-2.5 pt-1 ${errors.chip_status ? 'group-error' : ''}`}>
+                {['有晶片', '有晶片(號碼不詳)', '無晶片'].map(s => (
+                    <button key={s} type="button" onClick={()=>handleChange('chip_status', s)} className={`pill-button px-5 py-3.5 rounded-xl text-left font-bold text-sm border-2 transition-all duration-300 ${formData.chip_status === s ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{s}</button>
+                ))}
+            </div>
+            <FieldError message={errors.chip_status} />
+            {formData.chip_status === '有晶片' && <input placeholder="輸入 10 或 15 碼晶片號碼" value={formData.chip_id} onChange={e=>setFormData({...formData, chip_id:e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] mt-3 animate-in fade-in" />}
+        </div>
+
+        <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">指定就醫診療機構(若未填寫，則送往特約醫院)</label>
+            <InputWithError 
+                name="preferred_clinic"
+                value={formData.preferred_clinic} 
+                onChange={e=>handleChange('preferred_clinic', e.target.value)} 
+                placeholder="(若未填寫，則送往特約醫院)"
+                error={errors.preferred_clinic}
+            />
+            {/* 新增的美化提示框 */}
+            <div className="mt-2 p-3 rounded-xl bg-slate-50 dark:bg-gray-700/50 border border-slate-200 dark:border-gray-600 flex items-center gap-3">
+                <div className="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                    <Icon name="hospital" size={18} />
+                </div>
+                <div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">特約醫院：</div>
+                    <div className="font-semibold text-[#736357] dark:text-[#F7E7B5] text-sm">
+                        耐旺福動物醫院 (台中市北屯區松竹路二段383之5號)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div className="space-y-4" id="medical_status">
+            <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider">過往病史 (可複選) *</label>
+            <div className={`flex gap-3 mb-4 ${errors.medical_status ? 'group-error' : ''}`}>
+                {pillBtn('medical_status', '有', formData.medical_status === '有')}
+                {pillBtn('medical_status', '無', formData.medical_status === '無')}
+            </div>
+            <FieldError message={errors.medical_status} />
+            
+            {formData.medical_status === '有' && (
+                <div className={`space-y-4 animate-in fade-in slide-in-from-top-2 duration-400 ${errors.medical_history ? 'group-error' : ''}`}>
+                    <div className="flex flex-wrap gap-2">
+                        {['心臟病','氣喘','氣管塌陷','白內障','癲癇','心絲蟲','艾利希體','腹膜炎','腹積水','手術外傷未癒合','髖關節問題','骨折','腸炎','血便','血尿','懷孕','傳診性疾病'].map(v => (
+                            <button type="button" key={v} onClick={() => toggleArrayField('medical_history', v)} className={`pill-button px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${safeIncludes(formData.medical_history, v) ? 'bg-[#736357] text-white shadow-md' : 'bg-white dark:bg-gray-700 text-slate-400 border-slate-200 dark:border-gray-600 hover:border-[#F7E7B5] hover:text-[#736357] dark:hover:text-[#F7E7B5]'}`}>{v}</button>
+                        ))}
+                        <button type="button" onClick={() => toggleArrayField('medical_history', '其他')} className={`pill-button px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${safeIncludes(formData.medical_history, '其他') ? 'bg-[#06C755] text-white border-[#06C755] shadow-md' : 'bg-white dark:bg-gray-700 text-slate-400 border-dashed border-slate-300 dark:border-gray-500 hover:border-[#06C755] hover:text-[#06C755]'}`}>＋ 其他</button>
+                    </div>
+                    <FieldError message={errors.medical_history} />
+                    {safeIncludes(formData.medical_history, '其他') && <textarea value={formData.medical_history_other || ''} onChange={e => setFormData({...formData, medical_history_other: e.target.value})} className="w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] min-h-[80px] text-sm shadow-inner animate-in fade-in" placeholder="請詳細說明其他病史..." />}
+                </div>
+            )}
+        </div>
+    </div>
+
+    {/* 住宿專用區塊 */}
+    {isBoarding && (
+        <div className="md:col-span-2 space-y-8 pt-4 border-t border-[#736357]/10 dark:border-gray-600 mt-4 animate-in fade-in">
+            <div className="grid md:grid-cols-2 gap-8">
+                {/* 會容易吠叫嗎：僅狗狗顯示 */}
+                {formData.pet_type === '狗狗' && (
+                    <>
+                        <div className="space-y-3" id="is_barking">
+                            <label className="text-xs font-bold text-slate-400 ml-1">會容易吠叫嗎 *</label>
+                            <div className={`flex gap-2 ${errors.is_barking ? 'group-error' : ''}`}>
+                                {pillBtn('is_barking', '會', formData.is_barking === '會')}
+                                {pillBtn('is_barking', '不會', formData.is_barking === '不會')}
+                            </div>
+                            <FieldError message={errors.is_barking} />
+                            {formData.is_barking === '會' && (
+                                <div className="space-y-1">
+                                    <textarea name="barking_detail" value={formData.barking_detail || ''} onChange={e => handleChange('barking_detail', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] mt-2 min-h-[80px] text-sm ${errors.barking_detail ? 'input-error' : ''}`} placeholder="什麼情況下會吠叫？" />
+                                    <FieldError message={errors.barking_detail} />
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+                <div className="space-y-3" id="stay_exp">
+                    <label className="text-xs font-bold text-slate-400 ml-1">有住宿過的經驗嗎 *</label>
+                    <div className={`flex gap-2 ${errors.stay_exp ? 'group-error' : ''}`}>
+                        {pillBtn('stay_exp', '有', formData.stay_exp==='有')}
+                        {pillBtn('stay_exp', '沒有', formData.stay_exp==='沒有')}
+                    </div>
+                    <FieldError message={errors.stay_exp} />
+                </div>
+                <div className="space-y-3" id="food_aggr">
+                    <label className="text-xs font-bold text-slate-400 ml-1">會護食嗎 *</label>
+                    <div className={`flex gap-2 ${errors.food_aggr ? 'group-error' : ''}`}>
+                        {pillBtn('food_aggr', '會', formData.food_aggr==='會')}
+                        {pillBtn('food_aggr', '不會', formData.food_aggr==='不會')}
+                    </div>
+                    <FieldError message={errors.food_aggr} />
+                </div>
+                {/* 會在尿布墊上上廁所嗎：僅狗狗顯示 */}
+                {formData.pet_type === '狗狗' && (
+                    <div className="space-y-3" id="pad_toilet">
+                        <label className="text-xs font-bold text-slate-400 ml-1">會在尿布墊上上廁所嗎 *</label>
+                        <div className={`flex gap-2 ${errors.pad_toilet ? 'group-error' : ''}`}>
+                            {pillBtn('pad_toilet', '會', formData.pad_toilet==='會')}
+                            {pillBtn('pad_toilet', '不會', formData.pad_toilet==='不會')}
+                        </div>
+                        <FieldError message={errors.pad_toilet} />
+                    </div>
+                )}
+
+                {/* 貓砂使用習慣：僅貓咪顯示 */}
+                {formData.pet_type === '貓咪' && (
+                    <div className="space-y-3" id="cat_litter_habit">
+                        <label className="text-xs font-bold text-slate-400 ml-1">貓砂使用習慣 *</label>
+                        <div className={`flex flex-col gap-2.5 pt-1 ${errors.cat_litter_habit ? 'group-error' : ''}`}>
+                            <button 
+                                type="button" 
+                                onClick={() => handleChange('cat_litter_habit', '自備貓砂')} 
+                                className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.cat_litter_habit === '自備貓砂' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
+                            >
+                                自備貓砂
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={() => handleChange('cat_litter_habit', '館內貓砂(礦砂/豆腐砂)')} 
+                                className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${formData.cat_litter_habit === '館內貓砂(礦砂/豆腐砂)' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}
+                            >
+                                館內貓砂 (礦砂/豆腐砂)
+                            </button>
+                        </div>
+                        <FieldError message={errors.cat_litter_habit} />
+                    </div>
+                )}
+
+                <div className="space-y-3" id="vaccine">
+                    <label className="text-xs font-bold text-slate-400 ml-1">每年定期施打疫苗 (請提供疫苗手冊) *</label>
+                    <div className={`flex gap-2 ${errors.vaccine ? 'group-error' : ''}`}>
+                        {pillBtn('vaccine', '有', formData.vaccine==='有')}
+                        {pillBtn('vaccine', '沒有', formData.vaccine==='沒有')}
+                    </div>
+                    <FieldError message={errors.vaccine} />
+                    
+                    {formData.vaccine === '有' && (
+                        <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
+                            <input type="file" accept="image/*" id="vaccine-upload" className="hidden"
+                                onChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        setIsProcessingImg(true); 
+                                        showToast("📸 正在壓縮圖片中，請稍候...", "success");
+                                        
+                                        try {
+                                            const compressedDataUrl = await compressImage(file);
+                                            setFormData(prev => ({...prev, vaccine_file: compressedDataUrl}));
+                                            if(errors.vaccine_file) setErrors(prev=>({...prev, vaccine_file:null}));
+                                            showToast("✅ 圖片上傳並壓縮成功！", "success");
+                                        } catch (error) {
+                                            console.error(error);
+                                            showToast("❌ 圖片處理失敗，請重試");
+                                        } finally {
+                                            setIsProcessingImg(false);
+                                        }
+                                    }
+                                }}
+                            />
+                            <label id="vaccine-label" htmlFor="vaccine-upload" 
+                                className={`w-full flex items-center justify-center gap-2 py-6 border-2 border-dashed border-[#F7E7B5] bg-[#F7E7B5]/5 rounded-2xl cursor-pointer hover:bg-[#F7E7B5]/20 transition-all ${errors.vaccine_file ? 'shake-error border-red-500' : ''} ${isProcessingImg ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {isProcessingImg ? (
+                                    <>
+                                        <Icon name="loader-2" size={20} className="text-[#736357] animate-spin" />
+                                        <span className="text-sm font-bold text-[#736357] dark:text-[#F7E7B5]">圖片處理中...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Icon name="image" size={20} className="text-[#736357] dark:text-[#F7E7B5]" />
+                                        <span className="text-sm font-bold text-[#736357] dark:text-[#F7E7B5]">
+                                            {formData.vaccine_file ? "更換疫苗手冊照片" : "選擇照片或開啟相機"}
+                                        </span>
+                                    </>
+                                )}
+                            </label>
+                            <FieldError message={errors.vaccine_file} />
+
+                            {formData.vaccine_file && !isProcessingImg && (
+                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#736357]/10 shadow-sm">
+                                    <img src={formData.vaccine_file} className="w-full h-full object-cover" />
+                                    <button type="button" onClick={() => setFormData({...formData, vaccine_file: null})} className="absolute top-3 right-3 bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-red-50 transition-colors">
+                                        <Icon name="x" size={16} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <div className="space-y-3" id="deworm">
+                    <label className="text-xs font-bold text-slate-400 ml-1">每月定期驅蟲預防 *</label>
+                    <div className={`flex gap-2 ${errors.deworm ? 'group-error' : ''}`}>
+                        {pillBtn('deworm', '有', formData.deworm==='有')}
+                        {pillBtn('deworm', '無', formData.deworm==='無')}
+                    </div>
+                    <FieldError message={errors.deworm} />
+                    {formData.deworm === '有' && (
+                        <div className="space-y-1">
+                            <input name="deworm_brand" value={formData.deworm_brand} onChange={e=>handleChange('deworm_brand', e.target.value)} className={`w-full cute-input rounded-xl px-5 py-3 font-bold text-[#736357] dark:text-[#F7E7B5] mt-2 text-sm shadow-inner ${errors.deworm_brand ? 'input-error' : ''}`} placeholder="使用哪個牌子的驅蟲藥？" />
+                            <FieldError message={errors.deworm_brand} />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* 籠內訓練狀況：僅狗狗顯示 */}
+            {formData.pet_type === '狗狗' && (
+                <div className="space-y-4" id="crate_status">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-400 ml-1">籠內訓練狀況 (可複選) *</label>
+                        <p className="text-[11px] font-bold text-[#736357]/60 dark:text-gray-400 ml-1">何謂籠內訓練：<a href="https://www.hapet.com.tw/blog/posts/cratetraining" target="_blank" className="text-[#736357] dark:text-[#F7E7B5] underline decoration-dashed underline-offset-4 hover:text-[#06C755] transition-all">能在圍欄或房間內獨立休息，不焦慮、不持續吠叫、不激動衝撞</a></p>
+                    </div>
+                    <div className={`flex flex-col gap-2.5 pt-1 ${errors.crate_status ? 'group-error' : ''}`}>
+                        {['有 平常在家都有在圍欄內或籠子睡覺','有 以前有訓練過 但日常沒有維持','有 但不確認現在能不能適應','沒有 但之前在外住宿 在房間可以適應得很好','從來沒有'].map(v => (
+                            <button type="button" key={v} onClick={()=>toggleArrayField('crate_status', v)} className={`pill-button px-5 py-3.5 rounded-xl text-left text-sm font-bold border-2 transition-all duration-300 ${safeIncludes(formData.crate_status, v) ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/20 scale-[1.01]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-slate-300 border-slate-200 dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:bg-[#736357]/5'}`}>{v}</button>
+                        ))}
+                    </div>
+                    <FieldError message={errors.crate_status} />
+                </div>
+            )}
 <div className="space-y-8 border-t border-[#736357]/20 dark:border-gray-600 pt-10 mt-10">
-                                                <div className="flex items-center gap-3">
-                                                    <Icon name="info" size={24} className="text-[#736357] dark:text-[#F7E7B5]"/>
-                                                    <h4 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">狗狗的日常情形及注意事項</h4>
-                                                </div>
+    <div className="flex items-center gap-3">
+        <Icon name="info" size={24} className="text-[#736357] dark:text-[#F7E7B5]"/>
+        <h4 className="text-xl font-bold text-[#736357] dark:text-[#F7E7B5]">{formData.pet_type === '貓咪' ? '貓咪的日常情形及注意事項' : '狗狗的日常情形及注意事項'}</h4>
+    </div>
+
+{/* 住宿期間美容服務（僅貓住宿顯示） */}
+    {isBoarding && formData.pet_type === '貓咪' && (
+        <div className="space-y-3 p-5 rounded-2xl border-2 border-[#F7E7B5]/50 bg-[#F7E7B5]/10" id="boarding_grooming">
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#F7E7B5] text-[#736357] flex items-center justify-center">
+                    <Icon name="scissors" size={16}/>
+                </div>
+                <h5 className="font-black text-[#736357] dark:text-[#F7E7B5]">住宿期間美容服務</h5>
+            </div>
+            <label className="text-xs font-bold text-slate-400 ml-1">是否需要在住宿期間安排美容？ *</label>
+            <div className={`flex gap-2 ${errors.boarding_grooming ? 'group-error' : ''}`}>
+                {pillBtn('boarding_grooming', '是，我要加購', formData.boarding_grooming==='是，我要加購')}
+                {pillBtn('boarding_grooming', '否，純住宿', formData.boarding_grooming==='否，純住宿')}
+            </div>
+            <FieldError message={errors.boarding_grooming} />
+        </div>
+    )}
 
                                                 {/* 飲食習慣調查 */}
                                                 <div className="space-y-6 p-5 rounded-2xl border-2 border-[#F7E7B5]/50 bg-[#F7E7B5]/10">
@@ -3039,17 +3320,34 @@ if (funcError) console.error("寄信失敗:", funcError);
     ))}
 </div>
         <div className="grid md:grid-cols-2 gap-8">
-            <div className="md:col-span-2 space-y-1.5" id="grooming_date">
-                <label className="text-xs font-bold text-slate-400 ml-1">美容預約日期 *</label>
-                <InputWithError 
-                    name="grooming_date" 
-                    type="date"
-                    min={getTodayDate()}
-                    value={formData.grooming_date} 
-                    onChange={e=>handleChange('grooming_date', e.target.value)} 
-                    error={errors.grooming_date}
-                />
-            </div>
+<div className="md:col-span-2 grid md:grid-cols-2 gap-6">
+    <div className="space-y-1.5" id="grooming_date">
+        <label className="text-xs font-bold text-slate-400 ml-1">美容預約日期 *</label>
+        <InputWithError 
+            name="grooming_date" 
+            type="date"
+            min={getTodayDate()}
+            value={formData.grooming_date} 
+            onChange={e=>handleChange('grooming_date', e.target.value)} 
+            error={errors.grooming_date}
+        />
+    </div>
+    <div className="space-y-1.5">
+        <label className="text-xs font-bold text-slate-400 ml-1">預約時段 *</label>
+        <select 
+            name="grooming_time"
+            value={formData.grooming_time || ''}
+            onChange={e=>handleChange('grooming_time', e.target.value)}
+            className={`w-full cute-input rounded-xl px-5 py-3.5 font-bold text-[#736357] dark:text-[#F7E7B5] ${errors.grooming_time ? 'input-error shake-error' : ''}`}
+        >
+            <option value="">請選擇時段</option>
+            {['10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00'].map(t => (
+                <option key={t} value={t}>{t}</option>
+            ))}
+        </select>
+        <FieldError message={errors.grooming_time} />
+    </div>
+</div>
 
             <div className="md:col-span-2 space-y-4">
                 <label className="text-xs font-bold text-slate-400 ml-1 tracking-wider uppercase">服務項目 *</label>
@@ -3275,6 +3573,41 @@ if (funcError) console.error("寄信失敗:", funcError);
                                             </button>
                                         </div>
                                     )}
+
+                                    {/* 5. 影像使用授權 (住宿/美容皆顯示) */}
+                                    <div className="space-y-3 p-5 rounded-2xl border-2 border-[#736357]/20 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50" id="media_consent">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-[#736357]/10 dark:bg-gray-700 flex items-center justify-center text-[#736357] dark:text-[#F7E7B5]">
+                                                <Icon name="camera" size={16}/>
+                                            </div>
+                                            <h5 className="font-black text-[#736357] dark:text-[#F7E7B5]">影像使用授權</h5>
+                                            <span className="text-red-500 text-xs font-bold ml-1">*</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                                            是否同意將毛孩照片/影片上傳至社群網站(FB/IG)並標記名字？
+                                        </p>
+                                        <div className={`flex gap-3 ${errors.media_consent ? 'group-error' : ''}`}>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleChange('media_consent', '同意')} 
+                                                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.media_consent === '同意' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
+                                                <span className="flex items-center justify-center gap-1.5">
+                                                    {formData.media_consent === '同意' && <Icon name="check-circle" size={14} />}
+                                                    同意
+                                                </span>
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleChange('media_consent', '不同意')} 
+                                                className={`pill-button flex-1 py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 transform ${formData.media_consent === '不同意' ? 'bg-[#736357] text-white border-[#736357] shadow-lg shadow-[#736357]/30 scale-[1.02]' : 'bg-white dark:bg-gray-700 text-[#736357] dark:text-gray-300 border-[#F7E7B5] dark:border-gray-600 hover:border-[#736357] dark:hover:border-[#F7E7B5] hover:scale-[1.01]'}`}>
+                                                <span className="flex items-center justify-center gap-1.5">
+                                                    {formData.media_consent === '不同意' && <Icon name="check-circle" size={14} />}
+                                                    不同意
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <FieldError message={errors.media_consent} />
+                                    </div>
                                 </div>
 <div className="pt-4">
                                     {/* 總同意勾選框 (解鎖機制) */}
@@ -3769,26 +4102,148 @@ if (funcError) console.error("寄信失敗:", funcError);
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('./sw.js?v=11');                    console.log('Service Worker 註冊成功');
+                    // ✅ 每次更新只改這個數字！
+                    const VERSION = '6';
+                    
+                    const registration = await navigator.serviceWorker.register(`./sw.js?v=${VERSION}`);
+                    console.log('Service Worker 註冊成功');
 
+                    let updateToast = null;
+
+                    // ✅ 監聽新版本安裝完成
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('偵測到新版本');
-                                const shouldUpdate = confirm('偵測到新版本，是否立即更新？');
-                                if (shouldUpdate) {
+                                console.log(`📢 網站有新版本 (v${VERSION}) 可用`);
+
+                                if (updateToast) return;
+
+                                // ✅ 現代化更新提示
+                                updateToast = document.createElement('div');
+                                updateToast.style.cssText = `
+                                    position: fixed;
+                                    bottom: 28px;
+                                    left: 50%;
+                                    transform: translateX(-50%);
+                                    background: #ffffff;
+                                    border-radius: 16px;
+                                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.03);
+                                    z-index: 9999;
+                                    padding: 0;
+                                    animation: toastSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+                                    max-width: 440px;
+                                    width: calc(100% - 32px);
+                                    overflow: hidden;
+                                `;
+                                updateToast.innerHTML = `
+                                    <div style="display:flex;align-items:stretch;gap:0;position:relative;">
+                                        <!-- 左側彩色條 -->
+                                        <div style="width:4px;background:linear-gradient(180deg,#F7E7B5,#736357);flex-shrink:0;"></div>
+                                        
+                                        <!-- 主要內容 -->
+                                        <div style="flex:1;padding:16px 20px;display:flex;align-items:center;gap:14px;">
+<!-- 圖示 -->
+<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#F7E7B5,#e8d4a0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(247,231,181,0.3);">
+    <i data-lucide="cloud-download" style="width:22px;height:22px;stroke:#5D4D41;stroke-width:2.5;"></i>
+</div>
+                                            
+                                            <!-- 文字 -->
+                                            <div style="flex:1;min-width:0;">
+                                                <div style="font-weight:700;font-size:15px;color:#1a1a1a;letter-spacing:-0.2px;line-height:1.3;">有新版本可用</div>
+                                                <div style="font-size:13px;color:#8b8b8b;font-weight:400;line-height:1.4;">點擊按鈕立即更新體驗</div>
+                                            </div>
+                                            
+                                            <!-- 按鈕組 -->
+                                            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                                                <button style="background:#736357;color:white;border:none;padding:8px 18px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.25s cubic-bezier(0.16, 1, 0.3, 1);box-shadow:0 4px 16px rgba(115,99,87,0.25);white-space:nowrap;">更新</button>
+                                                <button style="background:transparent;color:#c5c5c5;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;justify-content:center;font-size:18px;padding:0;">✕</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+document.body.appendChild(updateToast);
+
+// ✅ 手動觸發 Lucide 渲染圖示
+if (window.lucide) {
+    window.lucide.createIcons({
+        root: updateToast,
+        attrs: { "stroke-width": 2.5 }
+    });
+}
+
+// ✅ 動畫樣式
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    @keyframes toastSlideUp {
+        from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    }
+    @keyframes toastSlideDown {
+        from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        to { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.92); }
+    }
+    .toast-update-btn:hover {
+        transform: scale(1.04);
+        background: #5D4D41 !important;
+        box-shadow: 0 6px 24px rgba(115,99,87,0.35) !important;
+    }
+    .toast-close-btn:hover {
+        background: #f3f4f6 !important;
+        color: #6b7280 !important;
+    }
+    .toast-close-btn:active {
+        transform: scale(0.9);
+    }
+    .toast-update-btn:active {
+        transform: scale(0.95);
+    }
+`;
+document.head.appendChild(styleSheet);
+
+                                // 設定按鈕樣式
+                                const btns = updateToast.querySelectorAll('button');
+                                btns[0].className = 'toast-update-btn';
+                                btns[1].className = 'toast-close-btn';
+
+                                // 點擊「更新」按鈕
+                                btns[0].addEventListener('click', () => {
+                                    updateToast.style.animation = 'toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                    setTimeout(() => {
+                                        if (updateToast) {
+                                            updateToast.remove();
+                                            updateToast = null;
+                                        }
+                                    }, 400);
                                     newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                }
+                                    setTimeout(() => window.location.reload(), 500);
+                                });
+
+                                // 點擊關閉按鈕
+                                btns[1].addEventListener('click', () => {
+                                    updateToast.style.animation = 'toastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                    setTimeout(() => {
+                                        if (updateToast) {
+                                            updateToast.remove();
+                                            updateToast = null;
+                                        }
+                                    }, 350);
+                                });
+
+                                // 10分鐘後自動消失
+                                setTimeout(() => {
+                                    if (updateToast) {
+                                        updateToast.style.animation = 'toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                        setTimeout(() => {
+                                            if (updateToast) {
+                                                updateToast.remove();
+                                                updateToast = null;
+                                            }
+                                        }, 400);
+                                    }
+                                }, 600000);
                             }
                         });
-                    });
-
-                    let refreshing = false;
-                    navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        if (refreshing) return;
-                        refreshing = true;
-                        window.location.reload();
                     });
 
                 } catch (error) {
