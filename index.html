@@ -7,7 +7,7 @@
 
     <title>汪汪犬旅 | 數位契約填寫系統</title>
     
-    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="manifest" href="manifest.json?v=10">
     <meta name="theme-color" content="#736357">
     
     <link rel="icon" type="image/png" href="icon.png">
@@ -1574,178 +1574,271 @@ const handleSubmit = async () => {
     const petListToSubmit = petList.map((p,i)=> 
         i===currentPetIdx ? {...p, ...currentPetData, name: formData.pet_name || p.name} : p
     );
-const focusFirstError = (errs) => {
-    const order = [
-        'email','owner_name','phone','owner_id','address',
-        'emergency_name','emergency_phone',
-        'pet_type','pet_name','breed','weight','age','sex','fix',
-        'dog_traits','grooming_temperament','chip_status','chip_id',
-        'medical_status','medical_history','medical_history_other',
-        'checkin_date','checkout_date','is_barking','barking_detail',
-        'stay_exp','food_aggr','pad_toilet','vaccine','vaccine_file',
-        'deworm','deworm_brand','crate_status','pica_status','pica_note',
-        'diet_habits','diet_other','feeding_note','personality',
-        'grooming_date','grooming_time','grooming_aggressive','grooming_dog_friendly','grooming_snack_soothe','service_type','service_type_other',
-        'legal_agree','signature'
-    ];
 
-    const first = order.find(k => errs[k]);
-    if (!first) return;
+    // ==================== 統一的錯誤聚焦函數 ====================
+    const focusFirstError = (errs) => {
+        if (!errs || Object.keys(errs).length === 0) return;
 
-    let el =
-        document.querySelector(`[name="${first}"]`) ||
-        document.getElementById(first) ||
-        document.querySelector(`#${first} input, #${first} textarea, #${first} button`);
+        const order = [
+            'email','owner_name','phone','owner_id','address',
+            'emergency_name','emergency_phone',
+            'pet_type','pet_name','breed','weight','age','sex','fix',
+            'dog_traits','grooming_temperament','chip_status','chip_id',
+            'medical_status','medical_history','medical_history_other',
+            'checkin_date','checkout_date','is_barking','barking_detail',
+            'stay_exp','food_aggr','pad_toilet','vaccine','vaccine_file',
+            'deworm','deworm_brand','crate_status','pica_status','pica_note',
+            'diet_habits','diet_other','feeding_note','personality',
+            'grooming_date','grooming_time','grooming_aggressive','grooming_dog_friendly','grooming_snack_soothe','service_type','service_type_other',
+            'legal_agree','signature'
+        ];
 
-    if (first === 'vaccine_file') el = document.getElementById('vaccine-label');
-    if (first === 'signature') el = document.getElementById('signature');
+        let firstKey = Object.keys(errs).find(k => order.some(base => k.startsWith(base + '_') || k === base));
+        if (!firstKey) firstKey = Object.keys(errs)[0];
+        if (!firstKey) return;
 
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        try { el.focus({ preventScroll: true }); } catch (e) {}
-    }
-};
-    // ✅ 多寵必填檢查（所有毛孩）
+        const baseField = firstKey.replace(/_\d+$/, '');
+
+        let el =
+            document.querySelector(`[name="${baseField}"]`) ||
+            document.querySelector(`[name="${firstKey}"]`) ||
+            document.getElementById(baseField) ||
+            document.getElementById(firstKey) ||
+            document.querySelector(`#${baseField} input, #${baseField} textarea, #${baseField} button`);
+
+        if (baseField === 'vaccine_file' || firstKey.includes('vaccine_file')) {
+            el = document.getElementById('vaccine-label');
+        }
+        if (baseField === 'signature' || firstKey.includes('signature')) {
+            el = document.getElementById('signature');
+        }
+
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try { el.focus({ preventScroll: true }); } catch (e) {}
+        }
+    };
+
+    // ==================== 多寵物驗證（先執行） ====================
     let firstInvalidIdx = null;
     const multiPetErrors = petListToSubmit.map(() => ({}));
-    const setFirst = (idx) => { if (firstInvalidIdx === null) firstInvalidIdx = idx; };
+    const setFirst = (idx) => { 
+        if (firstInvalidIdx === null) firstInvalidIdx = idx; 
+    };
     const setPetError = (idx, field, msg) => {
         if (!multiPetErrors[idx]) multiPetErrors[idx] = {};
         multiPetErrors[idx][field] = msg;
+        setFirst(idx);
     };
 
-        petListToSubmit.forEach((pet, idx) => {
-            const name = pet.pet_name || `寵物${idx+1}`;
-            const isCat = pet.pet_type === '貓咪';
-            const isDog = pet.pet_type === '狗狗';
+    petListToSubmit.forEach((pet, idx) => {
+        const petName = pet.pet_name || `寵物${idx+1}`;
+        const isCat = pet.pet_type === '貓咪';
+        const isDog = pet.pet_type === '狗狗';
 
-            // ===== 基本必填（所有寵物） =====
-            if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${name} 名字`); setFirst(idx); }
-            if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${name} 品種`); setFirst(idx); }
-            if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${name} 體重`); setFirst(idx); }
+        // --- 基本必填（所有寵物） ---
+        if (!pet.pet_name || pet.pet_name.trim() === '') { setPetError(idx, 'pet_name', `請填寫 ${petName} 名字`); }
+        if (!pet.breed || pet.breed.trim() === '') { setPetError(idx, 'breed', `請填寫 ${petName} 品種`); }
+        if (!pet.weight || parseFloat(pet.weight) <= 0) { setPetError(idx, 'weight', `請填寫 ${petName} 體重`); }
 
-            if (pet.is_under_one) {
-                if (!pet.age_months) { setPetError(idx, 'age', `請填寫 ${name} 月齡`); setFirst(idx); }
-            } else {
-                if (!pet.age) { setPetError(idx, 'age', `請填寫 ${name} 年齡`); setFirst(idx); }
+        if (pet.is_under_one) {
+            if (!pet.age_months) { setPetError(idx, 'age', `請選擇 ${petName} 月齡`); }
+        } else {
+            if (!pet.age) { setPetError(idx, 'age', `請填寫 ${petName} 年齡`); }
+        }
+
+        if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${petName} 類型`); }
+        if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${petName} 性別`); }
+        if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${petName} 結紮`); }
+        if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${petName} 晶片狀態`); }
+        if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { 
+            setPetError(idx, 'chip_id', `請填寫 ${petName} 晶片號碼`); 
+        }
+
+        // --- 社交狀況：僅狗狗需要 ---
+        if (isDog && (!pet.dog_traits || pet.dog_traits.length === 0)) {
+            setPetError(idx, 'dog_traits', `請勾選 ${petName} 社交狀況`);
+        }
+
+        if (!pet.grooming_temperament) { 
+            setPetError(idx, 'grooming_temperament', `請選擇 ${petName} 美容性情`); 
+        }
+
+        if (!pet.medical_status) { 
+            setPetError(idx, 'medical_status', `請選擇 ${petName} 病史狀況`); 
+        }
+        if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
+            setPetError(idx, 'medical_history', `請選擇 ${petName} 病史項目`); 
+        }
+        if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
+            setPetError(idx, 'medical_history_other', `請填寫 ${petName} 其他病史內容`);
+        }
+
+        // --- 住宿模式專用驗證 ---
+        if (isBoarding) {
+            // 疫苗與驅蟲
+            if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${petName} 疫苗狀況`); }
+            if (pet.vaccine === '有' && !pet.vaccine_file) { 
+                setPetError(idx, 'vaccine_file', `請上傳 ${petName} 疫苗手冊`); 
+            }
+            if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${petName} 驅蟲狀況`); }
+            if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { 
+                setPetError(idx, 'deworm_brand', `請填寫 ${petName} 驅蟲藥品牌`); 
             }
 
-            if (!pet.pet_type) { setPetError(idx, 'pet_type', `請選擇 ${name} 類型`); setFirst(idx); }
-            if (!pet.sex) { setPetError(idx, 'sex', `請選擇 ${name} 性別`); setFirst(idx); }
-            if (!pet.fix) { setPetError(idx, 'fix', `請選擇 ${name} 結紮`); setFirst(idx); }
-            if (!pet.chip_status) { setPetError(idx, 'chip_status', `請選擇 ${name} 晶片狀態`); setFirst(idx); }
-            if (pet.chip_status === '有晶片' && (!pet.chip_id || pet.chip_id.trim() === '')) { setPetError(idx, 'chip_id', `請填寫 ${name} 晶片號碼`); setFirst(idx); }
+            // 異食癖
+            if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${petName} 是否異食癖`); }
+            if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { 
+                setPetError(idx, 'pica_note', `請填寫 ${petName} 異食癖內容`); 
+            }
 
-            // ===== 社交狀況：僅狗狗需要 =====
+            // 飲食習慣
+            if (!pet.diet_habits || pet.diet_habits.length === 0) { 
+                setPetError(idx, 'diet_habits', `請選擇 ${petName} 飲食習慣`); 
+            }
+            if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
+                setPetError(idx, 'diet_other', `請填寫 ${petName} 其他飲食內容`); 
+            }
+
+            if (!pet.feeding_note || pet.feeding_note.trim() === '') { 
+                setPetError(idx, 'feeding_note', `請填寫 ${petName} 餵食說明`); 
+            }
+            if (!pet.personality || pet.personality.trim() === '') { 
+                setPetError(idx, 'personality', `請填寫 ${petName} 個性描述`); 
+            }
+
+            // 狗狗專用欄位
             if (isDog) {
-                if (!pet.dog_traits || pet.dog_traits.length === 0) {
-                    setPetError(idx, 'dog_traits', `請勾選 ${name} 社交狀況`);
-                    setFirst(idx);
+                if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${petName} 是否會吠叫`); }
+                if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { 
+                    setPetError(idx, 'barking_detail', `請填寫 ${petName} 吠叫說明`); 
+                }
+                if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${petName} 尿布墊習慣`); }
+                if (!pet.crate_status || pet.crate_status.length === 0) { 
+                    setPetError(idx, 'crate_status', `請選擇 ${petName} 籠內訓練`); 
                 }
             }
 
-            if (!pet.grooming_temperament) { setPetError(idx, 'grooming_temperament', `請選擇 ${name} 美容性情`); setFirst(idx); }
-
-            if (!pet.medical_status) { setPetError(idx, 'medical_status', `請選擇 ${name} 病史狀況`); setFirst(idx); }
-            if (pet.medical_status === '有' && (!pet.medical_history || pet.medical_history.length === 0)) { 
-                setPetError(idx, 'medical_history', `請選擇 ${name} 病史項目`); 
-                setFirst(idx); 
-            }
-            if (pet.medical_status === '有' && pet.medical_history && pet.medical_history.includes('其他') && (!pet.medical_history_other || pet.medical_history_other.trim() === '')) {
-                setPetError(idx, 'medical_history_other', `請填寫 ${name} 其他病史內容`);
-                setFirst(idx);
+            // 貓咪專用欄位
+            if (isCat) {
+                if (!pet.cat_litter_habit) { 
+                    setPetError(idx, 'cat_litter_habit', `請選擇 ${petName} 貓砂使用習慣`); 
+                }
+                if (!pet.boarding_grooming) { 
+                    setPetError(idx, 'boarding_grooming', `請選擇 ${petName} 住宿期間是否安排美容`); 
+                }
             }
 
-            // ===== 住宿專用驗證 =====
-            if (isBoarding) {
-                // --- 疫苗與驅蟲（所有寵物都需要） ---
-                if (!pet.vaccine) { setPetError(idx, 'vaccine', `請選擇 ${name} 疫苗狀況`); setFirst(idx); }
-                if (pet.vaccine === '有' && !pet.vaccine_file) { setPetError(idx, 'vaccine_file', `請上傳 ${name} 疫苗手冊`); setFirst(idx); }
-
-                if (!pet.deworm) { setPetError(idx, 'deworm', `請選擇 ${name} 驅蟲狀況`); setFirst(idx); }
-                if (pet.deworm === '有' && (!pet.deworm_brand || pet.deworm_brand.trim() === '')) { setPetError(idx, 'deworm_brand', `請填寫 ${name} 驅蟲藥品牌`); setFirst(idx); }
-
-                // --- 異食癖（所有寵物都需要） ---
-                if (!pet.pica_status) { setPetError(idx, 'pica_status', `請選擇 ${name} 是否異食癖`); setFirst(idx); }
-                if (pet.pica_status === '有' && (!pet.pica_note || pet.pica_note.trim() === '')) { setPetError(idx, 'pica_note', `請填寫 ${name} 異食癖內容`); setFirst(idx); }
-
-                // --- 飲食習慣（所有寵物都需要） ---
-                if (!pet.diet_habits || pet.diet_habits.length === 0) { setPetError(idx, 'diet_habits', `請選擇 ${name} 飲食習慣`); setFirst(idx); }
-                if (pet.diet_habits && pet.diet_habits.includes('其他') && (!pet.diet_other || pet.diet_other.trim() === '')) { 
-                    setPetError(idx, 'diet_other', `請填寫 ${name} 其他飲食內容`); 
-                    setFirst(idx); 
-                }
-
-                if (!pet.feeding_note || pet.feeding_note.trim() === '') { setPetError(idx, 'feeding_note', `請填寫 ${name} 餵食說明`); setFirst(idx); }
-                if (!pet.personality || pet.personality.trim() === '') { setPetError(idx, 'personality', `請填寫 ${name} 個性描述`); setFirst(idx); }
-
-                // --- 狗狗專用欄位 ---
-                if (isDog) {
-                    if (!pet.is_barking) { setPetError(idx, 'is_barking', `請選擇 ${name} 是否會吠叫`); setFirst(idx); }
-                    if (pet.is_barking === '會' && (!pet.barking_detail || pet.barking_detail.trim() === '')) { setPetError(idx, 'barking_detail', `請填寫 ${name} 吠叫說明`); setFirst(idx); }
-                    if (!pet.pad_toilet) { setPetError(idx, 'pad_toilet', `請選擇 ${name} 尿布墊習慣`); setFirst(idx); }
-                    if (!pet.crate_status || pet.crate_status.length === 0) { setPetError(idx, 'crate_status', `請選擇 ${name} 籠內訓練`); setFirst(idx); }
-                }
-
-                // --- 貓咪專用欄位 ---
-                if (isCat) {
-                    if (!pet.cat_litter_habit) { 
-                        setPetError(idx, 'cat_litter_habit', `請選擇 ${name} 貓砂使用習慣`); 
-                        setFirst(idx); 
-                    }
-                }
-
-                // --- 所有寵物共用（但狗狗和貓咪都有） ---
-                if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${name} 住宿經驗`); setFirst(idx); }
-                if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${name} 是否護食`); setFirst(idx); }
+            // 所有寵物共用
+            if (!pet.stay_exp) { setPetError(idx, 'stay_exp', `請選擇 ${petName} 住宿經驗`); }
+            if (!pet.food_aggr) { setPetError(idx, 'food_aggr', `請選擇 ${petName} 是否護食`); }
+        } else {
+            // --- 美容模式專用驗證 ---
+            if (!pet.grooming_date) { 
+                setPetError(idx, 'grooming_date', `請選擇 ${petName} 預約日期`); 
             }
+            if (!pet.grooming_time) { 
+                setPetError(idx, 'grooming_time', `請選擇 ${petName} 預約時段`); 
+            }
+            if (!pet.grooming_aggressive) { 
+                setPetError(idx, 'grooming_aggressive', `請選擇 ${petName} 攻擊性`); 
+            }
+            if (!pet.grooming_dog_friendly) { 
+                setPetError(idx, 'grooming_dog_friendly', `請選擇 ${petName} 與狗的相處狀況`); 
+            }
+            if (!pet.grooming_snack_soothe) { 
+                setPetError(idx, 'grooming_snack_soothe', `請選擇 ${petName} 是否接受餵零食安撫`); 
+            }
+            if (!pet.service_type) { 
+                setPetError(idx, 'service_type', `請選擇 ${petName} 服務項目`); 
+            }
+            if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
+                setPetError(idx, 'service_type_other', `請填寫 ${petName} 其他服務內容`);
+            }
+        }
+    });
+
+    // ---- 如果有任何多寵物錯誤，先處理這些錯誤 ----
+    if (firstInvalidIdx !== null) {
+        setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
+        handleSwitchPet(firstInvalidIdx);
+        setErrors(multiPetErrors[firstInvalidIdx] || {});
+
+        const allErrors = [];
+        const fieldDisplayNames = {
+            'pet_name': '名字',
+            'pet_type': '類型',
+            'breed': '品種',
+            'weight': '體重',
+            'age': '年齡',
+            'sex': '性別',
+            'fix': '結紮',
+            'chip_status': '晶片狀態',
+            'chip_id': '晶片號碼',
+            'grooming_temperament': '美容性情',
+            'medical_status': '病史狀況',
+            'medical_history': '病史項目',
+            'medical_history_other': '其他病史',
+            'dog_traits': '社交狀況',
+            'checkin_date': '入住日期',
+            'checkout_date': '退房日期',
+            'stay_exp': '住宿經驗',
+            'food_aggr': '護食狀況',
+            'vaccine': '疫苗狀況',
+            'vaccine_file': '疫苗手冊照片',
+            'deworm': '驅蟲狀況',
+            'deworm_brand': '驅蟲藥品牌',
+            'crate_status': '籠內訓練',
+            'pica_status': '異食癖',
+            'pica_note': '異食癖內容',
+            'diet_habits': '飲食習慣',
+            'diet_other': '其他飲食內容',
+            'feeding_note': '餵食說明',
+            'personality': '個性描述',
+            'is_barking': '吠叫狀況',
+            'barking_detail': '吠叫說明',
+            'pad_toilet': '尿布墊習慣',
+            'cat_litter_habit': '貓砂使用習慣',
+            'boarding_grooming': '住宿期間美容',
+            'grooming_date': '預約日期',
+            'grooming_time': '預約時段',
+            'grooming_aggressive': '攻擊性',
+            'grooming_dog_friendly': '與狗相處',
+            'grooming_snack_soothe': '餵零食安撫',
+            'service_type': '服務項目',
+            'service_type_other': '其他服務內容'
+        };
+
+        petList.forEach((pet, idx) => {
+            const petErrors = multiPetErrors[idx] || {};
+            const errorKeys = Object.keys(petErrors);
+            if (errorKeys.length === 0) return;
+
+            const petName = pet.pet_name || pet.name || `寵物 ${idx+1}`;
+            errorKeys.forEach(key => {
+                const baseField = key.replace(/_\d+$/, '');
+                const fieldName = fieldDisplayNames[baseField] || key;
+                allErrors.push(`${petName} 的「${fieldName}」`);
+            });
         });
 
-if (firstInvalidIdx !== null) {
-    setPetList(prev => prev.map((p, i) => ({ ...p, _errors: multiPetErrors[i] || {} })));
-    handleSwitchPet(firstInvalidIdx);
-    setErrors(multiPetErrors[firstInvalidIdx] || {});
-    
-    // ✅ 顯示更具體的錯誤訊息
-    const errorFields = Object.keys(multiPetErrors[firstInvalidIdx] || {});
-    const fieldNames = {
-        'cat_litter_habit': '貓砂使用習慣',
-        'vaccine': '疫苗狀況',
-        'vaccine_file': '疫苗手冊照片',
-        'deworm': '驅蟲狀況',
-        'deworm_brand': '驅蟲藥品牌',
-        'pica_status': '異食癖',
-        'pica_note': '異食癖內容',
-        'diet_habits': '飲食習慣',
-        'diet_other': '其他飲食內容',
-        'feeding_note': '餵食說明',
-        'personality': '個性描述',
-        'stay_exp': '住宿經驗',
-        'food_aggr': '護食狀況',
-        'pet_name': '寵物名字',
-        'breed': '品種',
-        'weight': '體重',
-        'age': '年齡',
-        'pet_type': '寵物類型',
-        'sex': '性別',
-        'fix': '結紮',
-        'chip_status': '晶片狀態',
-        'chip_id': '晶片號碼',
-        'grooming_temperament': '美容性情',
-        'medical_status': '病史狀況',
-        'medical_history': '病史項目',
-        'boarding_grooming': '住宿期間美容'
-    };
-    const errorNames = errorFields.map(f => fieldNames[f] || f).join('、');
-    showToast(`⚠️ 請修正 ${errorFields.length} 個錯誤欄位：${errorNames}`, "error");
+        const totalErrors = allErrors.length;
+        let errorMsg = '';
+        if (totalErrors <= 3) {
+            errorMsg = allErrors.join('、');
+        } else {
+            errorMsg = `${allErrors.slice(0, 3).join('、')}...等 ${totalErrors} 個項目`;
+        }
 
-    // ✅ 等 tab 切換完，再跳到錯誤欄位
-    setTimeout(() => {
-        focusFirstError(multiPetErrors[firstInvalidIdx] || {});
-    }, 300);
+        showToast(`⚠️ 請修正 ${totalErrors} 個錯誤：${errorMsg}`, "error");
 
-    return;
-} else {
+        const firstPetErrors = multiPetErrors[firstInvalidIdx] || {};
+        setTimeout(() => {
+            focusFirstError(firstPetErrors);
+        }, 300);
+
+        return;
+    } else {
         setPetList(prev => prev.map(p => {
             const np = { ...p };
             delete np._errors;
@@ -1753,153 +1846,141 @@ if (firstInvalidIdx !== null) {
         }));
     }
 
+    // ==================== 飼主與共用欄位驗證 ====================
     const newErrors = {};
-const requiredText = ['email', 'owner_name', 'phone','address', 'emergency_name', 'emergency_phone', 'pet_name', 'breed', 'weight'];
-    requiredText.forEach(f => { if (!formData[f] || formData[f].toString().trim() === '') newErrors[f] = ERROR_MESSAGES[f]; });
+    const requiredText = ['email', 'owner_name', 'phone', 'address', 'emergency_name', 'emergency_phone'];
+    requiredText.forEach(f => { 
+        if (!formData[f] || formData[f].toString().trim() === '') {
+            newErrors[f] = ERROR_MESSAGES[f] || `請填寫 ${f}`;
+        }
+    });
 
-    // 身分證驗證邏輯調整
     if (isBoarding) {
-        // 住宿模式：必填且須驗證格式
         if (!formData.owner_id) newErrors.owner_id = ERROR_MESSAGES.owner_id;
         else if (!validateTwIDorARC(formData.owner_id)) newErrors.owner_id = ERROR_MESSAGES.owner_id;
     } else {
-        // 美容模式：非必填，但若有填寫則需驗證格式
-if (formData.owner_id && !validateTwIDorARC(formData.owner_id)) {
-    newErrors.owner_id = ERROR_MESSAGES.owner_id;
-}
+        if (formData.owner_id && !validateTwIDorARC(formData.owner_id)) {
+            newErrors.owner_id = ERROR_MESSAGES.owner_id;
+        }
     }
 
+    if (formData.email && !validateEmail(formData.email)) newErrors.email = ERROR_MESSAGES.email;
+    if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = ERROR_MESSAGES.phone;
+    if (formData.emergency_phone && !validatePhone(formData.emergency_phone)) newErrors.emergency_phone = ERROR_MESSAGES.emergency_phone;
+
     if (formData.is_under_one) {
-                    if (!formData.age_months) newErrors.age = '請選擇月齡';
-                } else {
-                    if (!formData.age) newErrors.age = '請輸入年齡';
-                }
+        if (!formData.age_months) newErrors.age = '請選擇月齡';
+    } else {
+        if (!formData.age) newErrors.age = '請輸入年齡';
+    }
+    if (!formData.weight || parseFloat(formData.weight) <= 0) newErrors.weight = ERROR_MESSAGES.weight;
+    if (!formData.pet_type) newErrors.pet_type = ERROR_MESSAGES.pet_type;
+    if (!formData.sex) newErrors.sex = ERROR_MESSAGES.sex;
+    if (!formData.fix) newErrors.fix = ERROR_MESSAGES.fix;
+    if (!formData.chip_status) newErrors.chip_status = ERROR_MESSAGES.chip_status;
+    if (formData.chip_status === '有晶片' && (!formData.chip_id || formData.chip_id.trim() === '')) {
+        newErrors.chip_id = '請輸入晶片號碼';
+    }
+    if (formData.pet_type === '狗狗' && (formData.dog_traits || []).length === 0) {
+        newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
+    }
+    if (!formData.grooming_temperament) newErrors.grooming_temperament = ERROR_MESSAGES.grooming_temperament;
+    if (!formData.medical_status) newErrors.medical_status = ERROR_MESSAGES.medical_status;
+    else if (formData.medical_status === '有' && (formData.medical_history || []).length === 0) {
+        newErrors.medical_history = ERROR_MESSAGES.medical_history;
+    }
+    if (formData.medical_status === '有' && safeIncludes(formData.medical_history, '其他') && (!formData.medical_history_other || formData.medical_history_other.trim() === '')) {
+        newErrors.medical_history_other = '請填寫其他病史內容';
+    }
 
-                if (formData.email && !validateEmail(formData.email)) newErrors.email = ERROR_MESSAGES.email;
-                if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = ERROR_MESSAGES.phone;
-                if (formData.emergency_phone && !validatePhone(formData.emergency_phone)) newErrors.emergency_phone = ERROR_MESSAGES.emergency_phone;
-
-                
-                if (!formData.weight || parseFloat(formData.weight) <= 0) {
-                     newErrors.weight = ERROR_MESSAGES.weight;
-                }
-                if (!formData.pet_type) newErrors.pet_type = ERROR_MESSAGES.pet_type;
-                if (!formData.sex) newErrors.sex = ERROR_MESSAGES.sex;
-                if (!formData.fix) newErrors.fix = ERROR_MESSAGES.fix;
-                if (!formData.chip_status) newErrors.chip_status = ERROR_MESSAGES.chip_status;
-                
-                if (formData.chip_status === '有晶片' && (!formData.chip_id || formData.chip_id.trim() === '')) {
-                    newErrors.chip_id = '請輸入晶片號碼';
-                }
-// 社交狀況：僅狗狗需要驗證
-if (formData.pet_type === '狗狗' && (formData.dog_traits || []).length === 0) {
-    newErrors.dog_traits = ERROR_MESSAGES.dog_traits;
-}
-if (!formData.medical_status) newErrors.medical_status = ERROR_MESSAGES.medical_status;
-else if (formData.medical_status === '有' && (formData.medical_history || []).length === 0) newErrors.medical_history = ERROR_MESSAGES.medical_history;
-
-if (formData.medical_status === '有' && safeIncludes(formData.medical_history, '其他') && (!formData.medical_history_other || formData.medical_history_other.trim() === '')) {
-    newErrors.medical_history_other = '請填寫其他病史內容';
-}
-
-                if (isBoarding) {
-                    if (!formData.checkin_date) newErrors.checkin_date = ERROR_MESSAGES.checkin_date;
-                    if (!formData.checkout_date) newErrors.checkout_date = ERROR_MESSAGES.checkout_date;
-
-                    if (formData.checkin_date && formData.checkout_date) {
-                        const start = new Date(formData.checkin_date);
-                        const end = new Date(formData.checkout_date);
-                        if (end <= start) {
-                            newErrors.checkout_date = '退房日期必須晚於入住日期';
-                        }
-                    }
-                    
-                    // 狗狗專用欄位（貓咪跳過）
-                    if (formData.pet_type === '狗狗') {
-                        if (!formData.is_barking) newErrors.is_barking = ERROR_MESSAGES.is_barking;
-                        if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) newErrors.barking_detail = ERROR_MESSAGES.barking_detail;
-                        if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
-                        if ((formData.crate_status || []).length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
-                    }
-                    
-                    // 所有寵物共用（狗狗和貓咪都需要）
-                    if (!formData.stay_exp) newErrors.stay_exp = ERROR_MESSAGES.stay_exp;
-                    if (!formData.food_aggr) newErrors.food_aggr = ERROR_MESSAGES.food_aggr;
-                    if (!formData.vaccine) newErrors.vaccine = ERROR_MESSAGES.vaccine;
-                    if (formData.vaccine === '有' && !formData.vaccine_file) newErrors.vaccine_file = ERROR_MESSAGES.vaccine_file;
-                    if (!formData.deworm) newErrors.deworm = ERROR_MESSAGES.deworm;
-                    if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) newErrors.deworm_brand = ERROR_MESSAGES.deworm_brand;
-
-                    if (!formData.pica_status) newErrors.pica_status = ERROR_MESSAGES.pica_status;
-                    if (formData.pica_status === '有' && (!formData.pica_note || formData.pica_note.trim() === '')) newErrors.pica_note = ERROR_MESSAGES.pica_note;
-                    if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MESSAGES.diet_habits;
-
-                    if (!formData.feeding_note || formData.feeding_note.trim() === '') newErrors.feeding_note = ERROR_MESSAGES.feeding_note;
-                    
-                    if (!formData.personality) newErrors.personality = ERROR_MESSAGES.personality;
-                    
-                    if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = ERROR_MESSAGES.boarding_notice_agree;
-} else {
-    const isMultiPet = petListToSubmit.length > 1;
-    petListToSubmit.forEach((pet, idx) => {
-        const petName = pet.pet_name || `寵物${idx+1}`;
-        const prefix = isMultiPet ? `${petName} 的 ` : '';
-        if (!pet.grooming_date) newErrors[`grooming_date_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}預約日期`;
-        if (!pet.grooming_time) newErrors[`grooming_time_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}預約時段`;
-        if (!pet.grooming_aggressive) newErrors[`grooming_aggressive_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}攻擊性`;
-        if (!pet.grooming_dog_friendly) newErrors[`grooming_dog_friendly_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}與狗的相處狀況`;
-        if (!pet.grooming_snack_soothe) newErrors[`grooming_snack_soothe_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}是否接受餵零食安撫`;
-        if (!pet.service_type) newErrors[`service_type_${idx}`] = `請選擇${isMultiPet ? ` ${petName} 的` : ''}服務項目`;
-        if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
-            newErrors[`service_type_other_${idx}`] = `請填寫${isMultiPet ? ` ${petName} 的` : ''}其他服務內容`;
+    // ==================== 住宿模式額外驗證 ====================
+    if (isBoarding) {
+        if (!formData.checkin_date) newErrors.checkin_date = ERROR_MESSAGES.checkin_date;
+        if (!formData.checkout_date) newErrors.checkout_date = ERROR_MESSAGES.checkout_date;
+        if (formData.checkin_date && formData.checkout_date) {
+            const start = new Date(formData.checkin_date);
+            const end = new Date(formData.checkout_date);
+            if (end <= start) {
+                newErrors.checkout_date = '退房日期必須晚於入住日期';
+            }
         }
-    });
-}
 
-// --- 嚴格條款閱讀驗證 (使用統一邏輯) ---
-                if (!allTermsRead) {
-                    showToast("⚠️ 請先點擊並詳閱上方所有條款（需滑動至底部並同意）", "error");
-                    
-                    // 🔴 (已修改) 設定錯誤狀態，讓下方條款區塊變紅
-                    newErrors.legal_agree = "請先完成條款閱讀";
-                    setErrors(newErrors);
+        if (formData.pet_type === '狗狗') {
+            if (!formData.is_barking) newErrors.is_barking = ERROR_MESSAGES.is_barking;
+            if (formData.is_barking === '會' && (!formData.barking_detail || formData.barking_detail.trim() === '')) {
+                newErrors.barking_detail = ERROR_MESSAGES.barking_detail;
+            }
+            if (!formData.pad_toilet) newErrors.pad_toilet = ERROR_MESSAGES.pad_toilet;
+            if ((formData.crate_status || []).length === 0) newErrors.crate_status = ERROR_MESSAGES.crate_status;
+        }
 
-                    // 自動幫用戶找出哪一個還沒讀，並滾動到該處
-                    if (!termsRead.grooming) document.getElementById('btn-term-grooming')?.scrollIntoView({block: 'center'});
-                    else if (isBoarding && !termsRead.boarding) document.getElementById('btn-term-boarding')?.scrollIntoView({block: 'center'});
-                    else if (isHighRisk && !termsRead.senior) setActiveModal('senior');
-                    else if (isBoarding && isHighRisk && !termsRead.boardingRisk) setActiveModal('boardingRisk');
-                    
-                    return; // 中斷提交
-                }
+        if (formData.pet_type === '貓咪') {
+            if (!formData.cat_litter_habit) newErrors.cat_litter_habit = ERROR_MESSAGES.cat_litter_habit;
+            if (!formData.boarding_grooming) newErrors.boarding_grooming = ERROR_MESSAGES.boarding_grooming;
+        }
 
-                if (!formData.legal_agree) newErrors.legal_agree = ERROR_MESSAGES.legal_agree;
-                if (!realtimeSig) newErrors.signature = ERROR_MESSAGES.signature;
-                if (!formData.media_consent) newErrors.media_consent = ERROR_MESSAGES.media_consent;
-                
-                // 住宿模式：貓咪需驗證貓砂習慣
-                if (isBoarding && formData.pet_type === '貓咪' && !formData.cat_litter_habit) {
-                    newErrors.cat_litter_habit = ERROR_MESSAGES.cat_litter_habit;
-                }
-                
-// 住宿模式：僅貓咪需驗證是否選擇住宿期間美容
-if (isBoarding && formData.pet_type === '貓咪' && !formData.boarding_grooming) {
-    newErrors.boarding_grooming = ERROR_MESSAGES.boarding_grooming;
-}
+        if (!formData.stay_exp) newErrors.stay_exp = ERROR_MESSAGES.stay_exp;
+        if (!formData.food_aggr) newErrors.food_aggr = ERROR_MESSAGES.food_aggr;
+        if (!formData.vaccine) newErrors.vaccine = ERROR_MESSAGES.vaccine;
+        if (formData.vaccine === '有' && !formData.vaccine_file) newErrors.vaccine_file = ERROR_MESSAGES.vaccine_file;
+        if (!formData.deworm) newErrors.deworm = ERROR_MESSAGES.deworm;
+        if (formData.deworm === '有' && (!formData.deworm_brand || formData.deworm_brand.trim() === '')) {
+            newErrors.deworm_brand = ERROR_MESSAGES.deworm_brand;
+        }
+        if (!formData.pica_status) newErrors.pica_status = ERROR_MESSAGES.pica_status;
+        if (formData.pica_status === '有' && (!formData.pica_note || formData.pica_note.trim() === '')) {
+            newErrors.pica_note = ERROR_MESSAGES.pica_note;
+        }
+        if ((formData.diet_habits || []).length === 0) newErrors.diet_habits = ERROR_MESSAGES.diet_habits;
+        if (!formData.feeding_note || formData.feeding_note.trim() === '') newErrors.feeding_note = ERROR_MESSAGES.feeding_note;
+        if (!formData.personality) newErrors.personality = ERROR_MESSAGES.personality;
+        if (!formData.boarding_notice_agree) newErrors.boarding_notice_agree = ERROR_MESSAGES.boarding_notice_agree;
+    }
 
-setErrors(newErrors);
+    // ==================== 美容模式單寵驗證 ====================
+    if (!isBoarding && petListToSubmit.length === 1) {
+        const pet = petListToSubmit[0];
+        if (!pet.grooming_date) newErrors.grooming_date = ERROR_MESSAGES.grooming_date;
+        if (!pet.grooming_time) newErrors.grooming_time = ERROR_MESSAGES.grooming_time;
+        if (!pet.grooming_aggressive) newErrors.grooming_aggressive = ERROR_MESSAGES.grooming_aggressive;
+        if (!pet.grooming_dog_friendly) newErrors.grooming_dog_friendly = ERROR_MESSAGES.grooming_dog_friendly;
+        if (!pet.service_type) newErrors.service_type = ERROR_MESSAGES.service_type;
+        if (pet.service_type === '其他項目' && (!pet.service_type_other || pet.service_type_other.trim() === '')) {
+            newErrors.service_type_other = ERROR_MESSAGES.service_type_other;
+        }
+    }
 
-const errorKeys = Object.keys(newErrors);
-if (errorKeys.length > 0) {
-    // ✅ 等 React 畫面更新後再跳
-    setTimeout(() => {
-        focusFirstError(newErrors);
-    }, 200);
+    // ==================== 條款閱讀與最終驗證 ====================
+    if (!allTermsRead) {
+        showToast("⚠️ 請先點擊並詳閱上方所有條款（需滑動至底部並同意）", "error");
+        newErrors.legal_agree = "請先完成條款閱讀";
+        setErrors(newErrors);
+        
+        if (!termsRead.grooming) {
+            document.getElementById('btn-term-grooming')?.scrollIntoView({ block: 'center' });
+        } else if (isBoarding && !termsRead.boarding) {
+            document.getElementById('btn-term-boarding')?.scrollIntoView({ block: 'center' });
+        } else if (isHighRisk && !termsRead.senior) {
+            setActiveModal('senior');
+        } else if (isBoarding && isHighRisk && !termsRead.boardingRisk) {
+            setActiveModal('boardingRisk');
+        }
+        return;
+    }
 
-    showToast(`⚠️ 請修正 ${errorKeys.length} 個錯誤欄位`);
-    return;
-}
+    if (!formData.legal_agree) newErrors.legal_agree = ERROR_MESSAGES.legal_agree;
+    if (!realtimeSig) newErrors.signature = ERROR_MESSAGES.signature;
+    if (!formData.media_consent) newErrors.media_consent = ERROR_MESSAGES.media_consent;
 
+    setErrors(newErrors);
+    const errorKeys = Object.keys(newErrors);
+    if (errorKeys.length > 0) {
+        setTimeout(() => {
+            focusFirstError(newErrors);
+        }, 200);
+        showToast(`⚠️ 請修正 ${errorKeys.length} 個錯誤欄位`);
+        return;
+    }
                 setIsSubmitting(true);
                try {
                     let signatureUrl = null;
@@ -2052,8 +2133,12 @@ ${isBoarding ? `
     <tr><td class="label">退房日期</td><td class="value">${formData.checkout_date}</td></tr>
     <tr><td class="label">攻擊性</td><td class="value">${pet.grooming_aggressive || ''}</td></tr>
     <tr><td class="label">與狗相處</td><td class="value">${pet.grooming_dog_friendly || ''}</td></tr>
-    <tr><td class="label">接受餵零食安撫</td><td class="value">${pet.grooming_snack_soothe || ''}</td></tr>
     ${formData.boarding_grooming ? `<tr><td class="label">住宿期間美容</td><td class="value">${formData.boarding_grooming}</td></tr>` : ''}
+` : ''}
+${!isBoarding ? `
+    <tr><td class="label">攻擊性</td><td class="value">${pet.grooming_aggressive || ''}</td></tr>
+    <tr><td class="label">與狗相處</td><td class="value">${pet.grooming_dog_friendly || ''}</td></tr>
+    <tr><td class="label">接受餵零食安撫</td><td class="value">${pet.grooming_snack_soothe || ''}</td></tr>
 ` : ''}
             ${!isBoarding && pet.service_type === '其他項目' ? `<tr><td class="label">說明</td><td class="value">${pet.service_type_other || ''}</td></tr>` : ''}
 
@@ -2954,8 +3039,8 @@ const pillBtn = useCallback((field, val, active) => (
     <FieldError message={errors.grooming_dog_friendly} />
 </div>
 
-{/* 是否接受餵零食安撫情緒（僅住宿顯示） */}
-{isBoarding && (
+{/* 是否接受餵零食安撫情緒（僅美容顯示） */}
+{!isBoarding && (
     <div className="space-y-3" id="grooming_snack_soothe">
         <label className="text-xs font-bold text-slate-400 ml-1">是否接受餵零食安撫情緒 *</label>
         <div className={`flex gap-2 ${errors.grooming_snack_soothe ? 'group-error' : ''}`}>
@@ -3915,7 +4000,7 @@ const pillBtn = useCallback((field, val, active) => (
             window.addEventListener('load', async () => {
                 try {
                     // ✅ 每次更新只改這個數字！
-                    const VERSION = '7';
+                    const VERSION = '8';
                     
                     const registration = await navigator.serviceWorker.register(`./sw.js?v=${VERSION}`);
                     console.log('Service Worker 註冊成功');
